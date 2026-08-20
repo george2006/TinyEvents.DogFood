@@ -1,0 +1,17 @@
+namespace TinyEvents.Dogfood.Identity.Nested
+{
+    public static class EventContainer
+    {
+        public sealed record NestedEvent(string ScenarioId);
+    }
+}
+
+namespace TinyEvents.Dogfood.Identity.Rename.V2
+{
+    public sealed record RenamedEvent(string ScenarioId);
+}
+
+namespace TinyEvents.Dogfood.Identity.Moved
+{
+    public sealed record MovedEvent(string ScenarioId);
+}

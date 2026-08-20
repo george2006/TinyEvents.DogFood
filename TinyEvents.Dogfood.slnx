@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/identity/">
+    <Project Path="identity/TinyEvents.Dogfood.Identity.Contracts/TinyEvents.Dogfood.Identity.Contracts.csproj" />
+    <Project Path="identity/TinyEvents.Dogfood.Identity.Producer/TinyEvents.Dogfood.Identity.Producer.csproj" />
+    <Project Path="identity/TinyEvents.Dogfood.Identity.Worker/TinyEvents.Dogfood.Identity.Worker.csproj" />
+  </Folder>
+  <Project Path="../TinyEvents/src/TinyEvents.SourceGen/TinyEvents.SourceGen.csproj" />
+  <Project Path="../TinyEvents/src/TinyEvents.SqlServer.AdoNet/TinyEvents.SqlServer.AdoNet.csproj" />
+  <Project Path="../TinyEvents/src/TinyEvents.Worker/TinyEvents.Worker.csproj" />
+  <Project Path="../TinyEvents/src/TinyEvents/TinyEvents.csproj" />
+</Solution>
