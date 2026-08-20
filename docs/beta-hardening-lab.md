@@ -331,6 +331,15 @@ Close the currently asymmetric SQL Server/PostgreSQL evidence for claim, complet
 
 Create the smallest real hosted-worker application, durable probe tables, Docker configuration, and scenario artifact format. Prove TE-T01 and TE-W01.
 
+Implemented by `operations/Run-OperationalBaseline.ps1`. The first SQL Server EF Core acceptance run on 2026-08-20 proved:
+
+- business rows and outbox messages committed together for TE-T01;
+- one independently hosted worker drained 100 queued messages for TE-W01;
+- every outbox message reached `Processed`;
+- every committed operation produced one durable effect;
+- no duplicate effect was observed;
+- worker logs, observations, timings, configuration, and repository commits were retained per run.
+
 ### BETA-4 - Claims, crashes, and several workers
 
 Execute TE-W02 through TE-W13. Fix only demonstrated product defects; retain honest at-least-once behavior.

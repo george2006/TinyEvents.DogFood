@@ -4,8 +4,12 @@
     <Project Path="identity/TinyEvents.Dogfood.Identity.Producer/TinyEvents.Dogfood.Identity.Producer.csproj" />
     <Project Path="identity/TinyEvents.Dogfood.Identity.Worker/TinyEvents.Dogfood.Identity.Worker.csproj" />
   </Folder>
+  <Folder Name="/operations/">
+    <Project Path="operations/TinyEvents.Dogfood.Operations/TinyEvents.Dogfood.Operations.csproj" />
+  </Folder>
   <Project Path="../TinyEvents/src/TinyEvents.SourceGen/TinyEvents.SourceGen.csproj" />
   <Project Path="../TinyEvents/src/TinyEvents.SqlServer.AdoNet/TinyEvents.SqlServer.AdoNet.csproj" />
+  <Project Path="../TinyEvents/src/TinyEvents.SqlServer.EntityFrameworkCore/TinyEvents.SqlServer.EntityFrameworkCore.csproj" />
   <Project Path="../TinyEvents/src/TinyEvents.Worker/TinyEvents.Worker.csproj" />
   <Project Path="../TinyEvents/src/TinyEvents/TinyEvents.csproj" />
 </Solution>

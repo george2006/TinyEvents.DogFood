@@ -14,3 +14,4 @@ Until a hardened package is published, dogfood projects reference the sibling Ti
 
 - [Beta hardening plan](docs/beta-hardening-lab.md)
 - [Identity scenarios](identity/README.md)
+- [Operational baseline](operations/README.md)

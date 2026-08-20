@@ -1,0 +1,40 @@
+using Microsoft.Data.SqlClient;
+
+namespace TinyEvents.Dogfood.Operations;
+
+internal sealed class DogfoodEffectRecorder(
+    DogfoodSettings settings,
+    WorkerIdentity worker)
+{
+    public async ValueTask RecordAsync(
+        Guid operationId,
+        string scenarioId,
+        CancellationToken cancellationToken)
+    {
+        const string sql = """
+            INSERT INTO dbo.DogfoodEffects
+            (
+                OperationId,
+                ScenarioId,
+                WorkerId,
+                RecordedAtUtc
+            )
+            VALUES
+            (
+                @OperationId,
+                @ScenarioId,
+                @WorkerId,
+                @RecordedAtUtc
+            );
+            """;
+
+        await using var connection = new SqlConnection(settings.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@OperationId", operationId);
+        command.Parameters.AddWithValue("@ScenarioId", scenarioId);
+        command.Parameters.AddWithValue("@WorkerId", worker.Value);
+        command.Parameters.AddWithValue("@RecordedAtUtc", DateTimeOffset.UtcNow);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+}
