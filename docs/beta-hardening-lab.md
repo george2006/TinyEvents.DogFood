@@ -350,6 +350,10 @@ The first TE-W03 and TE-W04 SQL Server EF Core run on 2026-08-20 proved both sid
 
 TE-W05 then terminated the owner after its durable consumer effect but before outbox completion. The replacement worker respected the remaining lease, redelivered the event after expiry, and completed the outbox message. The durable evidence contained two consumer invocations for the same operation and one duplicate. That duplicate is the expected at-least-once boundary, not message loss or an engine defect; consumers that cannot tolerate repeated effects require application-level idempotency.
 
+TE-W04 also satisfies TE-W06 without a duplicate executable scenario: it starts replacement capacity immediately after the owner dies, proves the active lease remains protected, and resumes only beyond the SQL lease boundary.
+
+TE-W07 ran a ten-second consumer under a five-second claim with a competing worker. SQL evidence showed the competitor completed after the original lease expired while the slow invocation was still active. The slow invocation then persisted a second effect, detected its lost completion lease through `TinyOutboxLeaseLostException`, emitted the expected structured warning, and remained alive. This is an accepted V1 limitation of claims without heartbeat renewal.
+
 Run the repeatable lease scenarios with:
 
 ```powershell

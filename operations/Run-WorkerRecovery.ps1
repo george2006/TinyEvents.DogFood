@@ -236,6 +236,48 @@ function Wait-ForDuplicateCompletion {
     throw "Worker '$WorkerId' did not complete the expected redelivery within thirty seconds."
 }
 
+function Wait-ForCompetingCompletion {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$OriginalWorker,
+        [System.Diagnostics.Process]$CompetingWorker,
+        [string]$OriginalWorkerId,
+        [string]$CompetingWorkerId
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($OriginalWorker.HasExited) {
+            throw "Original worker '$OriginalWorkerId' exited before its slow consumer completed. Exit code: $($OriginalWorker.ExitCode)."
+        }
+
+        if ($CompetingWorker.HasExited) {
+            throw "Competing worker '$CompetingWorkerId' exited before completing the reclaimed message. Exit code: $($CompetingWorker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+        $originalEffect = $observation.WorkerEffects.PSObject.Properties[$OriginalWorkerId]
+        $competingClaim = $observation.WorkerClaims.PSObject.Properties[$CompetingWorkerId]
+        $competingEffect = $observation.WorkerEffects.PSObject.Properties[$CompetingWorkerId]
+
+        if ($observation.ProcessedMessages -eq 1 -and
+            $observation.ProcessingMessages -eq 0 -and
+            $observation.Effects -eq 1 -and
+            $null -eq $originalEffect -and
+            $null -ne $competingClaim -and
+            $competingClaim.Value -eq 1 -and
+            $null -ne $competingEffect -and
+            $competingEffect.Value -eq 1) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Competing worker '$CompetingWorkerId' did not complete while '$OriginalWorkerId' remained active."
+}
+
 function Assert-WorkerOwnsResult {
     param(
         [pscustomobject]$Observation,
@@ -473,6 +515,96 @@ function Invoke-EffectBeforeDeathScenario {
     return [pscustomobject]$result
 }
 
+function Invoke-LongConsumerScenario {
+    param(
+        [string]$Assembly,
+        [string]$ArtifactDirectory
+    )
+
+    $scenarioDirectory = Join-Path $ArtifactDirectory "TE-W07"
+    New-Item -ItemType Directory -Force -Path $scenarioDirectory | Out-Null
+
+    Invoke-LoggedProcess $Assembly @("reset") $scenarioDirectory "reset"
+    Invoke-LoggedProcess $Assembly @("publish", "TE-W07", "1") $scenarioDirectory "publish"
+
+    $slowWorkerId = "TE-W07-slow-owner"
+    $competingWorkerId = "TE-W07-competitor"
+    $slowWorker = Start-Worker $Assembly $slowWorkerId 10000 0 $scenarioDirectory
+    $competingWorker = $null
+
+    try {
+        $claimed = Wait-ForClaim $Assembly $slowWorker $slowWorkerId
+        Save-Observation $claimed $scenarioDirectory "slow-consumer-claimed"
+
+        $competingWorker = Start-Worker $Assembly $competingWorkerId 0 0 $scenarioDirectory
+        $competingCompletion = Wait-ForCompetingCompletion `
+            $Assembly `
+            $slowWorker `
+            $competingWorker `
+            $slowWorkerId `
+            $competingWorkerId
+        Save-Observation $competingCompletion $scenarioDirectory "competitor-completed"
+
+        $bothInvocationsCompleted = Wait-ForDuplicateCompletion $Assembly $slowWorker $slowWorkerId
+        Start-Sleep -Milliseconds 500
+
+        $slowWorkerSurvivedLeaseLoss = -not $slowWorker.HasExited
+        Save-Observation $bothInvocationsCompleted $scenarioDirectory "slow-consumer-completed"
+
+        $originalClaimExpiry = [DateTimeOffset]$claimed.EarliestClaimExpiresAtUtc
+        $competingCompletionDatabaseTime = [DateTimeOffset]$competingCompletion.DatabaseUtcNow
+        $leaseExpiredBeforeCompetingCompletion =
+            $competingCompletionDatabaseTime -ge $originalClaimExpiry
+        $slowWorkerEffect = $bothInvocationsCompleted.WorkerEffects.PSObject.Properties[$slowWorkerId]
+        $competingWorkerClaim = $bothInvocationsCompleted.WorkerClaims.PSObject.Properties[$competingWorkerId]
+        $competingWorkerEffect = $bothInvocationsCompleted.WorkerEffects.PSObject.Properties[$competingWorkerId]
+        $passed =
+            $leaseExpiredBeforeCompetingCompletion -and
+            $slowWorkerSurvivedLeaseLoss -and
+            $competingCompletion.ProcessedMessages -eq 1 -and
+            $competingCompletion.Effects -eq 1 -and
+            $null -eq $competingCompletion.WorkerEffects.PSObject.Properties[$slowWorkerId] -and
+            $bothInvocationsCompleted.BusinessOperations -eq 1 -and
+            $bothInvocationsCompleted.OutboxMessages -eq 1 -and
+            $bothInvocationsCompleted.PendingMessages -eq 0 -and
+            $bothInvocationsCompleted.ProcessingMessages -eq 0 -and
+            $bothInvocationsCompleted.ProcessedMessages -eq 1 -and
+            $bothInvocationsCompleted.FailedMessages -eq 0 -and
+            $bothInvocationsCompleted.FailedAttempts -eq 0 -and
+            $bothInvocationsCompleted.Effects -eq 2 -and
+            $bothInvocationsCompleted.DuplicateEffects -eq 1 -and
+            @($bothInvocationsCompleted.WorkerEffects.PSObject.Properties).Count -eq 2 -and
+            $null -ne $slowWorkerEffect -and
+            $slowWorkerEffect.Value -eq 1 -and
+            $null -ne $competingWorkerClaim -and
+            $competingWorkerClaim.Value -eq 1 -and
+            $null -ne $competingWorkerEffect -and
+            $competingWorkerEffect.Value -eq 1
+    }
+    finally {
+        Stop-Worker $competingWorker
+        Stop-Worker $slowWorker
+    }
+
+    $result = [ordered]@{
+        Scenario = "TE-W07"
+        SlowWorker = $slowWorkerId
+        CompetingWorker = $competingWorkerId
+        ClaimTimeoutMilliseconds = 5000
+        ConsumerDurationMilliseconds = 10000
+        LeaseExpiredBeforeCompetingCompletion = $leaseExpiredBeforeCompetingCompletion
+        CompetingWorkerCompletedFirst = $competingCompletion.Effects -eq 1
+        SlowWorkerSurvivedLeaseLoss = $slowWorkerSurvivedLeaseLoss
+        ConsumerInvocations = $bothInvocationsCompleted.Effects
+        DuplicateInvocations = $bothInvocationsCompleted.DuplicateEffects
+        Observation = $bothInvocationsCompleted
+        AcceptancePassed = $passed
+    }
+
+    $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $scenarioDirectory "result.json")
+    return [pscustomobject]$result
+}
+
 function Get-GitCommit {
     param([string]$Repository)
 
@@ -500,6 +632,7 @@ $results = @(
     Invoke-ActiveClaimScenario $assembly $artifactDirectory
     Invoke-WorkerDeathScenario $assembly $artifactDirectory
     Invoke-EffectBeforeDeathScenario $assembly $artifactDirectory
+    Invoke-LongConsumerScenario $assembly $artifactDirectory
 )
 
 $manifest = [ordered]@{
