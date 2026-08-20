@@ -31,6 +31,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-W04` | A second worker reclaims and completes a message after its owning process dies and the SQL lease expires. |
 | `TE-W05` | If a worker dies after its consumer effect but before outbox completion, another worker invokes the consumer again after lease expiry. |
 | `TE-W07` | A consumer running longer than its claim overlaps with a competing redelivery and exposes a duplicate invocation. |
+| `TE-W08` | Graceful shutdown exits cleanly both while idle and during active consumer work, without misclassifying cancellation as failure. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
 
@@ -42,6 +43,8 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 
 `TE-W07` proves the V1 no-heartbeat boundary. When consumer duration exceeds `ClaimTimeout`, another worker may reclaim and complete the message while the first invocation is still running. The original worker later records a duplicate effect, detects that it lost the completion lease, emits a structured warning, and remains alive.
 
+`TE-W08` uses normal host cancellation rather than terminating the process. Idle shutdown exits with code zero and changes no durable state. Cancellation during consumer execution also exits with code zero, leaves the claimed message recoverable without incrementing its failure count, and allows another worker to complete it once the lease expires.
+
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 
-The operational executable also exposes `reset`, `publish`, `inspect`, and `worker` commands for later destructive scenarios. It references the sibling TinyEvents source projects until hardened packages are published.
+The operational executable also exposes `reset`, `publish`, `inspect`, `worker`, and dogfood-only `worker-for` commands for later destructive scenarios. It references the sibling TinyEvents source projects until hardened packages are published.

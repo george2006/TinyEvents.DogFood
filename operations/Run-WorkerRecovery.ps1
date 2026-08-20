@@ -66,12 +66,77 @@ function Start-Worker {
         -PassThru
 }
 
+function Start-TimedWorker {
+    param(
+        [string]$Assembly,
+        [string]$WorkerId,
+        [int]$RunDurationMilliseconds,
+        [int]$BeforeEffectDelayMilliseconds,
+        [int]$AfterEffectDelayMilliseconds,
+        [string]$ArtifactDirectory
+    )
+
+    $standardOutput = Join-Path $ArtifactDirectory "$WorkerId.stdout.log"
+    $standardError = Join-Path $ArtifactDirectory "$WorkerId.stderr.log"
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = "dotnet"
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+
+    $startInfo.Arguments =
+        "`"$Assembly`" worker-for `"$WorkerId`" " +
+        "$RunDurationMilliseconds " +
+        "$BeforeEffectDelayMilliseconds " +
+        "$AfterEffectDelayMilliseconds"
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+
+    if (-not $process.Start()) {
+        throw "Worker '$WorkerId' could not be started."
+    }
+
+    return [pscustomobject]@{
+        Process = $process
+        OutputPath = $standardOutput
+        ErrorPath = $standardError
+        OutputTask = $process.StandardOutput.ReadToEndAsync()
+        ErrorTask = $process.StandardError.ReadToEndAsync()
+    }
+}
+
 function Stop-Worker {
     param([System.Diagnostics.Process]$Worker)
 
     if ($null -ne $Worker -and -not $Worker.HasExited) {
         Stop-Process -Id $Worker.Id
         $Worker.WaitForExit()
+    }
+}
+
+function Wait-ForWorkerExit {
+    param(
+        [pscustomobject]$WorkerHandle,
+        [string]$WorkerId
+    )
+
+    $process = $WorkerHandle.Process
+
+    if (-not $process.WaitForExit(15000)) {
+        throw "Worker '$WorkerId' did not stop within fifteen seconds."
+    }
+
+    $process.WaitForExit()
+    $process.Refresh()
+    $standardOutput = $WorkerHandle.OutputTask.GetAwaiter().GetResult()
+    $standardError = $WorkerHandle.ErrorTask.GetAwaiter().GetResult()
+    $standardOutput | Set-Content $WorkerHandle.OutputPath
+    $standardError | Set-Content $WorkerHandle.ErrorPath
+
+    if ($process.ExitCode -ne 0) {
+        throw "Worker '$WorkerId' stopped with exit code $($process.ExitCode)."
     }
 }
 
@@ -605,6 +670,115 @@ function Invoke-LongConsumerScenario {
     return [pscustomobject]$result
 }
 
+function Invoke-GracefulIdleShutdownScenario {
+    param(
+        [string]$Assembly,
+        [string]$ArtifactDirectory
+    )
+
+    $scenarioDirectory = Join-Path $ArtifactDirectory "TE-W08-idle"
+    New-Item -ItemType Directory -Force -Path $scenarioDirectory | Out-Null
+
+    Invoke-LoggedProcess $Assembly @("reset") $scenarioDirectory "reset"
+
+    $workerId = "TE-W08-idle-worker"
+    $workerHandle = Start-TimedWorker $Assembly $workerId 1000 0 0 $scenarioDirectory
+
+    try {
+        Wait-ForWorkerExit $workerHandle $workerId
+        $observation = Get-Observation -Assembly $Assembly
+        Save-Observation $observation $scenarioDirectory "after-shutdown"
+
+        $workerLog = Get-Content (Join-Path $scenarioDirectory "$workerId.stdout.log") -Raw
+        $reportedGracefulShutdown = $workerLog.Contains("Application is shutting down")
+        $passed =
+            $reportedGracefulShutdown -and
+            $observation.BusinessOperations -eq 0 -and
+            $observation.OutboxMessages -eq 0 -and
+            $observation.Effects -eq 0 -and
+            @($observation.WorkerClaims.PSObject.Properties).Count -eq 0 -and
+            @($observation.WorkerEffects.PSObject.Properties).Count -eq 0
+    }
+    finally {
+        Stop-Worker $workerHandle.Process
+    }
+
+    $result = [ordered]@{
+        Scenario = "TE-W08-idle"
+        ExitCode = $workerHandle.Process.ExitCode
+        ReportedGracefulShutdown = $reportedGracefulShutdown
+        Observation = $observation
+        AcceptancePassed = $passed
+    }
+
+    $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $scenarioDirectory "result.json")
+    return [pscustomobject]$result
+}
+
+function Invoke-GracefulActiveShutdownScenario {
+    param(
+        [string]$Assembly,
+        [string]$ArtifactDirectory
+    )
+
+    $scenarioDirectory = Join-Path $ArtifactDirectory "TE-W08-active"
+    New-Item -ItemType Directory -Force -Path $scenarioDirectory | Out-Null
+
+    Invoke-LoggedProcess $Assembly @("reset") $scenarioDirectory "reset"
+    Invoke-LoggedProcess $Assembly @("publish", "TE-W08", "1") $scenarioDirectory "publish"
+
+    $stoppingWorkerId = "TE-W08-stopping-worker"
+    $recoveryWorkerId = "TE-W08-recovery"
+    $stoppingWorkerHandle = Start-TimedWorker $Assembly $stoppingWorkerId 3000 30000 0 $scenarioDirectory
+    $recoveryWorker = $null
+
+    try {
+        $claimed = Wait-ForClaim $Assembly $stoppingWorkerHandle.Process $stoppingWorkerId
+        Save-Observation $claimed $scenarioDirectory "claimed-before-shutdown"
+        Wait-ForWorkerExit $stoppingWorkerHandle $stoppingWorkerId
+
+        $afterShutdown = Get-Observation -Assembly $Assembly
+        Save-Observation $afterShutdown $scenarioDirectory "after-shutdown"
+
+        $claimExpiry = [DateTimeOffset]$afterShutdown.EarliestClaimExpiresAtUtc
+        $databaseNow = [DateTimeOffset]$afterShutdown.DatabaseUtcNow
+        $workerLog = Get-Content (Join-Path $scenarioDirectory "$stoppingWorkerId.stdout.log") -Raw
+        $reportedGracefulShutdown = $workerLog.Contains("Application is shutting down")
+        $cancellationLeftRecoverableClaim =
+            $reportedGracefulShutdown -and
+            $databaseNow -lt $claimExpiry -and
+            $afterShutdown.ProcessingMessages -eq 1 -and
+            $afterShutdown.ProcessedMessages -eq 0 -and
+            $afterShutdown.FailedMessages -eq 0 -and
+            $afterShutdown.FailedAttempts -eq 0 -and
+            $afterShutdown.Effects -eq 0
+
+        $recoveryWorker = Start-Worker $Assembly $recoveryWorkerId 0 0 $scenarioDirectory
+        $recovered = Wait-ForCompletion $Assembly $recoveryWorker $recoveryWorkerId
+        Save-Observation $recovered $scenarioDirectory "recovered"
+        $passed =
+            $cancellationLeftRecoverableClaim -and
+            (Assert-WorkerOwnsResult $recovered $recoveryWorkerId)
+    }
+    finally {
+        Stop-Worker $recoveryWorker
+        Stop-Worker $stoppingWorkerHandle.Process
+    }
+
+    $result = [ordered]@{
+        Scenario = "TE-W08-active"
+        ExitCode = $stoppingWorkerHandle.Process.ExitCode
+        ReportedGracefulShutdown = $reportedGracefulShutdown
+        CancellationLeftRecoverableClaim = $cancellationLeftRecoverableClaim
+        ObservationAfterShutdown = $afterShutdown
+        ObservationAfterRecovery = $recovered
+        AcceptancePassed = $passed
+    }
+
+    $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $scenarioDirectory "result.json")
+    return [pscustomobject]$result
+}
+
 function Get-GitCommit {
     param([string]$Repository)
 
@@ -633,6 +807,8 @@ $results = @(
     Invoke-WorkerDeathScenario $assembly $artifactDirectory
     Invoke-EffectBeforeDeathScenario $assembly $artifactDirectory
     Invoke-LongConsumerScenario $assembly $artifactDirectory
+    Invoke-GracefulIdleShutdownScenario $assembly $artifactDirectory
+    Invoke-GracefulActiveShutdownScenario $assembly $artifactDirectory
 )
 
 $manifest = [ordered]@{

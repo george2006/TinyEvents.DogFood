@@ -7,7 +7,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected reset, publish <scenario> <count>, inspect, or worker <worker-id> [before-effect-delay-ms] [after-effect-delay-ms].");
+    Console.Error.WriteLine("Expected reset, publish <scenario> <count>, inspect, worker, or worker-for.");
     return 1;
 }
 
@@ -46,43 +46,110 @@ switch (args[0].ToLowerInvariant())
         return 0;
 
     case "worker":
-        if (args.Length is < 2 or > 4 || string.IsNullOrWhiteSpace(args[1]))
-        {
-            Console.Error.WriteLine("Expected worker <worker-id> [before-effect-delay-ms] [after-effect-delay-ms].");
-            return 1;
-        }
+        return await RunWorkerAsync(args, settings);
 
-        var beforeEffectDelayMilliseconds = 0;
-        var afterEffectDelayMilliseconds = 0;
-
-        if (args.Length >= 3 &&
-            (!int.TryParse(args[2], out beforeEffectDelayMilliseconds) ||
-             beforeEffectDelayMilliseconds < 0))
-        {
-            Console.Error.WriteLine("Before-effect delay must be a non-negative integer.");
-            return 1;
-        }
-
-        if (args.Length == 4 &&
-            (!int.TryParse(args[3], out afterEffectDelayMilliseconds) ||
-             afterEffectDelayMilliseconds < 0))
-        {
-            Console.Error.WriteLine("After-effect delay must be a non-negative integer.");
-            return 1;
-        }
-
-        var consumerTiming = new ConsumerExecutionTiming(
-            TimeSpan.FromMilliseconds(beforeEffectDelayMilliseconds),
-            TimeSpan.FromMilliseconds(afterEffectDelayMilliseconds));
-
-        using (var host = DogfoodHost.Build(settings, args[1], consumerTiming))
-        {
-            await host.RunAsync();
-        }
-
-        return 0;
+    case "worker-for":
+        return await RunTimedWorkerAsync(args, settings);
 
     default:
         Console.Error.WriteLine($"Unknown command '{args[0]}'.");
         return 1;
+}
+
+static async Task<int> RunWorkerAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var hasExpectedArgumentCount = arguments.Length is >= 2 and <= 4;
+    var hasWorkerId =
+        arguments.Length >= 2 &&
+        !string.IsNullOrWhiteSpace(arguments[1]);
+    var hasConsumerTiming = TryParseConsumerTiming(
+        arguments,
+        2,
+        out var consumerTiming);
+
+    if (!hasExpectedArgumentCount || !hasWorkerId || !hasConsumerTiming)
+    {
+        Console.Error.WriteLine("Expected worker <worker-id> [before-effect-delay-ms] [after-effect-delay-ms].");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(settings, arguments[1], consumerTiming);
+    await host.RunAsync();
+    return 0;
+}
+
+static async Task<int> RunTimedWorkerAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var hasExpectedArgumentCount = arguments.Length is >= 3 and <= 5;
+    var hasWorkerId =
+        arguments.Length >= 2 &&
+        !string.IsNullOrWhiteSpace(arguments[1]);
+    var runDurationMilliseconds = 0;
+    var hasRunDuration =
+        arguments.Length >= 3 &&
+        int.TryParse(arguments[2], out runDurationMilliseconds) &&
+        runDurationMilliseconds > 0;
+    var hasConsumerTiming = TryParseConsumerTiming(
+        arguments,
+        3,
+        out var consumerTiming);
+
+    if (!hasExpectedArgumentCount ||
+        !hasWorkerId ||
+        !hasRunDuration ||
+        !hasConsumerTiming)
+    {
+        Console.Error.WriteLine("Expected worker-for <worker-id> <positive-run-duration-ms> [before-effect-delay-ms] [after-effect-delay-ms].");
+        return 1;
+    }
+
+    using var shutdown = new CancellationTokenSource(
+        TimeSpan.FromMilliseconds(runDurationMilliseconds));
+    using var host = DogfoodHost.Build(settings, arguments[1], consumerTiming);
+    await host.RunAsync(shutdown.Token);
+    return 0;
+}
+
+static bool TryParseConsumerTiming(
+    string[] arguments,
+    int firstDelayIndex,
+    out ConsumerExecutionTiming consumerTiming)
+{
+    var beforeEffectDelayIsValid = TryParseOptionalDelay(
+        arguments,
+        firstDelayIndex,
+        out var beforeEffectDelay);
+    var afterEffectDelayIsValid = TryParseOptionalDelay(
+        arguments,
+        firstDelayIndex + 1,
+        out var afterEffectDelay);
+
+    consumerTiming = new ConsumerExecutionTiming(
+        beforeEffectDelay,
+        afterEffectDelay);
+    return beforeEffectDelayIsValid && afterEffectDelayIsValid;
+}
+
+static bool TryParseOptionalDelay(
+    string[] arguments,
+    int index,
+    out TimeSpan delay)
+{
+    if (arguments.Length <= index)
+    {
+        delay = TimeSpan.Zero;
+        return true;
+    }
+
+    var delayIsValid =
+        int.TryParse(arguments[index], out var delayMilliseconds) &&
+        delayMilliseconds >= 0;
+    delay = delayIsValid
+        ? TimeSpan.FromMilliseconds(delayMilliseconds)
+        : TimeSpan.Zero;
+    return delayIsValid;
 }

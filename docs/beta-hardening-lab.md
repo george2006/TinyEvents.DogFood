@@ -354,6 +354,8 @@ TE-W04 also satisfies TE-W06 without a duplicate executable scenario: it starts 
 
 TE-W07 ran a ten-second consumer under a five-second claim with a competing worker. SQL evidence showed the competitor completed after the original lease expired while the slow invocation was still active. The slow invocation then persisted a second effect, detected its lost completion lease through `TinyOutboxLeaseLostException`, emitted the expected structured warning, and remained alive. This is an accepted V1 limitation of claims without heartbeat renewal.
 
+TE-W08 exercised normal host cancellation while idle and during a delayed consumer. Both worker processes reported graceful shutdown and exited with code zero. Idle shutdown changed no durable state. Active cancellation left the message claimed and recoverable, recorded neither a consumer effect nor a failed attempt, and a replacement worker completed it once the SQL lease expired.
+
 Run the repeatable lease scenarios with:
 
 ```powershell
@@ -363,6 +365,29 @@ Run the repeatable lease scenarios with:
 Processed rows remain retained. Cleanup is not part of BETA-4 and must not be implemented before TE-L05 measures storage cost and defines explicit retention and deletion budgets.
 
 The first scaling curve also makes batched completion a load-test hypothesis. Evaluate it only if isolated measurements attribute material cost to per-message `MarkProcessed` round-trips. Any design must first measure the larger at-least-once redelivery window created when consumer effects complete before a pending completion batch is persisted.
+
+#### Next structural slice
+
+Before adding TE-W09, split the now-proven worker laboratory by scenario and responsibility without changing behavior:
+
+```text
+operations/
+  scenarios/
+    TE-W03-active-claim.ps1
+    TE-W04-worker-death-recovery.ps1
+    TE-W05-effect-before-death.ps1
+    TE-W07-long-consumer-lease-loss.ps1
+    TE-W08-idle-shutdown.ps1
+    TE-W08-active-shutdown.ps1
+  support/
+    Process.ps1
+    SqlServer.ps1
+    Workers.ps1
+    Observations.ps1
+    Assertions.ps1
+```
+
+The split is a readability refactor over executable evidence, not a new scenario framework. Each scenario remains independently runnable and the suite retains one command that executes all of them and produces the existing manifest. Shared support contains only behavior already repeated by the committed scenarios.
 
 ### BETA-5 - Database failure and recovery
 
