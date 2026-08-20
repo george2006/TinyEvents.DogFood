@@ -157,6 +157,7 @@ function Invoke-BaselineScenario {
         $after.OutboxMessages -eq $Definition.Count -and
         $after.ProcessedMessages -eq $Definition.Count -and
         $after.FailedMessages -eq 0 -and
+        $after.FailedAttempts -eq 0 -and
         $after.Effects -eq $Definition.Count -and
         $after.DuplicateEffects -eq 0
 

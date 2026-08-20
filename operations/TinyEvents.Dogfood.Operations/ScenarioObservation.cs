@@ -7,5 +7,8 @@ internal sealed record ScenarioObservation(
     int ProcessingMessages,
     int ProcessedMessages,
     int FailedMessages,
+    int FailedAttempts,
     int Effects,
-    int DuplicateEffects);
+    int DuplicateEffects,
+    IReadOnlyDictionary<string, int> WorkerClaims,
+    IReadOnlyDictionary<string, int> WorkerEffects);

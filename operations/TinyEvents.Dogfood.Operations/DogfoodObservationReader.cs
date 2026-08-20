@@ -18,13 +18,25 @@ internal static class DogfoodObservationReader
                 COALESCE(SUM(CASE WHEN Status = @PendingStatus THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN Status = @ProcessingStatus THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN Status = @ProcessedStatus THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN Status = @FailedStatus THEN 1 ELSE 0 END), 0)
+                COALESCE(SUM(CASE WHEN Status = @FailedStatus THEN 1 ELSE 0 END), 0),
+                COALESCE(SUM(AttemptCount), 0)
             FROM dbo.TinyOutbox;
 
             SELECT
                 COUNT(*),
                 COUNT(*) - COUNT(DISTINCT OperationId)
             FROM dbo.DogfoodEffects;
+
+            SELECT ClaimedBy, COUNT(*)
+            FROM dbo.TinyOutbox
+            WHERE ClaimedBy IS NOT NULL
+            GROUP BY ClaimedBy
+            ORDER BY ClaimedBy;
+
+            SELECT WorkerId, COUNT(*)
+            FROM dbo.DogfoodEffects
+            GROUP BY WorkerId
+            ORDER BY WorkerId;
             """;
 
         await using var connection = new SqlConnection(settings.ConnectionString);
@@ -54,11 +66,18 @@ internal static class DogfoodObservationReader
         var processingMessages = reader.GetInt32(2);
         var processedMessages = reader.GetInt32(3);
         var failedMessages = reader.GetInt32(4);
+        var failedAttempts = reader.GetInt32(5);
 
         await reader.NextResultAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
         var effects = reader.GetInt32(0);
         var duplicateEffects = reader.GetInt32(1);
+
+        await reader.NextResultAsync(cancellationToken);
+        var workerClaims = await ReadWorkerCountsAsync(reader, cancellationToken);
+
+        await reader.NextResultAsync(cancellationToken);
+        var workerEffects = await ReadWorkerCountsAsync(reader, cancellationToken);
 
         return new ScenarioObservation(
             businessOperations,
@@ -67,7 +86,24 @@ internal static class DogfoodObservationReader
             processingMessages,
             processedMessages,
             failedMessages,
+            failedAttempts,
             effects,
-            duplicateEffects);
+            duplicateEffects,
+            workerClaims,
+            workerEffects);
+    }
+
+    private static async ValueTask<IReadOnlyDictionary<string, int>> ReadWorkerCountsAsync(
+        SqlDataReader reader,
+        CancellationToken cancellationToken)
+    {
+        var workerCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            workerCounts.Add(reader.GetString(0), reader.GetInt32(1));
+        }
+
+        return workerCounts;
     }
 }
