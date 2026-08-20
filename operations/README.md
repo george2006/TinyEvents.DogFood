@@ -14,6 +14,12 @@ Run the competing-worker matrix:
 .\operations\Run-WorkerScaling.ps1
 ```
 
+Run active-lease and dead-worker recovery scenarios:
+
+```powershell
+.\operations\Run-WorkerRecovery.ps1
+```
+
 The runner starts the sibling TinyEvents SQL Server container, builds a backlog while workers are stopped, starts an independently addressable worker process, waits for the backlog to drain, and stores evidence under `artifacts/operations/<run-id>/`.
 
 | Scenario | Observable contract |
@@ -21,8 +27,12 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-T01` | Business rows and outbox messages commit together, then every committed event is processed. |
 | `TE-W01` | One hosted worker drains a known backlog without loss or duplicate effects. |
 | `TE-W02` | 2, 4, and 8 hosted-worker processes compete without loss or duplicate effects. |
+| `TE-W03` | A competing worker cannot steal a claim before its SQL lease expires. |
+| `TE-W04` | A second worker reclaims and completes a message after its owning process dies and the SQL lease expires. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
+
+`TE-W03` and `TE-W04` use the database clock and persisted `ClaimExpiresAtUtc` as the lease authority. The runner injects consumer delay only in the dogfood host, terminates an exact worker process during execution, and retains observations from before and after the lease boundary.
 
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 

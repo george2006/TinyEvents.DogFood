@@ -346,6 +346,14 @@ Execute TE-W02 through TE-W13. Fix only demonstrated product defects; retain hon
 
 The first TE-W02 SQL Server EF Core run on 2026-08-20 processed three independent 1,000-message workloads with 2, 4, and 8 worker processes. Every worker claimed and processed distinct rows, per-worker claim counts exactly matched durable effect counts, and no failed attempt or duplicate effect was observed. End-to-end capacity increased from 183 to 248 to 280 messages per second. These values include concurrent publication and are not isolated worker-drain throughput.
 
+The first TE-W03 and TE-W04 SQL Server EF Core run on 2026-08-20 proved both sides of the lease boundary using the SQL Server clock. A competing process could not steal a live claim. After the owning process was terminated during consumer execution, the claim remained protected before `ClaimExpiresAtUtc`; a second process then reclaimed and completed it after expiry. Both scenarios finished with one durable effect, no failed attempt, and no duplicate effect.
+
+Run the repeatable lease scenarios with:
+
+```powershell
+.\operations\Run-WorkerRecovery.ps1
+```
+
 Processed rows remain retained. Cleanup is not part of BETA-4 and must not be implemented before TE-L05 measures storage cost and defines explicit retention and deletion budgets.
 
 The first scaling curve also makes batched completion a load-test hypothesis. Evaluate it only if isolated measurements attribute material cost to per-message `MarkProcessed` round-trips. Any design must first measure the larger at-least-once redelivery window created when consumer effects complete before a pending completion batch is persisted.

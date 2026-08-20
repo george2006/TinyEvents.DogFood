@@ -11,12 +11,14 @@ internal static class DogfoodHost
 {
     public static IHost Build(
         DogfoodSettings settings,
-        string workerId)
+        string workerId,
+        TimeSpan consumerDelay = default)
     {
         var builder = Host.CreateApplicationBuilder();
 
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(new WorkerIdentity(workerId));
+        builder.Services.AddSingleton(new ConsumerDelay(consumerDelay));
         builder.Services.AddSingleton<DogfoodEffectRecorder>();
         builder.Services.AddScoped<DogfoodPublisher>();
         builder.Services.AddDbContext<DogfoodDbContext>(options =>
@@ -42,3 +44,5 @@ internal static class DogfoodHost
 }
 
 internal sealed record WorkerIdentity(string Value);
+
+internal sealed record ConsumerDelay(TimeSpan Value);

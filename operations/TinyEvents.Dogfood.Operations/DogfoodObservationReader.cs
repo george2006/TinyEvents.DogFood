@@ -10,6 +10,8 @@ internal static class DogfoodObservationReader
         CancellationToken cancellationToken = default)
     {
         const string sql = """
+            SELECT SYSDATETIMEOFFSET();
+
             SELECT COUNT(*)
             FROM dbo.DogfoodBusinessOperations;
 
@@ -19,7 +21,8 @@ internal static class DogfoodObservationReader
                 COALESCE(SUM(CASE WHEN Status = @ProcessingStatus THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN Status = @ProcessedStatus THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN Status = @FailedStatus THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(AttemptCount), 0)
+                COALESCE(SUM(AttemptCount), 0),
+                MIN(ClaimExpiresAtUtc)
             FROM dbo.TinyOutbox;
 
             SELECT
@@ -57,6 +60,10 @@ internal static class DogfoodObservationReader
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         await reader.ReadAsync(cancellationToken);
+        var databaseUtcNow = reader.GetFieldValue<DateTimeOffset>(0);
+
+        await reader.NextResultAsync(cancellationToken);
+        await reader.ReadAsync(cancellationToken);
         var businessOperations = reader.GetInt32(0);
 
         await reader.NextResultAsync(cancellationToken);
@@ -67,6 +74,9 @@ internal static class DogfoodObservationReader
         var processedMessages = reader.GetInt32(3);
         var failedMessages = reader.GetInt32(4);
         var failedAttempts = reader.GetInt32(5);
+        DateTimeOffset? earliestClaimExpiresAtUtc = reader.IsDBNull(6)
+            ? null
+            : reader.GetFieldValue<DateTimeOffset>(6);
 
         await reader.NextResultAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
@@ -80,6 +90,8 @@ internal static class DogfoodObservationReader
         var workerEffects = await ReadWorkerCountsAsync(reader, cancellationToken);
 
         return new ScenarioObservation(
+            databaseUtcNow,
+            earliestClaimExpiresAtUtc,
             businessOperations,
             outboxMessages,
             pendingMessages,

@@ -1,6 +1,8 @@
 namespace TinyEvents.Dogfood.Operations;
 
 internal sealed record ScenarioObservation(
+    DateTimeOffset DatabaseUtcNow,
+    DateTimeOffset? EarliestClaimExpiresAtUtc,
     int BusinessOperations,
     int OutboxMessages,
     int PendingMessages,

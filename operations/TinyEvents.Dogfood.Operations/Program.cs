@@ -7,7 +7,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected reset, publish <scenario> <count>, inspect, or worker <worker-id>.");
+    Console.Error.WriteLine("Expected reset, publish <scenario> <count>, inspect, or worker <worker-id> [consumer-delay-ms].");
     return 1;
 }
 
@@ -46,13 +46,27 @@ switch (args[0].ToLowerInvariant())
         return 0;
 
     case "worker":
-        if (args.Length != 2 || string.IsNullOrWhiteSpace(args[1]))
+        if (args.Length is < 2 or > 3 || string.IsNullOrWhiteSpace(args[1]))
         {
-            Console.Error.WriteLine("Expected worker <worker-id>.");
+            Console.Error.WriteLine("Expected worker <worker-id> [consumer-delay-ms].");
             return 1;
         }
 
-        using (var host = DogfoodHost.Build(settings, args[1]))
+        var consumerDelayMilliseconds = 0;
+
+        if (args.Length == 3 &&
+            (!int.TryParse(args[2], out consumerDelayMilliseconds) ||
+             consumerDelayMilliseconds < 0))
+        {
+            Console.Error.WriteLine("Consumer delay must be a non-negative integer.");
+            return 1;
+        }
+
+        var consumerDelay = args.Length == 3
+            ? TimeSpan.FromMilliseconds(consumerDelayMilliseconds)
+            : TimeSpan.Zero;
+
+        using (var host = DogfoodHost.Build(settings, args[1], consumerDelay))
         {
             await host.RunAsync();
         }
