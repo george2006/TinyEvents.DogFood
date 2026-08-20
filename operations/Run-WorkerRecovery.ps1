@@ -44,7 +44,8 @@ function Start-Worker {
     param(
         [string]$Assembly,
         [string]$WorkerId,
-        [int]$ConsumerDelayMilliseconds,
+        [int]$BeforeEffectDelayMilliseconds,
+        [int]$AfterEffectDelayMilliseconds,
         [string]$ArtifactDirectory
     )
 
@@ -53,7 +54,12 @@ function Start-Worker {
 
     return Start-Process `
         -FilePath "dotnet" `
-        -ArgumentList @($Assembly, "worker", $WorkerId, [string]$ConsumerDelayMilliseconds) `
+        -ArgumentList @(
+            $Assembly,
+            "worker",
+            $WorkerId,
+            [string]$BeforeEffectDelayMilliseconds,
+            [string]$AfterEffectDelayMilliseconds) `
         -RedirectStandardOutput $standardOutput `
         -RedirectStandardError $standardError `
         -WindowStyle Hidden `
@@ -166,6 +172,70 @@ function Wait-ForCompletion {
     throw "Worker '$WorkerId' did not complete the message within thirty seconds."
 }
 
+function Wait-ForEffectBeforeCompletion {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$Worker,
+        [string]$WorkerId
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Worker.HasExited) {
+            throw "Worker '$WorkerId' exited before persisting the consumer effect. Exit code: $($Worker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+        $claim = $observation.WorkerClaims.PSObject.Properties[$WorkerId]
+        $effect = $observation.WorkerEffects.PSObject.Properties[$WorkerId]
+
+        if ($observation.ProcessingMessages -eq 1 -and
+            $observation.ProcessedMessages -eq 0 -and
+            $observation.Effects -eq 1 -and
+            $observation.DuplicateEffects -eq 0 -and
+            $null -ne $claim -and
+            $claim.Value -eq 1 -and
+            $null -ne $effect -and
+            $effect.Value -eq 1) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Worker '$WorkerId' did not persist the consumer effect before completion within twenty seconds."
+}
+
+function Wait-ForDuplicateCompletion {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$Worker,
+        [string]$WorkerId
+    )
+
+    $deadline = (Get-Date).AddSeconds(30)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Worker.HasExited) {
+            throw "Worker '$WorkerId' exited before completing the redelivery. Exit code: $($Worker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+
+        if ($observation.ProcessedMessages -eq 1 -and
+            $observation.Effects -eq 2 -and
+            $observation.DuplicateEffects -eq 1 -and
+            $observation.ProcessingMessages -eq 0) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Worker '$WorkerId' did not complete the expected redelivery within thirty seconds."
+}
+
 function Assert-WorkerOwnsResult {
     param(
         [pscustomobject]$Observation,
@@ -207,14 +277,14 @@ function Invoke-ActiveClaimScenario {
 
     $ownerId = "TE-W03-owner"
     $competitorId = "TE-W03-competitor"
-    $owner = Start-Worker $Assembly $ownerId 3000 $scenarioDirectory
+    $owner = Start-Worker $Assembly $ownerId 3000 0 $scenarioDirectory
     $competitor = $null
 
     try {
         $claimed = Wait-ForClaim $Assembly $owner $ownerId
         Save-Observation $claimed $scenarioDirectory "claimed"
 
-        $competitor = Start-Worker $Assembly $competitorId 0 $scenarioDirectory
+        $competitor = Start-Worker $Assembly $competitorId 0 0 $scenarioDirectory
         Start-Sleep -Milliseconds 500
 
         $protected = Get-Observation -Assembly $Assembly
@@ -264,7 +334,7 @@ function Invoke-WorkerDeathScenario {
 
     $deadWorkerId = "TE-W04-dead-owner"
     $recoveryWorkerId = "TE-W04-recovery"
-    $deadWorker = Start-Worker $Assembly $deadWorkerId 30000 $scenarioDirectory
+    $deadWorker = Start-Worker $Assembly $deadWorkerId 30000 0 $scenarioDirectory
     $recoveryWorker = $null
 
     try {
@@ -272,7 +342,7 @@ function Invoke-WorkerDeathScenario {
         Save-Observation $claimed $scenarioDirectory "claimed-before-kill"
         Stop-Worker $deadWorker
 
-        $recoveryWorker = Start-Worker $Assembly $recoveryWorkerId 0 $scenarioDirectory
+        $recoveryWorker = Start-Worker $Assembly $recoveryWorkerId 0 0 $scenarioDirectory
         Start-Sleep -Milliseconds 500
 
         if ($recoveryWorker.HasExited) {
@@ -316,6 +386,93 @@ function Invoke-WorkerDeathScenario {
     return [pscustomobject]$result
 }
 
+function Invoke-EffectBeforeDeathScenario {
+    param(
+        [string]$Assembly,
+        [string]$ArtifactDirectory
+    )
+
+    $scenarioDirectory = Join-Path $ArtifactDirectory "TE-W05"
+    New-Item -ItemType Directory -Force -Path $scenarioDirectory | Out-Null
+
+    Invoke-LoggedProcess $Assembly @("reset") $scenarioDirectory "reset"
+    Invoke-LoggedProcess $Assembly @("publish", "TE-W05", "1") $scenarioDirectory "publish"
+
+    $deadWorkerId = "TE-W05-dead-owner"
+    $recoveryWorkerId = "TE-W05-recovery"
+    $deadWorker = Start-Worker $Assembly $deadWorkerId 0 30000 $scenarioDirectory
+    $recoveryWorker = $null
+
+    try {
+        $effectPersisted = Wait-ForEffectBeforeCompletion $Assembly $deadWorker $deadWorkerId
+        Save-Observation $effectPersisted $scenarioDirectory "effect-before-kill"
+        Stop-Worker $deadWorker
+
+        $recoveryWorker = Start-Worker $Assembly $recoveryWorkerId 0 0 $scenarioDirectory
+        Start-Sleep -Milliseconds 500
+
+        if ($recoveryWorker.HasExited) {
+            throw "Recovery worker exited while the dead owner's lease was active. Exit code: $($recoveryWorker.ExitCode)."
+        }
+
+        $beforeExpiry = Get-Observation -Assembly $Assembly
+        Save-Observation $beforeExpiry $scenarioDirectory "protected-after-kill"
+
+        $claimExpiry = [DateTimeOffset]$beforeExpiry.EarliestClaimExpiresAtUtc
+        $databaseNow = [DateTimeOffset]$beforeExpiry.DatabaseUtcNow
+        $wasProtectedBeforeExpiry =
+            $databaseNow -lt $claimExpiry -and
+            $beforeExpiry.ProcessingMessages -eq 1 -and
+            $beforeExpiry.ProcessedMessages -eq 0 -and
+            $beforeExpiry.Effects -eq 1 -and
+            $beforeExpiry.DuplicateEffects -eq 0 -and
+            $null -eq $beforeExpiry.WorkerClaims.PSObject.Properties[$recoveryWorkerId]
+
+        $completed = Wait-ForDuplicateCompletion $Assembly $recoveryWorker $recoveryWorkerId
+        Save-Observation $completed $scenarioDirectory "redelivered"
+
+        $deadWorkerEffect = $completed.WorkerEffects.PSObject.Properties[$deadWorkerId]
+        $recoveryWorkerClaim = $completed.WorkerClaims.PSObject.Properties[$recoveryWorkerId]
+        $recoveryWorkerEffect = $completed.WorkerEffects.PSObject.Properties[$recoveryWorkerId]
+        $passed =
+            $wasProtectedBeforeExpiry -and
+            $completed.BusinessOperations -eq 1 -and
+            $completed.OutboxMessages -eq 1 -and
+            $completed.PendingMessages -eq 0 -and
+            $completed.ProcessingMessages -eq 0 -and
+            $completed.ProcessedMessages -eq 1 -and
+            $completed.FailedMessages -eq 0 -and
+            $completed.FailedAttempts -eq 0 -and
+            $completed.Effects -eq 2 -and
+            $completed.DuplicateEffects -eq 1 -and
+            @($completed.WorkerEffects.PSObject.Properties).Count -eq 2 -and
+            $null -ne $deadWorkerEffect -and
+            $deadWorkerEffect.Value -eq 1 -and
+            $null -ne $recoveryWorkerClaim -and
+            $recoveryWorkerClaim.Value -eq 1 -and
+            $null -ne $recoveryWorkerEffect -and
+            $recoveryWorkerEffect.Value -eq 1
+    }
+    finally {
+        Stop-Worker $recoveryWorker
+        Stop-Worker $deadWorker
+    }
+
+    $result = [ordered]@{
+        Scenario = "TE-W05"
+        DeadWorker = $deadWorkerId
+        RecoveryWorker = $recoveryWorkerId
+        ProtectedBeforeExpiry = $wasProtectedBeforeExpiry
+        ConsumerInvocations = $completed.Effects
+        DuplicateInvocations = $completed.DuplicateEffects
+        Observation = $completed
+        AcceptancePassed = $passed
+    }
+
+    $result | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $scenarioDirectory "result.json")
+    return [pscustomobject]$result
+}
+
 function Get-GitCommit {
     param([string]$Repository)
 
@@ -342,6 +499,7 @@ Invoke-Native "dotnet" @("build", $project, "-c", "Release", "--nologo")
 $results = @(
     Invoke-ActiveClaimScenario $assembly $artifactDirectory
     Invoke-WorkerDeathScenario $assembly $artifactDirectory
+    Invoke-EffectBeforeDeathScenario $assembly $artifactDirectory
 )
 
 $manifest = [ordered]@{

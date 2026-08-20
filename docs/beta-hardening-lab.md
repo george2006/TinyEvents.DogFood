@@ -348,6 +348,8 @@ The first TE-W02 SQL Server EF Core run on 2026-08-20 processed three independen
 
 The first TE-W03 and TE-W04 SQL Server EF Core run on 2026-08-20 proved both sides of the lease boundary using the SQL Server clock. A competing process could not steal a live claim. After the owning process was terminated during consumer execution, the claim remained protected before `ClaimExpiresAtUtc`; a second process then reclaimed and completed it after expiry. Both scenarios finished with one durable effect, no failed attempt, and no duplicate effect.
 
+TE-W05 then terminated the owner after its durable consumer effect but before outbox completion. The replacement worker respected the remaining lease, redelivered the event after expiry, and completed the outbox message. The durable evidence contained two consumer invocations for the same operation and one duplicate. That duplicate is the expected at-least-once boundary, not message loss or an engine defect; consumers that cannot tolerate repeated effects require application-level idempotency.
+
 Run the repeatable lease scenarios with:
 
 ```powershell

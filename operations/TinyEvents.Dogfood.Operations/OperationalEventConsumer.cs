@@ -4,21 +4,26 @@ namespace TinyEvents.Dogfood.Operations;
 
 internal sealed class OperationalEventConsumer(
     DogfoodEffectRecorder effects,
-    ConsumerDelay delay)
+    ConsumerExecutionTiming timing)
     : IEventConsumer<OperationalEvent>
 {
     public async ValueTask ConsumeAsync(
         OperationalEvent @event,
         CancellationToken cancellationToken)
     {
-        if (delay.Value > TimeSpan.Zero)
+        if (timing.BeforeEffectDelay > TimeSpan.Zero)
         {
-            await Task.Delay(delay.Value, cancellationToken);
+            await Task.Delay(timing.BeforeEffectDelay, cancellationToken);
         }
 
         await effects.RecordAsync(
             @event.OperationId,
             @event.ScenarioId,
             cancellationToken);
+
+        if (timing.AfterEffectDelay > TimeSpan.Zero)
+        {
+            await Task.Delay(timing.AfterEffectDelay, cancellationToken);
+        }
     }
 }

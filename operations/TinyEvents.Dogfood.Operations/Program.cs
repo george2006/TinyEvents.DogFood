@@ -7,7 +7,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected reset, publish <scenario> <count>, inspect, or worker <worker-id> [consumer-delay-ms].");
+    Console.Error.WriteLine("Expected reset, publish <scenario> <count>, inspect, or worker <worker-id> [before-effect-delay-ms] [after-effect-delay-ms].");
     return 1;
 }
 
@@ -46,27 +46,36 @@ switch (args[0].ToLowerInvariant())
         return 0;
 
     case "worker":
-        if (args.Length is < 2 or > 3 || string.IsNullOrWhiteSpace(args[1]))
+        if (args.Length is < 2 or > 4 || string.IsNullOrWhiteSpace(args[1]))
         {
-            Console.Error.WriteLine("Expected worker <worker-id> [consumer-delay-ms].");
+            Console.Error.WriteLine("Expected worker <worker-id> [before-effect-delay-ms] [after-effect-delay-ms].");
             return 1;
         }
 
-        var consumerDelayMilliseconds = 0;
+        var beforeEffectDelayMilliseconds = 0;
+        var afterEffectDelayMilliseconds = 0;
 
-        if (args.Length == 3 &&
-            (!int.TryParse(args[2], out consumerDelayMilliseconds) ||
-             consumerDelayMilliseconds < 0))
+        if (args.Length >= 3 &&
+            (!int.TryParse(args[2], out beforeEffectDelayMilliseconds) ||
+             beforeEffectDelayMilliseconds < 0))
         {
-            Console.Error.WriteLine("Consumer delay must be a non-negative integer.");
+            Console.Error.WriteLine("Before-effect delay must be a non-negative integer.");
             return 1;
         }
 
-        var consumerDelay = args.Length == 3
-            ? TimeSpan.FromMilliseconds(consumerDelayMilliseconds)
-            : TimeSpan.Zero;
+        if (args.Length == 4 &&
+            (!int.TryParse(args[3], out afterEffectDelayMilliseconds) ||
+             afterEffectDelayMilliseconds < 0))
+        {
+            Console.Error.WriteLine("After-effect delay must be a non-negative integer.");
+            return 1;
+        }
 
-        using (var host = DogfoodHost.Build(settings, args[1], consumerDelay))
+        var consumerTiming = new ConsumerExecutionTiming(
+            TimeSpan.FromMilliseconds(beforeEffectDelayMilliseconds),
+            TimeSpan.FromMilliseconds(afterEffectDelayMilliseconds));
+
+        using (var host = DogfoodHost.Build(settings, args[1], consumerTiming))
         {
             await host.RunAsync();
         }

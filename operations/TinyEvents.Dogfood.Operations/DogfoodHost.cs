@@ -11,14 +11,21 @@ internal static class DogfoodHost
 {
     public static IHost Build(
         DogfoodSettings settings,
+        string workerId)
+    {
+        return Build(settings, workerId, ConsumerExecutionTiming.None);
+    }
+
+    public static IHost Build(
+        DogfoodSettings settings,
         string workerId,
-        TimeSpan consumerDelay = default)
+        ConsumerExecutionTiming consumerTiming)
     {
         var builder = Host.CreateApplicationBuilder();
 
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(new WorkerIdentity(workerId));
-        builder.Services.AddSingleton(new ConsumerDelay(consumerDelay));
+        builder.Services.AddSingleton(consumerTiming);
         builder.Services.AddSingleton<DogfoodEffectRecorder>();
         builder.Services.AddScoped<DogfoodPublisher>();
         builder.Services.AddDbContext<DogfoodDbContext>(options =>
@@ -45,4 +52,11 @@ internal static class DogfoodHost
 
 internal sealed record WorkerIdentity(string Value);
 
-internal sealed record ConsumerDelay(TimeSpan Value);
+internal sealed record ConsumerExecutionTiming(
+    TimeSpan BeforeEffectDelay,
+    TimeSpan AfterEffectDelay)
+{
+    public static ConsumerExecutionTiming None { get; } = new(
+        TimeSpan.Zero,
+        TimeSpan.Zero);
+}
