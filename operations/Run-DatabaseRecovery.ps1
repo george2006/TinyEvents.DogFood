@@ -71,6 +71,7 @@ $scenarioRunners = [ordered]@{
     "TE-D06" = {
         Invoke-TED06BoundedConnectionPressure `
             $assembly `
+            $database `
             $artifactDirectory
     }
 }
@@ -87,7 +88,8 @@ $supportedPostgreSqlScenarios = @(
     "TE-D02",
     "TE-D03",
     "TE-D04",
-    "TE-D05")
+    "TE-D05",
+    "TE-D06")
 $unsupportedPostgreSqlScenarios = @(
     $selectedScenarios |
         Where-Object { $_ -notin $supportedPostgreSqlScenarios })

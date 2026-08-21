@@ -14,6 +14,9 @@ function New-DogfoodDatabase {
                 ComposeService = "sqlserver"
                 ContainerName = "tinyevents-sqlserver"
                 Description = "SQL Server 2022 Docker"
+                ConnectionStringVariable = "TINYEVENTS_DOGFOOD_SQLSERVER"
+                PoolSizeSetting = "Max Pool Size"
+                ConnectionTimeoutSetting = "Connect Timeout"
             }
         }
 
@@ -26,6 +29,9 @@ function New-DogfoodDatabase {
                 ComposeService = "postgresql"
                 ContainerName = "tinyevents-postgresql"
                 Description = "PostgreSQL 16 Docker"
+                ConnectionStringVariable = "TINYEVENTS_DOGFOOD_POSTGRESQL"
+                PoolSizeSetting = "Maximum Pool Size"
+                ConnectionTimeoutSetting = "Timeout"
             }
         }
 

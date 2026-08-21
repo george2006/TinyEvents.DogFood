@@ -1,3 +1,5 @@
+using System.Data.Common;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TinyEvents.SqlServer.EntityFrameworkCore;
@@ -23,6 +25,11 @@ internal sealed class SqlServerDogfoodStorageProvider : IDogfoodStorageProvider
     public void ConfigureModel(ModelBuilder modelBuilder)
     {
         modelBuilder.UseTinyEventsOutbox();
+    }
+
+    public DbConnection CreateConnection(string connectionString)
+    {
+        return new SqlConnection(connectionString);
     }
 
     public ValueTask ResetAsync(

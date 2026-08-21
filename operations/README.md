@@ -91,9 +91,9 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 
 `TE-D05` runs unchanged against SQL Server and PostgreSQL. It holds a slow invocation after its durable effect while success, transient-failure, and permanent-failure messages share the backlog. The selected database disappears at that exact point. The same worker recovers and drains every eligible message, preserves exact retry and terminal-failure counts, and exposes the slow message's expected duplicate effect.
 
-`TE-D06` gives every process a maximum SQL connection pool of two. Each of two workers temporarily occupies both of its own connections while four concurrent publishers commit 100 messages. Both workers must report the real pool timeout, remain alive, announce recovery after their connections are released, participate in the drain, and finish without loss, failed attempts, or duplicate effects.
+`TE-D06` runs unchanged against SQL Server and PostgreSQL. It gives every process a maximum connection pool of two for the selected provider. Each of two workers temporarily occupies both of its own connections while four concurrent publishers commit 100 messages. Both workers must report the real pool timeout, remain alive, announce recovery after their connections are released, participate in the drain, and finish without loss, failed attempts, or duplicate effects.
 
-The PostgreSQL executable baseline uses the same publisher, consumers, hosted worker, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, and durable inspection are proven. The named destructive runners remain SQL Server-only until their container and connection-pressure controls become provider-aware.
+The PostgreSQL executable baseline and `TE-D01` through `TE-D06` use the same publisher, consumers, hosted worker, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, and bounded connection-pressure recovery are proven without provider-specific scenario copies.
 
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 

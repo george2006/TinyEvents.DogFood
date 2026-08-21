@@ -83,6 +83,7 @@ function Test-TED06WorkerParticipation {
 function Invoke-TED06BoundedConnectionPressure {
     param(
         [string]$Assembly,
+        [pscustomobject]$Database,
         [string]$ArtifactDirectory
     )
 
@@ -95,9 +96,16 @@ function Invoke-TED06BoundedConnectionPressure {
     $publisherCount = 4
     $messagesPerPublisher = 25
     $expectedMessageCount = $publisherCount * $messagesPerPublisher
-    $originalConnectionString = $env:TINYEVENTS_DOGFOOD_SQLSERVER
-    $env:TINYEVENTS_DOGFOOD_SQLSERVER =
-        "$originalConnectionString;Max Pool Size=$maxPoolSize;Connect Timeout=1;"
+    $connectionStringVariable = $Database.ConnectionStringVariable
+    $originalConnectionString =
+        [Environment]::GetEnvironmentVariable($connectionStringVariable)
+    $limitedConnectionString =
+        "$originalConnectionString;" +
+        "$($Database.PoolSizeSetting)=$maxPoolSize;" +
+        "$($Database.ConnectionTimeoutSetting)=1;"
+    [Environment]::SetEnvironmentVariable(
+        $connectionStringVariable,
+        $limitedConnectionString)
     $workers = @()
 
     try {
@@ -172,7 +180,9 @@ function Invoke-TED06BoundedConnectionPressure {
             Stop-Worker $worker
         }
 
-        $env:TINYEVENTS_DOGFOOD_SQLSERVER = $originalConnectionString
+        [Environment]::SetEnvironmentVariable(
+            $connectionStringVariable,
+            $originalConnectionString)
     }
 
     $failureCountsByWorker = [ordered]@{}

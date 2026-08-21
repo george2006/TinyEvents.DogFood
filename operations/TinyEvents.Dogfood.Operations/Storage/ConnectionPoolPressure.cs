@@ -1,29 +1,31 @@
-using Microsoft.Data.SqlClient;
+using System.Data.Common;
 
 namespace TinyEvents.Dogfood.Operations;
 
 internal sealed class ConnectionPoolPressure : IAsyncDisposable
 {
-    private readonly IReadOnlyList<SqlConnection> connections;
+    private readonly IReadOnlyList<DbConnection> connections;
 
     private ConnectionPoolPressure(
-        IReadOnlyList<SqlConnection> connections)
+        IReadOnlyList<DbConnection> connections)
     {
         this.connections = connections;
     }
 
     public static async ValueTask<ConnectionPoolPressure> AcquireAsync(
+        IDogfoodStorageProvider storageProvider,
         string connectionString,
         int connectionCount,
         CancellationToken cancellationToken = default)
     {
-        var connections = new List<SqlConnection>();
+        var connections = new List<DbConnection>();
 
         try
         {
             for (var index = 0; index < connectionCount; index++)
             {
-                var connection = new SqlConnection(connectionString);
+                var connection = storageProvider.CreateConnection(
+                    connectionString);
                 await connection.OpenAsync(cancellationToken);
                 connections.Add(connection);
             }
@@ -43,7 +45,7 @@ internal sealed class ConnectionPoolPressure : IAsyncDisposable
     }
 
     private static async ValueTask DisposeConnectionsAsync(
-        IEnumerable<SqlConnection> connections)
+        IEnumerable<DbConnection> connections)
     {
         foreach (var connection in connections)
         {

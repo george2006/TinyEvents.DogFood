@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,6 +13,8 @@ internal interface IDogfoodStorageProvider
         DogfoodSettings settings);
 
     void ConfigureModel(ModelBuilder modelBuilder);
+
+    DbConnection CreateConnection(string connectionString);
 
     ValueTask ResetAsync(
         DogfoodSettings settings,

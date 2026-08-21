@@ -410,7 +410,7 @@ The split is a readability refactor over executable evidence, not a scenario fra
 
 ### BETA-5 - Database failure and recovery
 
-Execute TE-D01 through TE-D06 against SQL Server, then repeat database-sensitive contracts against PostgreSQL.
+Execute TE-D01 through TE-D06 unchanged against SQL Server and PostgreSQL.
 
 TE-D01 runs against SQL Server and PostgreSQL. It starts a worker while the selected database is unavailable. The worker reports the first four failures and selected repeated-failure milestones, remains alive, announces recovery after the same container returns, and processes the preserved message exactly once without a process restart.
 
@@ -422,11 +422,11 @@ TE-D04 runs against SQL Server and PostgreSQL. It removes the selected database 
 
 TE-D05 runs against SQL Server and PostgreSQL. It keeps success, transient-failure, permanent-failure, and slow work in one backlog while the selected database restarts. The outage begins after the slow effect is durable but before completion. One unchanged worker recovers, drains all eligible work, exhausts the permanent failure, respects transient retries, and retains the expected duplicate slow effect with exact per-scenario evidence.
 
-TE-D06 bounds every process to two pooled SQL connections. Two workers deliberately exhaust their own pools while four concurrent publishers commit 100 messages. Both workers observe pool timeouts, remain alive, recover without restart, share the final drain, and produce exactly one durable effect per message.
+TE-D06 bounds every process to two pooled connections for the selected provider. Two workers deliberately exhaust their own pools while four concurrent publishers commit 100 messages. Both workers observe pool timeouts, remain alive, recover without restart, share the final drain, and produce exactly one durable effect per message.
 
-The PostgreSQL EF Core real-database suite passed 65 tests with zero skips on 2026-08-21. It covers transactional publishing, provider-specific claim and completion behavior, retries, terminal failure, lease ownership, competing claims, and migrations. Physical PostgreSQL container loss and recovery remains a separate destructive parity gate; the integration suite is not presented as evidence for that behavior.
+The PostgreSQL EF Core real-database suite passed 65 tests with zero skips on 2026-08-21. It covers transactional publishing, provider-specific claim and completion behavior, retries, terminal failure, lease ownership, competing claims, and migrations. The separate destructive suite also passed `TE-D01` through `TE-D06` consecutively against PostgreSQL on 2026-08-21. That run proves recovery from physical container loss before polling and during active processing, the observable at-least-once boundary after a lost completion acknowledgement, mixed-load restart recovery, and bounded connection-pool recovery.
 
-The destructive host now selects one internal storage-provider implementation at startup. SQL Server and PostgreSQL each own their configuration, model mapping, database reset, durable probe writers, and evidence queries without branching throughout the host. The same executable has proved PostgreSQL reset, migration, publishing, hosted processing, transient retry, and durable inspection. Physical PostgreSQL failure and connection-pressure scenarios remain pending; the existing scenarios and acceptance rules remain provider-independent and will not be duplicated.
+The destructive host selects one internal storage-provider implementation at startup. SQL Server and PostgreSQL each own their configuration, model mapping, database reset, durable probe writers, evidence queries, and physical connection creation without branching throughout the host or scenarios. The same executable scenarios and acceptance rules prove both providers; no provider-specific copies or weakened PostgreSQL assertions were introduced.
 
 ### BETA-6 - Transactions, contracts, and deployment
 

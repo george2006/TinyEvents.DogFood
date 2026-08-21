@@ -239,6 +239,7 @@ static async Task<int> RunWorkerUnderPressureAsync(
     using var host = DogfoodHost.Build(settings, arguments[1]);
 
     await using (var pressure = await ConnectionPoolPressure.AcquireAsync(
+        settings.StorageProvider,
         settings.ConnectionString,
         heldConnectionCount))
     {

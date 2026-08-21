@@ -1,5 +1,7 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using TinyEvents.PostgreSql.EntityFrameworkCore;
 
 namespace TinyEvents.Dogfood.Operations;
@@ -23,6 +25,11 @@ internal sealed class PostgreSqlDogfoodStorageProvider : IDogfoodStorageProvider
     public void ConfigureModel(ModelBuilder modelBuilder)
     {
         modelBuilder.UseTinyEventsOutbox();
+    }
+
+    public DbConnection CreateConnection(string connectionString)
+    {
+        return new NpgsqlConnection(connectionString);
     }
 
     public ValueTask ResetAsync(
