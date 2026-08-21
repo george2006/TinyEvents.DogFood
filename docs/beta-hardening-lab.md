@@ -416,7 +416,7 @@ TE-D01 runs against SQL Server and PostgreSQL. It starts a worker while the sele
 
 TE-D02 runs against SQL Server and PostgreSQL. It proves a worker processes one message before the selected database disappears during polling, remains alive throughout the outage, announces recovery when the database returns, and processes a second message without restarting or duplicating either effect.
 
-TE-D03 removes SQL Server after a slow consumer has acquired a claim and before its durable effect. The resulting consumer failure cannot update the unavailable outbox, so no failed attempt is recorded. Once SQL returns, the same process reclaims the expired lease, records one effect, completes the message, and announces recovery.
+TE-D03 runs against SQL Server and PostgreSQL. It removes the selected database after a slow consumer has acquired a claim and before its durable effect. The resulting consumer failure cannot update the unavailable outbox, so no failed attempt is recorded. Once the database returns, the same process reclaims the expired lease, records one effect, completes the message, and announces recovery.
 
 TE-D04 removes SQL Server after the consumer effect is durable and while the same invocation is delayed before outbox completion. The completion update fails, the worker remains alive, and the same process redelivers after lease expiry. The final evidence contains two consumer invocations and one duplicate effect, making the at-least-once boundary explicit rather than concealing it.
 

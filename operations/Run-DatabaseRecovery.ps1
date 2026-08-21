@@ -82,7 +82,7 @@ else {
     @($Scenario)
 }
 
-$supportedPostgreSqlScenarios = @("TE-D01", "TE-D02")
+$supportedPostgreSqlScenarios = @("TE-D01", "TE-D02", "TE-D03")
 $unsupportedPostgreSqlScenarios = @(
     $selectedScenarios |
         Where-Object { $_ -notin $supportedPostgreSqlScenarios })

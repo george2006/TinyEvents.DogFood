@@ -54,7 +54,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-W13` | Two processes sharing one configured worker ID defeat process-level lease fencing after a reclaim. |
 | `TE-D01` | A worker started while its database is unavailable bounds repeated failure logs and recovers without restarting. |
 | `TE-D02` | A healthy polling worker survives a database outage and processes work both before and after recovery. |
-| `TE-D03` | SQL Server disappears during active consumer work; the same process reclaims the expired lease after recovery. |
+| `TE-D03` | The database disappears during active consumer work; the same process reclaims the expired lease after recovery. |
 | `TE-D04` | SQL Server disappears after the consumer effect; redelivery exposes the expected at-least-once duplicate. |
 | `TE-D05` | Mixed success, transient, permanent, and slow work reaches exact terminal outcomes across a SQL Server restart. |
 | `TE-D06` | Two workers recover after their bounded connection pools are exhausted while concurrent publishers build a backlog. |
@@ -85,7 +85,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 
 `TE-D02` runs unchanged against SQL Server and PostgreSQL. It first proves that one worker can process a message, then removes the selected database while that same process continues polling. After automatic recovery, a second message is published and processed by the unchanged worker without loss, duplication, or failed message attempts.
 
-`TE-D03` removes SQL Server after a slow consumer has acquired its claim but before it writes its effect. Neither the effect nor the processing failure can be persisted during the outage. After SQL returns, the same worker reclaims the expired lease, records one effect, completes the message, and reports recovery.
+`TE-D03` runs unchanged against SQL Server and PostgreSQL. It removes the selected database after a slow consumer has acquired its claim but before it writes its effect. Neither the effect nor the processing failure can be persisted during the outage. After the database returns, the same worker reclaims the expired lease, records one effect, completes the message, and reports recovery.
 
 `TE-D04` removes SQL Server after the durable consumer effect and before the outbox completion update. The worker survives the failed update, reclaims the expired lease after SQL returns, and completes through redelivery. SQL evidence retains both consumer invocations and one duplicate effect, which is the expected at-least-once boundary.
 
