@@ -3,15 +3,18 @@ using Microsoft.Data.SqlClient;
 namespace TinyEvents.Dogfood.Operations;
 
 internal sealed record DogfoodSettings(
+    DogfoodStorageProvider StorageProvider,
     string ConnectionString,
-    string MasterConnectionString,
+    string AdministrationConnectionString,
     string DatabaseName)
 {
+    private const string StorageProviderVariable = "TINYEVENTS_DOGFOOD_STORAGE";
     private const string ConnectionStringVariable = "TINYEVENTS_DOGFOOD_SQLSERVER";
     private const string DatabaseNamePrefix = "TinyEventsDogfood";
 
     public static DogfoodSettings Load()
     {
+        var storageProvider = LoadStorageProvider();
         var connectionString = Environment.GetEnvironmentVariable(ConnectionStringVariable);
 
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -32,9 +35,23 @@ internal sealed record DogfoodSettings(
         builder.InitialCatalog = "master";
 
         return new DogfoodSettings(
+            storageProvider,
             connectionString,
             builder.ConnectionString,
             databaseName);
+    }
+
+    private static DogfoodStorageProvider LoadStorageProvider()
+    {
+        var provider = Environment.GetEnvironmentVariable(StorageProviderVariable);
+
+        if (string.Equals(provider, "sqlserver", StringComparison.OrdinalIgnoreCase))
+        {
+            return DogfoodStorageProvider.SqlServer;
+        }
+
+        throw new InvalidOperationException(
+            $"Environment variable '{StorageProviderVariable}' must be 'sqlserver'. Actual: '{provider ?? "not provided"}'.");
     }
 
     private static bool IsDogfoodDatabaseName(string databaseName)

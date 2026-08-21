@@ -27,7 +27,8 @@ internal static class DogfoodDatabaseReset
             CREATE DATABASE {quotedDatabaseName};
             """;
 
-        await using var connection = new SqlConnection(settings.MasterConnectionString);
+        await using var connection = new SqlConnection(
+            settings.AdministrationConnectionString);
         await connection.OpenAsync(cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@DatabaseName", settings.DatabaseName);

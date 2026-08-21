@@ -1,8 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using TinyEvents;
-using TinyEvents.SqlServer.EntityFrameworkCore;
 using TinyEvents.Worker;
 
 namespace TinyEvents.Dogfood.Operations;
@@ -48,11 +46,7 @@ internal static class DogfoodHost
         builder.Services.AddSingleton<DogfoodConsumerFailurePlan>();
         builder.Services.AddSingleton<DogfoodEffectRecorder>();
         builder.Services.AddScoped<DogfoodPublisher>();
-        builder.Services.AddDbContext<DogfoodDbContext>(options =>
-        {
-            options.UseSqlServer(settings.ConnectionString);
-        });
-        builder.Services.UseSqlServerEntityFrameworkCoreOutbox<DogfoodDbContext>();
+        builder.Services.AddDogfoodStorage(settings);
         builder.Services.UseTinyEvents(options =>
         {
             options.MaxAttempts = 3;

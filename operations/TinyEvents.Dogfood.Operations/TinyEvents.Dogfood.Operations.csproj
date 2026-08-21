@@ -8,9 +8,11 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.16" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\TinyEvents\src\TinyEvents\TinyEvents.csproj" />
+    <ProjectReference Include="..\..\..\TinyEvents\src\TinyEvents.PostgreSql.EntityFrameworkCore\TinyEvents.PostgreSql.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\..\TinyEvents\src\TinyEvents.SqlServer.EntityFrameworkCore\TinyEvents.SqlServer.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\..\TinyEvents\src\TinyEvents.Worker\TinyEvents.Worker.csproj" />
     <ProjectReference Include="..\..\..\TinyEvents\src\TinyEvents.SourceGen\TinyEvents.SourceGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />

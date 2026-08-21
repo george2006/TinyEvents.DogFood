@@ -245,6 +245,7 @@ $runId = Get-Date -Format "yyyyMMdd-HHmmss"
 $startedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
 $artifactDirectory = Join-Path $dogfoodRoot "artifacts\workers\$runId\TE-W02"
 
+$env:TINYEVENTS_DOGFOOD_STORAGE = "sqlserver"
 $env:TINYEVENTS_DOGFOOD_SQLSERVER = "Server=localhost,14333;Database=TinyEventsDogfoodOperations;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
 
 New-Item -ItemType Directory -Force -Path $artifactDirectory | Out-Null
