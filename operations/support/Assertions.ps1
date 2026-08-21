@@ -176,3 +176,31 @@ function Test-DuplicateIdentityResult {
         $null -ne $competingEffects -and
         $competingEffects.Value -eq 1)
 }
+
+function Test-WorkerCompletedMessagesResult {
+    param(
+        [pscustomobject]$Observation,
+        [string]$WorkerId,
+        [int]$ExpectedCount
+    )
+
+    $claims = $Observation.WorkerClaims.PSObject.Properties[$WorkerId]
+    $effects = $Observation.WorkerEffects.PSObject.Properties[$WorkerId]
+
+    return (
+        $Observation.BusinessOperations -eq $ExpectedCount -and
+        $Observation.OutboxMessages -eq $ExpectedCount -and
+        $Observation.PendingMessages -eq 0 -and
+        $Observation.ProcessingMessages -eq 0 -and
+        $Observation.ProcessedMessages -eq $ExpectedCount -and
+        $Observation.FailedMessages -eq 0 -and
+        $Observation.FailedAttempts -eq 0 -and
+        $Observation.Effects -eq $ExpectedCount -and
+        $Observation.DuplicateEffects -eq 0 -and
+        @($Observation.WorkerClaims.PSObject.Properties).Count -eq 1 -and
+        @($Observation.WorkerEffects.PSObject.Properties).Count -eq 1 -and
+        $null -ne $claims -and
+        $claims.Value -eq $ExpectedCount -and
+        $null -ne $effects -and
+        $effects.Value -eq $ExpectedCount)
+}

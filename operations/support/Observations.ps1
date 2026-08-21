@@ -489,3 +489,33 @@ function Get-WorkerFailureLogCounts {
 
     return @($matches | ForEach-Object { [int]$_.Groups[1].Value })
 }
+
+function Wait-ForCompletedMessages {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$Worker,
+        [string]$WorkerId,
+        [int]$ExpectedCount
+    )
+
+    $deadline = (Get-Date).AddSeconds(30)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Worker.HasExited) {
+            throw "Worker '$WorkerId' exited before completing $ExpectedCount messages. Exit code: $($Worker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+
+        if ($observation.ProcessedMessages -eq $ExpectedCount -and
+            $observation.Effects -eq $ExpectedCount -and
+            $observation.PendingMessages -eq 0 -and
+            $observation.ProcessingMessages -eq 0) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Worker '$WorkerId' did not complete $ExpectedCount messages within thirty seconds."
+}

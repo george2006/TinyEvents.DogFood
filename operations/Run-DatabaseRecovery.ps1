@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "TE-D01")]
+    [ValidateSet("all", "TE-D01", "TE-D02")]
     [string]$Scenario = "all"
 )
 
@@ -12,6 +12,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "support\Observations.ps1")
 . (Join-Path $PSScriptRoot "support\Assertions.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-D01-database-unavailable-at-startup.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-D02-database-disappears-during-polling.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -33,6 +34,12 @@ $env:TINYEVENTS_DOGFOOD_SQLSERVER = "Server=localhost,14333;Database=TinyEventsD
 $scenarioRunners = [ordered]@{
     "TE-D01" = {
         Invoke-TED01DatabaseUnavailableAtStartup `
+            $assembly `
+            $composeFile `
+            $artifactDirectory
+    }
+    "TE-D02" = {
+        Invoke-TED02DatabaseDisappearsDuringPolling `
             $assembly `
             $composeFile `
             $artifactDirectory

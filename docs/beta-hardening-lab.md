@@ -414,6 +414,8 @@ Execute TE-D01 through TE-D06 against SQL Server, then repeat database-sensitive
 
 TE-D01 starts a worker while its SQL Server is unavailable. The worker reports the first four failures and selected repeated-failure milestones, remains alive, announces recovery after the same container returns, and processes the preserved message exactly once without a process restart.
 
+TE-D02 proves a worker processes one message before SQL Server disappears during polling, remains alive throughout the outage, announces recovery when SQL returns, and processes a second message without restarting or duplicating either effect.
+
 ### BETA-6 - Transactions, contracts, and deployment
 
 Complete the transactional, malformed-message, migration, alpha-upgrade, and rolling-upgrade scenarios.

@@ -51,6 +51,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-W12` | A failure in a later consumer retries the complete event and may invoke an already successful consumer again. |
 | `TE-W13` | Two processes sharing one configured worker ID defeat process-level lease fencing after a reclaim. |
 | `TE-D01` | A worker started while SQL Server is unavailable bounds repeated failure logs and recovers without restarting. |
+| `TE-D02` | A healthy polling worker survives a SQL Server outage and processes work both before and after recovery. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
 
@@ -75,6 +76,8 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 `TE-W13` starts two deliberately slow processes with the same configured worker ID. After the second process reclaims the expired lease, the original process can still mark the row processed because durable ownership contains only their shared ID. Default generated worker IDs are process-unique; V1 therefore treats uniqueness of explicitly configured IDs as an operator responsibility rather than adding a durable worker registry.
 
 `TE-D01` stops the existing SQL Server container after persisting one pending message, then starts the worker. The worker remains alive, reports initial and selected repeated failures instead of logging every poll, and automatically drains the preserved message after the same database returns.
+
+`TE-D02` first proves that one worker can process a message, then removes SQL Server while that same process continues polling. After automatic recovery, a second message is published and processed by the unchanged worker without loss, duplication, or failed message attempts.
 
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 
