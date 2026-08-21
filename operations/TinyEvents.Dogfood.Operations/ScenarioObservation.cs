@@ -18,4 +18,5 @@ internal sealed record ScenarioObservation(
     DateTimeOffset? LatestConsumerAttemptAtUtc,
     IReadOnlyDictionary<string, int> WorkerClaims,
     IReadOnlyDictionary<string, int> WorkerEffects,
-    IReadOnlyDictionary<string, int> WorkerAttempts);
+    IReadOnlyDictionary<string, int> WorkerAttempts,
+    IReadOnlyDictionary<string, int> ProcessEffects);

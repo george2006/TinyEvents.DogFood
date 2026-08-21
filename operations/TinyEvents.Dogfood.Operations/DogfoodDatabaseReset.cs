@@ -52,6 +52,7 @@ internal static class DogfoodDatabaseReset
                 OperationId UNIQUEIDENTIFIER NOT NULL,
                 ScenarioId NVARCHAR(32) NOT NULL,
                 WorkerId NVARCHAR(256) NOT NULL,
+                ProcessId INT NOT NULL,
                 RecordedAtUtc DATETIMEOFFSET NOT NULL
             );
 

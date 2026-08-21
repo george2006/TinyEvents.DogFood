@@ -364,6 +364,12 @@ TE-W11 rejected one message on all three configured attempts while an unrelated 
 
 TE-W12 registered two consumers for one isolated dogfood event. The recording consumer completed before the later consumer failed once. Whole-message retry invoked the recording consumer again, leaving two effects for one operation and exposing the documented at-least-once boundary. The scenario does not promote consumer execution order to a public contract.
 
+TE-W13 assigned the same explicit worker ID to two slow processes. The second process reclaimed the expired lease, but the original process subsequently marked the row processed because the durable owner value could not distinguish them. Both invocations completed and produced one duplicate effect. Generated worker IDs remain process-unique; uniqueness of manually configured IDs is an explicit V1 operator responsibility.
+
+#### Post-V1 - Worker instance fencing and heartbeat
+
+Evaluate a durable worker-instance identity with an expiring heartbeat only after V1. A future design may separate the operator-facing worker name from a process-incarnation token, detect concurrently duplicated configured names, fence stale processes, and renew claims during legitimately long consumer execution. This work requires an explicit worker-lifecycle model and durable schema; it is not part of V1 hardening. V1 already generates a process-unique ID containing machine name, process ID, and a GUID whenever the operator does not configure one.
+
 Run the repeatable lease scenarios with:
 
 ```powershell
@@ -391,6 +397,7 @@ operations/
     TE-W10-transient-failure-recovers.ps1
     TE-W11-permanent-failure-exhausts-retries.ps1
     TE-W12-later-consumer-failure.ps1
+    TE-W13-duplicate-worker-identity.ps1
   support/
     Process.ps1
     SqlServer.ps1

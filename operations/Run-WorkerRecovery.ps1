@@ -10,7 +10,8 @@ param(
         "TE-W09",
         "TE-W10",
         "TE-W11",
-        "TE-W12")]
+        "TE-W12",
+        "TE-W13")]
     [string]$Scenario = "all"
 )
 
@@ -32,6 +33,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "scenarios\TE-W10-transient-failure-recovers.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-W11-permanent-failure-exhausts-retries.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-W12-later-consumer-failure.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-W13-duplicate-worker-identity.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -61,6 +63,7 @@ $scenarioRunners = [ordered]@{
     "TE-W10" = { Invoke-TEW10TransientFailureRecovers $assembly $artifactDirectory }
     "TE-W11" = { Invoke-TEW11PermanentFailureExhaustsRetries $assembly $artifactDirectory }
     "TE-W12" = { Invoke-TEW12LaterConsumerFailure $assembly $artifactDirectory }
+    "TE-W13" = { Invoke-TEW13DuplicateWorkerIdentity $assembly $artifactDirectory }
 }
 
 $selectedScenarios = if ($Scenario -eq "all") {

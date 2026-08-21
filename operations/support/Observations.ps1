@@ -385,3 +385,70 @@ function Wait-ForLaterConsumerRetry {
 
     throw "Worker '$WorkerId' did not schedule the later-consumer retry within twenty seconds."
 }
+
+function Wait-ForDuplicateIdentityReclaim {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$OriginalWorker,
+        [System.Diagnostics.Process]$CompetingWorker,
+        [DateTimeOffset]$OriginalClaimExpiry
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($OriginalWorker.HasExited -or $CompetingWorker.HasExited) {
+            throw "A duplicate-identity worker exited before the expired claim was reassigned."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+        $currentClaimExpiry = $observation.EarliestClaimExpiresAtUtc
+
+        if ($observation.ProcessingMessages -eq 1 -and
+            $observation.Effects -eq 0 -and
+            $null -ne $currentClaimExpiry -and
+            [DateTimeOffset]$observation.DatabaseUtcNow -ge $OriginalClaimExpiry -and
+            [DateTimeOffset]$currentClaimExpiry -gt $OriginalClaimExpiry) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "The duplicate-identity worker did not reclaim the expired message within twenty seconds."
+}
+
+function Wait-ForStaleOwnerCompletion {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$OriginalWorker,
+        [System.Diagnostics.Process]$CompetingWorker
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+    $originalProcessId = [string]$OriginalWorker.Id
+    $competingProcessId = [string]$CompetingWorker.Id
+
+    while ((Get-Date) -lt $deadline) {
+        if ($OriginalWorker.HasExited -or $CompetingWorker.HasExited) {
+            throw "A duplicate-identity worker exited before stale-owner completion was observed."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+        $originalEffect = $observation.ProcessEffects.PSObject.Properties[$originalProcessId]
+        $competingEffect = $observation.ProcessEffects.PSObject.Properties[$competingProcessId]
+
+        if ($observation.ProcessedMessages -eq 1 -and
+            $observation.ProcessingMessages -eq 0 -and
+            $observation.Effects -eq 1 -and
+            $null -ne $originalEffect -and
+            $originalEffect.Value -eq 1 -and
+            $null -eq $competingEffect) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "The stale owner did not complete the reassigned message within twenty seconds."
+}

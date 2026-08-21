@@ -144,3 +144,35 @@ function Test-LaterConsumerRetryResult {
         $null -ne $effects -and
         $effects.Value -eq 2)
 }
+
+function Test-DuplicateIdentityResult {
+    param(
+        [pscustomobject]$Observation,
+        [string]$WorkerId,
+        [int]$OriginalProcessId,
+        [int]$CompetingProcessId
+    )
+
+    $workerEffects = $Observation.WorkerEffects.PSObject.Properties[$WorkerId]
+    $originalEffects = $Observation.ProcessEffects.PSObject.Properties[[string]$OriginalProcessId]
+    $competingEffects = $Observation.ProcessEffects.PSObject.Properties[[string]$CompetingProcessId]
+
+    return (
+        $Observation.BusinessOperations -eq 1 -and
+        $Observation.OutboxMessages -eq 1 -and
+        $Observation.PendingMessages -eq 0 -and
+        $Observation.ProcessingMessages -eq 0 -and
+        $Observation.ProcessedMessages -eq 1 -and
+        $Observation.FailedMessages -eq 0 -and
+        $Observation.FailedAttempts -eq 0 -and
+        $Observation.Effects -eq 2 -and
+        $Observation.DuplicateEffects -eq 1 -and
+        @($Observation.WorkerEffects.PSObject.Properties).Count -eq 1 -and
+        @($Observation.ProcessEffects.PSObject.Properties).Count -eq 2 -and
+        $null -ne $workerEffects -and
+        $workerEffects.Value -eq 2 -and
+        $null -ne $originalEffects -and
+        $originalEffects.Value -eq 1 -and
+        $null -ne $competingEffects -and
+        $competingEffects.Value -eq 1)
+}

@@ -4,11 +4,12 @@ function Start-Worker {
         [string]$WorkerId,
         [int]$BeforeEffectDelayMilliseconds,
         [int]$AfterEffectDelayMilliseconds,
-        [string]$ArtifactDirectory
+        [string]$ArtifactDirectory,
+        [string]$EvidenceName = $WorkerId
     )
 
-    $standardOutput = Join-Path $ArtifactDirectory "$WorkerId.stdout.log"
-    $standardError = Join-Path $ArtifactDirectory "$WorkerId.stderr.log"
+    $standardOutput = Join-Path $ArtifactDirectory "$EvidenceName.stdout.log"
+    $standardError = Join-Path $ArtifactDirectory "$EvidenceName.stderr.log"
 
     return Start-Process `
         -FilePath "dotnet" `

@@ -17,6 +17,7 @@ internal sealed class DogfoodEffectRecorder(
                 OperationId,
                 ScenarioId,
                 WorkerId,
+                ProcessId,
                 RecordedAtUtc
             )
             VALUES
@@ -24,6 +25,7 @@ internal sealed class DogfoodEffectRecorder(
                 @OperationId,
                 @ScenarioId,
                 @WorkerId,
+                @ProcessId,
                 @RecordedAtUtc
             );
             """;
@@ -34,6 +36,7 @@ internal sealed class DogfoodEffectRecorder(
         command.Parameters.AddWithValue("@OperationId", operationId);
         command.Parameters.AddWithValue("@ScenarioId", scenarioId);
         command.Parameters.AddWithValue("@WorkerId", worker.Value);
+        command.Parameters.AddWithValue("@ProcessId", Environment.ProcessId);
         command.Parameters.AddWithValue("@RecordedAtUtc", DateTimeOffset.UtcNow);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
