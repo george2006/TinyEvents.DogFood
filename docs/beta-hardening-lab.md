@@ -6,6 +6,8 @@ This document defines the executable hardening work required before TinyEvents i
 
 It is a test and product-validation plan. It does not authorize production-code changes by itself. Every discovered failure must first be reproduced by an executable scenario, reviewed, and then fixed in the smallest separate slice.
 
+Use the [scenario catalog](scenario-catalog.md) for behavior demonstrated today and the [beta hardening roadmap](roadmap.md) for incomplete work. The implementation-slice history in this document preserves earlier hypotheses and failing baselines only when they are explicitly labeled as historical.
+
 ## Objective
 
 Prove TinyEvents under the conditions that make an outbox difficult:
@@ -55,16 +57,23 @@ The first destructive host should use SQL Server and EF Core because it exercise
 
 ## Message Identity and Contract Evolution
 
-TinyEvents currently has two different identities:
+TinyEvents keeps two distinct identities:
 
 - `TinyOutboxMessage.Id` identifies one durable outbox message.
 - `TinyOutboxMessage.EventType` identifies the .NET contract used to find its dispatcher.
 
-These responsibilities must remain separate.
+These responsibilities remain separate.
 
-The publisher currently persists the runtime `Type.FullName`. The source generator emits its dispatcher key from a Roslyn type display name. Normal top-level non-generic events appear equivalent, but nested and closed-generic event names may not be represented identically. This is a hypothesis until an executable scenario reproduces it.
+The current publisher and source generator share the same canonical runtime event-name contract. The completed `TE-C01` through `TE-C05` scenarios demonstrate that:
 
-A namespace, type, or assembly rename is a different problem. An old event-type name remains stored with every in-flight message. A deployment containing only the renamed type cannot infer automatically that the two contracts are equivalent.
+- top-level and nested non-generic event contracts process successfully;
+- closed generic event contracts are rejected at build time with `TEV002`;
+- moving a contract between assemblies works when its full type name remains unchanged;
+- namespace or event-type renames require an explicit previous-name mapping for in-flight messages.
+
+Applications declare a renamed durable contract through `AcceptPreviousEventName<TEvent>(previousEventName)`. TinyEvents then resolves the current generated dispatcher, deserializes the old payload into the current event type, and invokes the current consumers. The complete product contract and deployment guidance live in [Event Contracts and Durable Names](https://github.com/george2006/TinyEvents/blob/main/docs/event-contracts.md).
+
+The consumer implementation type is not part of the persisted event identity. Renaming or moving an `IEventConsumer<TEvent>` implementation therefore requires no durable-name mapping as long as the event contract itself remains unchanged and the current consumer assembly is loaded before TinyEvents registration.
 
 NServiceBus follows the same general model: it keeps a unique message ID separate from an enclosed .NET message-type name. Moving or renaming a contract is not automatic; its documented solution explicitly translates the previous type name to the new type. NServiceBus also rejects generic message definitions rather than pretending they have a safe evolution contract.
 
@@ -75,16 +84,11 @@ Official references:
 - [NServiceBus change/move message type sample](https://docs.particular.net/samples/serializers/change-message-type/)
 - [NServiceBus evolving message contracts](https://docs.particular.net/nservicebus/messaging/evolving-contracts)
 
-TinyEvents must make an explicit beta decision after executable characterization:
-
-- support old persisted names through an explicit alias/mapping contract; or
-- reject unsupported event shapes and document that renaming a contract requires draining the outbox first.
-
-The preferred direction to evaluate is explicit aliases. It preserves POCO contracts, keeps message identity independent from type identity, and supports messages already persisted by an older deployment. No alias API will be designed until the upgrade scenario proves the current observable failure and ownership is reviewed.
+The beta decision is closed: TinyEvents supports old persisted names through explicit mappings. The API preserves POCO contracts, keeps message identity independent from type identity, and does not guess whether two differently named contracts represent the same event.
 
 ## Scenario Catalogue
 
-Each identifier below will become a committed executable scenario. Expected at-least-once duplicates must be measured and reported, not incorrectly classified as library failures.
+Each identifier below defines a stable behavioral contract. Completed evidence is indexed in the [scenario catalog](scenario-catalog.md); incomplete contracts remain visible in the [roadmap](roadmap.md). Expected at-least-once duplicates must be measured and reported, not incorrectly classified as library failures.
 
 ### Contract and Upgrade
 
@@ -94,15 +98,15 @@ Publish a top-level event with version 1 of the host, stop publishing, and prove
 
 #### TE-C02 - Nested event identity
 
-Publish and consume a nested event through the complete persisted path. The scenario either succeeds or demonstrates a dispatcher-key mismatch.
+Publish and consume a nested event through the complete persisted path using the canonical runtime event name.
 
 #### TE-C03 - Closed generic event identity
 
-Attempt the complete persisted round trip for a closed generic event. The beta contract must either support it consistently or reject it at build/startup with an actionable diagnostic.
+Compile a closed generic event contract and prove that TinyEvents rejects it with the actionable `TEV002` diagnostic.
 
 #### TE-C04 - Namespace rename with an in-flight message
 
-Publish using the V1 contract, leave the message pending, stop V1, and start V2 containing the same type name in a new namespace. The result establishes whether an explicit alias is required and later verifies that alias behavior.
+Publish using the V1 contract, leave the message pending, stop V1, and start V2 with an explicit previous-name mapping to the event type in its new namespace. Prove that the in-flight message reaches the current consumer.
 
 #### TE-C05 - Contract moved to another assembly
 
@@ -295,9 +299,9 @@ Throughput never overrides correctness. A run that reaches 800 requests per seco
 
 Only one slice proceeds at a time. Each slice stops after executable evidence, diff, and principal review.
 
-### BETA-1 - Event identity characterization
+### BETA-1 - Event identity characterization — Complete
 
-Implement TE-C01 through TE-C05 without changing the production identity contract. Reproduce the current behavior first. Review nested/generic support and in-flight rename ownership before designing a fix.
+This slice first implemented `TE-C01` through `TE-C05` without changing the production identity contract. It reproduced the original behavior before the smallest reviewed product fix defined nested, generic, and in-flight rename ownership.
 
 Run the complete identity characterization with:
 
