@@ -2,6 +2,8 @@
 
 This catalog contains the behavior demonstrated by the repository today. Planned scenarios are intentionally excluded.
 
+See the [beta hardening roadmap](roadmap.md) for incomplete work and the final release boundary.
+
 Run every command from the `TinyEvents.Dogfood` repository root.
 
 ## How to Read the Catalog

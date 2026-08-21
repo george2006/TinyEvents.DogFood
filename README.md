@@ -47,6 +47,8 @@ docker info
 
 `docker info` must complete successfully before you run a scenario. Start Docker Desktop if it does not.
 
+You do not need to set database environment variables when using the documented runners. Each runner selects its local Docker database and configures its child processes from the `-StorageProvider` argument.
+
 ```text
 repos/
   TinyEvents/
@@ -84,6 +86,7 @@ TE-T05               True
 
 - [Run the scenarios](docs/running-scenarios.md)
 - [Scenario catalog](docs/scenario-catalog.md)
+- [Beta hardening roadmap](docs/roadmap.md)
 - [Identity and compatibility](identity/README.md)
 - [Transactions, workers, and database recovery](operations/README.md)
 - [Schema and deployment](deployment/README.md)

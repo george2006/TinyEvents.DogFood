@@ -35,6 +35,8 @@ The current database names are:
 
 ## Provider Selection
 
+You do not set connection environment variables before running the documented scripts. The top-level runner owns that setup for its local Docker database.
+
 Provider-aware runners accept `-StorageProvider SqlServer` or `-StorageProvider PostgreSql`. SQL Server is the default, so both commands below are equivalent:
 
 ```powershell
@@ -56,6 +58,8 @@ The runner is the composition root. It:
 4. launches child `dotnet` processes.
 
 Child processes inherit those environment variables. `DogfoodSettings` selects one storage-provider implementation and loads its settings. Individual scenario scripts therefore receive the executable and artifact paths, not database credentials.
+
+The variables below are an internal boundary between a runner and the application processes it starts. They are documented for troubleshooting and direct application-host development, not as normal setup steps. Do not point them at production or shared-development databases.
 
 The variables are:
 
