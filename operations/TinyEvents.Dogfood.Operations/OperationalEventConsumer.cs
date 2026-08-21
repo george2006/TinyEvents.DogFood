@@ -3,6 +3,7 @@ using TinyEvents;
 namespace TinyEvents.Dogfood.Operations;
 
 internal sealed class OperationalEventConsumer(
+    DogfoodConsumerFailurePlan failurePlan,
     DogfoodEffectRecorder effects,
     ConsumerExecutionTiming timing)
     : IEventConsumer<OperationalEvent>
@@ -11,6 +12,8 @@ internal sealed class OperationalEventConsumer(
         OperationalEvent @event,
         CancellationToken cancellationToken)
     {
+        await failurePlan.RejectWhenPlannedAsync(@event, cancellationToken);
+
         if (timing.BeforeEffectDelay > TimeSpan.Zero)
         {
             await Task.Delay(timing.BeforeEffectDelay, cancellationToken);

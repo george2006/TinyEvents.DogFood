@@ -356,6 +356,8 @@ TE-W07 ran a ten-second consumer under a five-second claim with a competing work
 
 TE-W08 exercised normal host cancellation while idle and during a delayed consumer. Both worker processes reported graceful shutdown and exited with code zero. Idle shutdown changed no durable state. Active cancellation left the message claimed and recoverable, recorded neither a consumer effect nor a failed attempt, and a replacement worker completed it once the SQL lease expired.
 
+TE-W09 rejected the first consumer invocation, persisted `AttemptCount = 1` and `NextAttemptAtUtc`, and stopped all worker capacity during the retry delay. A replacement process started before eligibility without invoking the consumer. It completed the second invocation only after the SQL retry boundary, producing one durable effect and no duplicate. Retry state therefore survives process loss and remains database-authoritative.
+
 Run the repeatable lease scenarios with:
 
 ```powershell
@@ -379,6 +381,7 @@ operations/
     TE-W07-long-consumer-lease-loss.ps1
     TE-W08-idle-shutdown.ps1
     TE-W08-active-shutdown.ps1
+    TE-W09-retry-survives-restart.ps1
   support/
     Process.ps1
     SqlServer.ps1

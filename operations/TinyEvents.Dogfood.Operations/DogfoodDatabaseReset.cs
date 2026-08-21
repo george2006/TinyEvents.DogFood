@@ -57,6 +57,18 @@ internal static class DogfoodDatabaseReset
 
             CREATE INDEX IX_DogfoodEffects_OperationId
                 ON dbo.DogfoodEffects (OperationId);
+
+            CREATE TABLE dbo.DogfoodConsumerAttempts
+            (
+                Id BIGINT IDENTITY(1, 1) NOT NULL PRIMARY KEY,
+                OperationId UNIQUEIDENTIFIER NOT NULL,
+                ScenarioId NVARCHAR(32) NOT NULL,
+                WorkerId NVARCHAR(256) NOT NULL,
+                RecordedAtUtc DATETIMEOFFSET NOT NULL
+            );
+
+            CREATE INDEX IX_DogfoodConsumerAttempts_OperationId
+                ON dbo.DogfoodConsumerAttempts (OperationId);
             """;
 
         await using var connection = new SqlConnection(settings.ConnectionString);

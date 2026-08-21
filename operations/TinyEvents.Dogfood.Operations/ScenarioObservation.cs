@@ -3,6 +3,7 @@ namespace TinyEvents.Dogfood.Operations;
 internal sealed record ScenarioObservation(
     DateTimeOffset DatabaseUtcNow,
     DateTimeOffset? EarliestClaimExpiresAtUtc,
+    DateTimeOffset? EarliestNextAttemptAtUtc,
     int BusinessOperations,
     int OutboxMessages,
     int PendingMessages,
@@ -12,5 +13,7 @@ internal sealed record ScenarioObservation(
     int FailedAttempts,
     int Effects,
     int DuplicateEffects,
+    int ConsumerAttempts,
     IReadOnlyDictionary<string, int> WorkerClaims,
-    IReadOnlyDictionary<string, int> WorkerEffects);
+    IReadOnlyDictionary<string, int> WorkerEffects,
+    IReadOnlyDictionary<string, int> WorkerAttempts);

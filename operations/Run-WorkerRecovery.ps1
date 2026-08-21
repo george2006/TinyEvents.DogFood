@@ -6,7 +6,8 @@ param(
         "TE-W05",
         "TE-W07",
         "TE-W08-idle",
-        "TE-W08-active")]
+        "TE-W08-active",
+        "TE-W09")]
     [string]$Scenario = "all"
 )
 
@@ -24,6 +25,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "scenarios\TE-W07-long-consumer-lease-loss.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-W08-idle-shutdown.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-W08-active-shutdown.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-W09-retry-survives-restart.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -49,6 +51,7 @@ $scenarioRunners = [ordered]@{
     "TE-W07" = { Invoke-TEW07LongConsumerLeaseLoss $assembly $artifactDirectory }
     "TE-W08-idle" = { Invoke-TEW08IdleShutdown $assembly $artifactDirectory }
     "TE-W08-active" = { Invoke-TEW08ActiveShutdown $assembly $artifactDirectory }
+    "TE-W09" = { Invoke-TEW09RetrySurvivesRestart $assembly $artifactDirectory }
 }
 
 $selectedScenarios = if ($Scenario -eq "all") {
@@ -79,6 +82,7 @@ $manifest = [ordered]@{
     DotNetSdk = (dotnet --version)
     DatabaseEngine = "SQL Server 2022 Docker"
     ClaimTimeoutMilliseconds = 5000
+    RetryDelayMilliseconds = 3000
     RequestedScenario = $Scenario
     Results = $results
 }

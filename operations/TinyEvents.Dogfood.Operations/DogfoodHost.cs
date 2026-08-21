@@ -26,6 +26,8 @@ internal static class DogfoodHost
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(new WorkerIdentity(workerId));
         builder.Services.AddSingleton(consumerTiming);
+        builder.Services.AddSingleton<DogfoodConsumerAttemptRecorder>();
+        builder.Services.AddSingleton<DogfoodConsumerFailurePlan>();
         builder.Services.AddSingleton<DogfoodEffectRecorder>();
         builder.Services.AddScoped<DogfoodPublisher>();
         builder.Services.AddDbContext<DogfoodDbContext>(options =>
@@ -36,7 +38,7 @@ internal static class DogfoodHost
         builder.Services.UseTinyEvents(options =>
         {
             options.MaxAttempts = 3;
-            options.RetryDelay = TimeSpan.FromMilliseconds(250);
+            options.RetryDelay = TimeSpan.FromSeconds(3);
         });
         builder.Services.AddTinyEventsWorker(options =>
         {

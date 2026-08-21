@@ -184,3 +184,69 @@ function Wait-ForCompetingCompletion {
 
     throw "Competing worker '$CompetingWorkerId' did not complete while '$OriginalWorkerId' remained active."
 }
+
+function Wait-ForScheduledRetry {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$Worker,
+        [string]$WorkerId
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Worker.HasExited) {
+            throw "Worker '$WorkerId' exited before scheduling the retry. Exit code: $($Worker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+        $workerAttempt = $observation.WorkerAttempts.PSObject.Properties[$WorkerId]
+
+        if ($observation.PendingMessages -eq 1 -and
+            $observation.ProcessingMessages -eq 0 -and
+            $observation.ProcessedMessages -eq 0 -and
+            $observation.FailedMessages -eq 0 -and
+            $observation.FailedAttempts -eq 1 -and
+            $observation.ConsumerAttempts -eq 1 -and
+            $observation.Effects -eq 0 -and
+            $null -ne $observation.EarliestNextAttemptAtUtc -and
+            $null -ne $workerAttempt -and
+            $workerAttempt.Value -eq 1) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Worker '$WorkerId' did not schedule the retry within twenty seconds."
+}
+
+function Wait-ForRetryCompletion {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$Worker,
+        [string]$WorkerId
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Worker.HasExited) {
+            throw "Worker '$WorkerId' exited before completing the retry. Exit code: $($Worker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+
+        if ($observation.PendingMessages -eq 0 -and
+            $observation.ProcessingMessages -eq 0 -and
+            $observation.ProcessedMessages -eq 1 -and
+            $observation.ConsumerAttempts -eq 2 -and
+            $observation.Effects -eq 1) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Worker '$WorkerId' did not complete the retry within twenty seconds."
+}

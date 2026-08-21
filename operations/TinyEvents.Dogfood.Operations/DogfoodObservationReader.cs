@@ -22,13 +22,17 @@ internal static class DogfoodObservationReader
                 COALESCE(SUM(CASE WHEN Status = @ProcessedStatus THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(CASE WHEN Status = @FailedStatus THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(AttemptCount), 0),
-                MIN(ClaimExpiresAtUtc)
+                MIN(ClaimExpiresAtUtc),
+                MIN(NextAttemptAtUtc)
             FROM dbo.TinyOutbox;
 
             SELECT
                 COUNT(*),
                 COUNT(*) - COUNT(DISTINCT OperationId)
             FROM dbo.DogfoodEffects;
+
+            SELECT COUNT(*)
+            FROM dbo.DogfoodConsumerAttempts;
 
             SELECT ClaimedBy, COUNT(*)
             FROM dbo.TinyOutbox
@@ -38,6 +42,11 @@ internal static class DogfoodObservationReader
 
             SELECT WorkerId, COUNT(*)
             FROM dbo.DogfoodEffects
+            GROUP BY WorkerId
+            ORDER BY WorkerId;
+
+            SELECT WorkerId, COUNT(*)
+            FROM dbo.DogfoodConsumerAttempts
             GROUP BY WorkerId
             ORDER BY WorkerId;
             """;
@@ -77,6 +86,9 @@ internal static class DogfoodObservationReader
         DateTimeOffset? earliestClaimExpiresAtUtc = reader.IsDBNull(6)
             ? null
             : reader.GetFieldValue<DateTimeOffset>(6);
+        DateTimeOffset? earliestNextAttemptAtUtc = reader.IsDBNull(7)
+            ? null
+            : reader.GetFieldValue<DateTimeOffset>(7);
 
         await reader.NextResultAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
@@ -84,14 +96,22 @@ internal static class DogfoodObservationReader
         var duplicateEffects = reader.GetInt32(1);
 
         await reader.NextResultAsync(cancellationToken);
+        await reader.ReadAsync(cancellationToken);
+        var consumerAttempts = reader.GetInt32(0);
+
+        await reader.NextResultAsync(cancellationToken);
         var workerClaims = await ReadWorkerCountsAsync(reader, cancellationToken);
 
         await reader.NextResultAsync(cancellationToken);
         var workerEffects = await ReadWorkerCountsAsync(reader, cancellationToken);
 
+        await reader.NextResultAsync(cancellationToken);
+        var workerAttempts = await ReadWorkerCountsAsync(reader, cancellationToken);
+
         return new ScenarioObservation(
             databaseUtcNow,
             earliestClaimExpiresAtUtc,
+            earliestNextAttemptAtUtc,
             businessOperations,
             outboxMessages,
             pendingMessages,
@@ -101,8 +121,10 @@ internal static class DogfoodObservationReader
             failedAttempts,
             effects,
             duplicateEffects,
+            consumerAttempts,
             workerClaims,
-            workerEffects);
+            workerEffects,
+            workerAttempts);
     }
 
     private static async ValueTask<IReadOnlyDictionary<string, int>> ReadWorkerCountsAsync(
