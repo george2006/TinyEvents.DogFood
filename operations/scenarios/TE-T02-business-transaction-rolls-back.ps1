@@ -5,6 +5,7 @@ function Invoke-TET02BusinessTransactionRollsBack {
     )
 
     $scenarioDirectory = Join-Path $ArtifactDirectory "TE-T02"
+    $operationCount = 10
     New-Item -ItemType Directory -Force -Path $scenarioDirectory | Out-Null
 
     Invoke-LoggedProcess `
@@ -14,7 +15,7 @@ function Invoke-TET02BusinessTransactionRollsBack {
         "reset"
     Invoke-LoggedProcess `
         $Assembly `
-        @("publish-then-rollback", "TE-T02") `
+        @("publish-then-rollback", "TE-T02", $operationCount) `
         $scenarioDirectory `
         "publish-then-rollback"
 
@@ -35,6 +36,7 @@ function Invoke-TET02BusinessTransactionRollsBack {
 
     $result = [ordered]@{
         Scenario = "TE-T02"
+        AttemptedOperations = $operationCount
         TransactionWasRolledBack = $transactionWasRolledBack
         NoConsumerStateExists = $noConsumerStateExists
         Observation = $observation

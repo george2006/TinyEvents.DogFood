@@ -436,7 +436,7 @@ TE-S01 starts eight independent application migrators against a fresh SQL Server
 
 The unchanged process-level scenario passed against both providers on 2026-08-21: one process applied the migration, seven observed the current schema, and the durable history contained exactly one migration.
 
-TE-T02 uses the normal application publisher inside an explicit database transaction, saves both the business row and outbox message, and then rolls the transaction back. The independently observed durable state was empty against SQL Server and PostgreSQL on 2026-08-21.
+TE-T02 uses the normal application publisher inside an explicit database transaction, saves ten business rows and ten outbox messages together, and then rolls the transaction back. The independently observed durable state was empty against SQL Server and PostgreSQL on 2026-08-21. Together with the ten-operation commit proven by TE-T01, this also satisfies TE-T03's several-events all-or-nothing contract without a duplicate executable scenario.
 
 ### BETA-7 - Capacity, backlog, and retention
 

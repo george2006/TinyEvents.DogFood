@@ -57,12 +57,13 @@ internal sealed class DogfoodPublisher(
 
     public async ValueTask PublishThenRollbackAsync(
         string scenarioId,
+        int count,
         CancellationToken cancellationToken = default)
     {
         await using var transaction =
             await dbContext.Database.BeginTransactionAsync(cancellationToken);
 
-        await PublishAsync(scenarioId, 1, cancellationToken);
+        await PublishAsync(scenarioId, count, cancellationToken);
         await transaction.RollbackAsync(cancellationToken);
     }
 }

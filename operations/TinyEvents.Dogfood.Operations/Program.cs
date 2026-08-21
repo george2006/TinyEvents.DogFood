@@ -46,10 +46,12 @@ switch (args[0].ToLowerInvariant())
         return 0;
 
     case "publish-then-rollback":
-        if (args.Length != 2)
+        if (args.Length != 3 ||
+            !int.TryParse(args[2], out var rollbackCount) ||
+            rollbackCount <= 0)
         {
             Console.Error.WriteLine(
-                "Expected publish-then-rollback <scenario>.");
+                "Expected publish-then-rollback <scenario> <positive-count>.");
             return 1;
         }
 
@@ -57,7 +59,7 @@ switch (args[0].ToLowerInvariant())
         using (var scope = host.Services.CreateScope())
         {
             var publisher = scope.ServiceProvider.GetRequiredService<DogfoodPublisher>();
-            await publisher.PublishThenRollbackAsync(args[1]);
+            await publisher.PublishThenRollbackAsync(args[1], rollbackCount);
         }
 
         return 0;
