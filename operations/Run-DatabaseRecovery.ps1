@@ -82,13 +82,14 @@ else {
     @($Scenario)
 }
 
+$supportedPostgreSqlScenarios = @("TE-D01", "TE-D02")
 $unsupportedPostgreSqlScenarios = @(
     $selectedScenarios |
-        Where-Object { $_ -ne "TE-D01" })
+        Where-Object { $_ -notin $supportedPostgreSqlScenarios })
 
 if ($StorageProvider -eq "PostgreSql" -and
     $unsupportedPostgreSqlScenarios.Count -gt 0) {
-    throw "PostgreSQL destructive parity currently supports TE-D01 only. Unsupported: $($unsupportedPostgreSqlScenarios -join ', ')."
+    throw "PostgreSQL destructive parity does not yet support: $($unsupportedPostgreSqlScenarios -join ', ')."
 }
 
 New-Item -ItemType Directory -Force -Path $artifactDirectory | Out-Null

@@ -53,7 +53,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-W12` | A failure in a later consumer retries the complete event and may invoke an already successful consumer again. |
 | `TE-W13` | Two processes sharing one configured worker ID defeat process-level lease fencing after a reclaim. |
 | `TE-D01` | A worker started while its database is unavailable bounds repeated failure logs and recovers without restarting. |
-| `TE-D02` | A healthy polling worker survives a SQL Server outage and processes work both before and after recovery. |
+| `TE-D02` | A healthy polling worker survives a database outage and processes work both before and after recovery. |
 | `TE-D03` | SQL Server disappears during active consumer work; the same process reclaims the expired lease after recovery. |
 | `TE-D04` | SQL Server disappears after the consumer effect; redelivery exposes the expected at-least-once duplicate. |
 | `TE-D05` | Mixed success, transient, permanent, and slow work reaches exact terminal outcomes across a SQL Server restart. |
@@ -83,7 +83,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 
 `TE-D01` runs unchanged against SQL Server and PostgreSQL. It stops the selected database container after persisting one pending message, then starts the worker. The worker remains alive, reports initial and selected repeated failures instead of logging every poll, and automatically drains the preserved message after the same database returns.
 
-`TE-D02` first proves that one worker can process a message, then removes SQL Server while that same process continues polling. After automatic recovery, a second message is published and processed by the unchanged worker without loss, duplication, or failed message attempts.
+`TE-D02` runs unchanged against SQL Server and PostgreSQL. It first proves that one worker can process a message, then removes the selected database while that same process continues polling. After automatic recovery, a second message is published and processed by the unchanged worker without loss, duplication, or failed message attempts.
 
 `TE-D03` removes SQL Server after a slow consumer has acquired its claim but before it writes its effect. Neither the effect nor the processing failure can be persisted during the outage. After SQL returns, the same worker reclaims the expired lease, records one effect, completes the message, and reports recovery.
 

@@ -414,7 +414,7 @@ Execute TE-D01 through TE-D06 against SQL Server, then repeat database-sensitive
 
 TE-D01 runs against SQL Server and PostgreSQL. It starts a worker while the selected database is unavailable. The worker reports the first four failures and selected repeated-failure milestones, remains alive, announces recovery after the same container returns, and processes the preserved message exactly once without a process restart.
 
-TE-D02 proves a worker processes one message before SQL Server disappears during polling, remains alive throughout the outage, announces recovery when SQL returns, and processes a second message without restarting or duplicating either effect.
+TE-D02 runs against SQL Server and PostgreSQL. It proves a worker processes one message before the selected database disappears during polling, remains alive throughout the outage, announces recovery when the database returns, and processes a second message without restarting or duplicating either effect.
 
 TE-D03 removes SQL Server after a slow consumer has acquired a claim and before its durable effect. The resulting consumer failure cannot update the unavailable outbox, so no failed attempt is recorded. Once SQL returns, the same process reclaims the expired lease, records one effect, completes the message, and announces recovery.
 
