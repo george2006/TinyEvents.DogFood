@@ -56,7 +56,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-D02` | A healthy polling worker survives a database outage and processes work both before and after recovery. |
 | `TE-D03` | The database disappears during active consumer work; the same process reclaims the expired lease after recovery. |
 | `TE-D04` | The database disappears after the consumer effect; redelivery exposes the expected at-least-once duplicate. |
-| `TE-D05` | Mixed success, transient, permanent, and slow work reaches exact terminal outcomes across a SQL Server restart. |
+| `TE-D05` | Mixed success, transient, permanent, and slow work reaches exact terminal outcomes across a database restart. |
 | `TE-D06` | Two workers recover after their bounded connection pools are exhausted while concurrent publishers build a backlog. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
@@ -89,7 +89,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 
 `TE-D04` runs unchanged against SQL Server and PostgreSQL. It removes the selected database after the durable consumer effect and before the outbox completion update. The worker survives the failed update, reclaims the expired lease after the database returns, and completes through redelivery. Durable evidence retains both consumer invocations and one duplicate effect, which is the expected at-least-once boundary.
 
-`TE-D05` holds a slow invocation after its durable effect while success, transient-failure, and permanent-failure messages share the backlog. SQL Server disappears at that exact point. The same worker recovers and drains every eligible message, preserves exact retry and terminal-failure counts, and exposes the slow message's expected duplicate effect.
+`TE-D05` runs unchanged against SQL Server and PostgreSQL. It holds a slow invocation after its durable effect while success, transient-failure, and permanent-failure messages share the backlog. The selected database disappears at that exact point. The same worker recovers and drains every eligible message, preserves exact retry and terminal-failure counts, and exposes the slow message's expected duplicate effect.
 
 `TE-D06` gives every process a maximum SQL connection pool of two. Each of two workers temporarily occupies both of its own connections while four concurrent publishers commit 100 messages. Both workers must report the real pool timeout, remain alive, announce recovery after their connections are released, participate in the drain, and finish without loss, failed attempts, or duplicate effects.
 
