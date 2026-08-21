@@ -20,6 +20,12 @@ Run active-lease and dead-worker recovery scenarios:
 .\operations\Run-WorkerRecovery.ps1
 ```
 
+Run database failure and recovery scenarios:
+
+```powershell
+.\operations\Run-DatabaseRecovery.ps1
+```
+
 Run one independently named scenario either through the suite selector or its own file:
 
 ```powershell
@@ -44,6 +50,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-W11` | A permanently failing message exhausts exactly three attempts, retains its terminal error, and does not kill or block the worker. |
 | `TE-W12` | A failure in a later consumer retries the complete event and may invoke an already successful consumer again. |
 | `TE-W13` | Two processes sharing one configured worker ID defeat process-level lease fencing after a reclaim. |
+| `TE-D01` | A worker started while SQL Server is unavailable bounds repeated failure logs and recovers without restarting. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
 
@@ -66,6 +73,8 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 `TE-W12` gives one event two consumers. The recording consumer completes before the rejecting consumer fails once. Retrying the whole outbox message invokes both again, producing two durable effects for one operation. The scenario characterizes whole-event at-least-once delivery; it does not make consumer ordering a public contract.
 
 `TE-W13` starts two deliberately slow processes with the same configured worker ID. After the second process reclaims the expired lease, the original process can still mark the row processed because durable ownership contains only their shared ID. Default generated worker IDs are process-unique; V1 therefore treats uniqueness of explicitly configured IDs as an operator responsibility rather than adding a durable worker registry.
+
+`TE-D01` stops the existing SQL Server container after persisting one pending message, then starts the worker. The worker remains alive, reports initial and selected repeated failures instead of logging every poll, and automatically drains the preserved message after the same database returns.
 
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 

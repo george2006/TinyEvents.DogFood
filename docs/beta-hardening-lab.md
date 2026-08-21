@@ -412,6 +412,8 @@ The split is a readability refactor over executable evidence, not a scenario fra
 
 Execute TE-D01 through TE-D06 against SQL Server, then repeat database-sensitive contracts against PostgreSQL.
 
+TE-D01 starts a worker while its SQL Server is unavailable. The worker reports the first four failures and selected repeated-failure milestones, remains alive, announces recovery after the same container returns, and processes the preserved message exactly once without a process restart.
+
 ### BETA-6 - Transactions, contracts, and deployment
 
 Complete the transactional, malformed-message, migration, alpha-upgrade, and rolling-upgrade scenarios.

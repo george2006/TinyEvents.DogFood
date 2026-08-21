@@ -452,3 +452,40 @@ function Wait-ForStaleOwnerCompletion {
 
     throw "The stale owner did not complete the reassigned message within twenty seconds."
 }
+
+function Wait-ForLogText {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string]$LogPath,
+        [string]$ExpectedText,
+        [string]$ProcessDescription
+    )
+
+    $deadline = (Get-Date).AddSeconds(30)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Process.HasExited) {
+            throw "$ProcessDescription exited before logging '$ExpectedText'. Exit code: $($Process.ExitCode)."
+        }
+
+        if ((Test-Path -LiteralPath $LogPath) -and
+            (Select-String -LiteralPath $LogPath -SimpleMatch $ExpectedText -Quiet)) {
+            return
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "$ProcessDescription did not log '$ExpectedText' within thirty seconds."
+}
+
+function Get-WorkerFailureLogCounts {
+    param([string]$LogPath)
+
+    $content = Get-Content -LiteralPath $LogPath -Raw
+    $matches = [regex]::Matches(
+        $content,
+        "(?:Consecutive failures:|has failed)\s+(\d+)")
+
+    return @($matches | ForEach-Object { [int]$_.Groups[1].Value })
+}

@@ -13,3 +13,27 @@ function Wait-ForSqlServer {
 
     throw "SQL Server did not become healthy within two minutes."
 }
+
+function Start-SqlServer {
+    param([string]$ComposeFile)
+
+    Invoke-Native "docker" @(
+        "compose",
+        "-f",
+        $ComposeFile,
+        "up",
+        "-d",
+        "sqlserver")
+    Wait-ForSqlServer
+}
+
+function Stop-SqlServer {
+    param([string]$ComposeFile)
+
+    Invoke-Native "docker" @(
+        "compose",
+        "-f",
+        $ComposeFile,
+        "stop",
+        "sqlserver")
+}
