@@ -418,6 +418,8 @@ TE-D02 proves a worker processes one message before SQL Server disappears during
 
 TE-D03 removes SQL Server after a slow consumer has acquired a claim and before its durable effect. The resulting consumer failure cannot update the unavailable outbox, so no failed attempt is recorded. Once SQL returns, the same process reclaims the expired lease, records one effect, completes the message, and announces recovery.
 
+TE-D04 removes SQL Server after the consumer effect is durable and while the same invocation is delayed before outbox completion. The completion update fails, the worker remains alive, and the same process redelivers after lease expiry. The final evidence contains two consumer invocations and one duplicate effect, making the at-least-once boundary explicit rather than concealing it.
+
 ### BETA-6 - Transactions, contracts, and deployment
 
 Complete the transactional, malformed-message, migration, alpha-upgrade, and rolling-upgrade scenarios.

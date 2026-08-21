@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "TE-D01", "TE-D02", "TE-D03")]
+    [ValidateSet("all", "TE-D01", "TE-D02", "TE-D03", "TE-D04")]
     [string]$Scenario = "all"
 )
 
@@ -14,6 +14,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "scenarios\TE-D01-database-unavailable-at-startup.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-D02-database-disappears-during-polling.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-D03-database-disappears-during-consumer.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-D04-database-disappears-while-marking-processed.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -47,6 +48,12 @@ $scenarioRunners = [ordered]@{
     }
     "TE-D03" = {
         Invoke-TED03DatabaseDisappearsDuringConsumer `
+            $assembly `
+            $composeFile `
+            $artifactDirectory
+    }
+    "TE-D04" = {
+        Invoke-TED04DatabaseDisappearsWhileMarkingProcessed `
             $assembly `
             $composeFile `
             $artifactDirectory
