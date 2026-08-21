@@ -1,4 +1,7 @@
 param(
+    [ValidateSet("SqlServer", "PostgreSql")]
+    [string]$StorageProvider = "SqlServer",
+
     [ValidateRange(1, 100000)]
     [int]$WorkerBacklog = 100
 )
@@ -43,11 +46,16 @@ function Invoke-LoggedProcess {
     }
 }
 
-function Wait-ForSqlServer {
+function Wait-ForDatabase {
+    param(
+        [string]$ContainerName,
+        [string]$Description
+    )
+
     $deadline = (Get-Date).AddMinutes(2)
 
     while ((Get-Date) -lt $deadline) {
-        $health = docker inspect --format "{{.State.Health.Status}}" tinyevents-sqlserver 2>$null
+        $health = docker inspect --format "{{.State.Health.Status}}" $ContainerName 2>$null
 
         if ($LASTEXITCODE -eq 0 -and $health -eq "healthy") {
             return
@@ -56,7 +64,7 @@ function Wait-ForSqlServer {
         Start-Sleep -Seconds 2
     }
 
-    throw "SQL Server did not become healthy within two minutes."
+    throw "$Description did not become healthy within two minutes."
 }
 
 function Get-Observation {
@@ -190,8 +198,28 @@ $runId = Get-Date -Format "yyyyMMdd-HHmmss"
 $startedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
 $artifactDirectory = Join-Path $dogfoodRoot "artifacts\operations\$runId"
 
-$env:TINYEVENTS_DOGFOOD_STORAGE = "sqlserver"
-$env:TINYEVENTS_DOGFOOD_SQLSERVER = "Server=localhost,14333;Database=TinyEventsDogfoodOperations;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
+$database = switch ($StorageProvider) {
+    "SqlServer" {
+        $env:TINYEVENTS_DOGFOOD_STORAGE = "sqlserver"
+        $env:TINYEVENTS_DOGFOOD_SQLSERVER = "Server=localhost,14333;Database=TinyEventsDogfoodOperations;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
+
+        [pscustomobject]@{
+            ComposeService = "sqlserver"
+            ContainerName = "tinyevents-sqlserver"
+            Description = "SQL Server 2022 Docker"
+        }
+    }
+    "PostgreSql" {
+        $env:TINYEVENTS_DOGFOOD_STORAGE = "postgresql"
+        $env:TINYEVENTS_DOGFOOD_POSTGRESQL = "Host=localhost;Port=54323;Database=TinyEventsDogfoodOperations;Username=postgres;Password=postgres;"
+
+        [pscustomobject]@{
+            ComposeService = "postgresql"
+            ContainerName = "tinyevents-postgresql"
+            Description = "PostgreSQL 16 Docker"
+        }
+    }
+}
 
 $definitions = @(
     [pscustomobject]@{ Id = "TE-T01"; Description = "Business transaction commits"; Count = 10 },
@@ -200,8 +228,16 @@ $definitions = @(
 
 New-Item -ItemType Directory -Force -Path $artifactDirectory | Out-Null
 
-Invoke-Native "docker" @("compose", "-f", $composeFile, "up", "-d", "sqlserver")
-Wait-ForSqlServer
+Invoke-Native "docker" @(
+    "compose",
+    "-f",
+    $composeFile,
+    "up",
+    "-d",
+    $database.ComposeService)
+Wait-ForDatabase `
+    -ContainerName $database.ContainerName `
+    -Description $database.Description
 Invoke-Native "dotnet" @("build", $project, "-c", "Release", "--nologo")
 
 $results = foreach ($definition in $definitions) {
@@ -220,7 +256,7 @@ $manifest = [ordered]@{
     DogfoodGitCommit = Get-GitCommit -Repository $dogfoodRoot
     TinyEventsGitCommit = Get-GitCommit -Repository $tinyEventsRoot
     DotNetSdk = (dotnet --version)
-    DatabaseEngine = "SQL Server 2022 Docker"
+    DatabaseEngine = $database.Description
     Scenarios = $results
 }
 

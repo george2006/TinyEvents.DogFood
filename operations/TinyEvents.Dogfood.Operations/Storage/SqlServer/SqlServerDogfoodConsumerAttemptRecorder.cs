@@ -2,22 +2,21 @@ using Microsoft.Data.SqlClient;
 
 namespace TinyEvents.Dogfood.Operations;
 
-internal sealed class DogfoodEffectRecorder(
+internal sealed class SqlServerDogfoodConsumerAttemptRecorder(
     DogfoodSettings settings,
-    WorkerIdentity worker)
+    WorkerIdentity worker) : DogfoodConsumerAttemptRecorder
 {
-    public async ValueTask RecordAsync(
+    public override async ValueTask<int> RecordAsync(
         Guid operationId,
         string scenarioId,
         CancellationToken cancellationToken)
     {
         const string sql = """
-            INSERT INTO dbo.DogfoodEffects
+            INSERT INTO dbo.DogfoodConsumerAttempts
             (
                 OperationId,
                 ScenarioId,
                 WorkerId,
-                ProcessId,
                 RecordedAtUtc
             )
             VALUES
@@ -25,9 +24,12 @@ internal sealed class DogfoodEffectRecorder(
                 @OperationId,
                 @ScenarioId,
                 @WorkerId,
-                @ProcessId,
-                @RecordedAtUtc
+                SYSDATETIMEOFFSET()
             );
+
+            SELECT COUNT(*)
+            FROM dbo.DogfoodConsumerAttempts
+            WHERE OperationId = @OperationId;
             """;
 
         await using var connection = new SqlConnection(settings.ConnectionString);
@@ -36,8 +38,6 @@ internal sealed class DogfoodEffectRecorder(
         command.Parameters.AddWithValue("@OperationId", operationId);
         command.Parameters.AddWithValue("@ScenarioId", scenarioId);
         command.Parameters.AddWithValue("@WorkerId", worker.Value);
-        command.Parameters.AddWithValue("@ProcessId", Environment.ProcessId);
-        command.Parameters.AddWithValue("@RecordedAtUtc", DateTimeOffset.UtcNow);
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        return (int)(await command.ExecuteScalarAsync(cancellationToken))!;
     }
 }

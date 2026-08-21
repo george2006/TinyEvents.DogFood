@@ -10,6 +10,12 @@ internal static class SqlServerDogfoodStorageRegistration
         IServiceCollection services,
         string connectionString)
     {
+        services.AddSingleton<
+            DogfoodConsumerAttemptRecorder,
+            SqlServerDogfoodConsumerAttemptRecorder>();
+        services.AddSingleton<
+            DogfoodEffectRecorder,
+            SqlServerDogfoodEffectRecorder>();
         services.AddDbContext<DogfoodDbContext>(options =>
         {
             options.UseSqlServer(connectionString);

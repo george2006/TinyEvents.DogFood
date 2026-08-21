@@ -10,6 +10,12 @@ internal static class PostgreSqlDogfoodStorageRegistration
         IServiceCollection services,
         string connectionString)
     {
+        services.AddSingleton<
+            DogfoodConsumerAttemptRecorder,
+            PostgreSqlDogfoodConsumerAttemptRecorder>();
+        services.AddSingleton<
+            DogfoodEffectRecorder,
+            PostgreSqlDogfoodEffectRecorder>();
         services.AddDbContext<DogfoodDbContext>(options =>
         {
             options.UseNpgsql(connectionString);

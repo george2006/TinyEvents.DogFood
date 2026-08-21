@@ -1,6 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using PostgreSqlModel = TinyEvents.PostgreSql.EntityFrameworkCore.TinyEventsModelBuilderExtensions;
-using SqlServerModel = TinyEvents.SqlServer.EntityFrameworkCore.TinyEventsModelBuilderExtensions;
 
 namespace TinyEvents.Dogfood.Operations;
 
@@ -28,22 +26,7 @@ internal sealed class DogfoodDbContext : DbContext
             entity.Property(operation => operation.ScenarioId).IsRequired().HasMaxLength(32);
         });
 
-        switch (settings.StorageProvider)
-        {
-            case DogfoodStorageProvider.SqlServer:
-                SqlServerModel.UseTinyEventsOutbox(modelBuilder);
-                return;
-
-            case DogfoodStorageProvider.PostgreSql:
-                PostgreSqlModel.UseTinyEventsOutbox(modelBuilder);
-                return;
-
-            default:
-                throw new ArgumentOutOfRangeException(
-                    nameof(settings),
-                    settings.StorageProvider,
-                    "Unknown dogfood storage provider.");
-        }
+        settings.StorageProvider.ConfigureModel(modelBuilder);
     }
 }
 

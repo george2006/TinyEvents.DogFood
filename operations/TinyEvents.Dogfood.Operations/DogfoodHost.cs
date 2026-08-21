@@ -42,9 +42,7 @@ internal static class DogfoodHost
         builder.Services.AddSingleton(new WorkerIdentity(workerId));
         builder.Services.AddSingleton(consumerTiming);
         builder.Services.AddSingleton(failureRules);
-        builder.Services.AddSingleton<DogfoodConsumerAttemptRecorder>();
         builder.Services.AddSingleton<DogfoodConsumerFailurePlan>();
-        builder.Services.AddSingleton<DogfoodEffectRecorder>();
         builder.Services.AddScoped<DogfoodPublisher>();
         builder.Services.AddDogfoodStorage(settings);
         builder.Services.UseTinyEvents(options =>

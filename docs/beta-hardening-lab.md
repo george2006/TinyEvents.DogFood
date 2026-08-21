@@ -426,7 +426,7 @@ TE-D06 bounds every process to two pooled SQL connections. Two workers deliberat
 
 The PostgreSQL EF Core real-database suite passed 65 tests with zero skips on 2026-08-21. It covers transactional publishing, provider-specific claim and completion behavior, retries, terminal failure, lease ownership, competing claims, and migrations. Physical PostgreSQL container loss and recovery remains a separate destructive parity gate; the integration suite is not presented as evidence for that behavior.
 
-The destructive host now has one explicit storage-provider composition seam for DbContext configuration, TinyEvents provider registration, and outbox model mapping. SQL Server remains the only executable dogfood option until PostgreSQL reset, evidence queries, and durable effect writers are connected. The existing scenarios and acceptance rules remain provider-independent and will not be duplicated.
+The destructive host now selects one internal storage-provider implementation at startup. SQL Server and PostgreSQL each own their configuration, model mapping, database reset, durable probe writers, and evidence queries without branching throughout the host. The same executable has proved PostgreSQL reset, migration, publishing, hosted processing, transient retry, and durable inspection. Physical PostgreSQL failure and connection-pressure scenarios remain pending; the existing scenarios and acceptance rules remain provider-independent and will not be duplicated.
 
 ### BETA-6 - Transactions, contracts, and deployment
 
