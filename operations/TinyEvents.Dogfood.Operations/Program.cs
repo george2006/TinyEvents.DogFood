@@ -7,7 +7,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected reset, publish, publish-multi-consumer, inspect, worker, worker-with-failures, worker-with-plan, worker-under-pressure, or worker-for.");
+    Console.Error.WriteLine("Expected prepare, migrate, reset, publish, publish-multi-consumer, inspect, inspect-migrations, worker, worker-with-failures, worker-with-plan, worker-under-pressure, or worker-for.");
     return 1;
 }
 
@@ -15,12 +15,17 @@ var settings = DogfoodSettings.Load();
 
 switch (args[0].ToLowerInvariant())
 {
+    case "prepare":
+        await DogfoodDatabaseReset.ExecuteAsync(settings);
+        return 0;
+
+    case "migrate":
+        await MigrateAsync(settings);
+        return 0;
+
     case "reset":
         await DogfoodDatabaseReset.ExecuteAsync(settings);
-        using (var host = DogfoodHost.Build(settings, "migration"))
-        {
-            await host.Services.MigrateTinyEventsAsync();
-        }
+        await MigrateAsync(settings);
 
         return 0;
 
@@ -66,6 +71,12 @@ switch (args[0].ToLowerInvariant())
         Console.WriteLine(JsonSerializer.Serialize(observation));
         return 0;
 
+    case "inspect-migrations":
+        var migrationObservation =
+            await DogfoodMigrationObservationReader.ReadAsync(settings);
+        Console.WriteLine(JsonSerializer.Serialize(migrationObservation));
+        return 0;
+
     case "worker":
         return await RunWorkerAsync(args, settings);
 
@@ -84,6 +95,12 @@ switch (args[0].ToLowerInvariant())
     default:
         Console.Error.WriteLine($"Unknown command '{args[0]}'.");
         return 1;
+}
+
+static async ValueTask MigrateAsync(DogfoodSettings settings)
+{
+    using var host = DogfoodHost.Build(settings, "migration");
+    await host.Services.MigrateTinyEventsAsync();
 }
 
 static async Task<int> RunWorkerAsync(

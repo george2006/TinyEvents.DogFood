@@ -424,9 +424,13 @@ TE-D05 keeps success, transient-failure, permanent-failure, and slow work in one
 
 TE-D06 bounds every process to two pooled SQL connections. Two workers deliberately exhaust their own pools while four concurrent publishers commit 100 messages. Both workers observe pool timeouts, remain alive, recover without restart, share the final drain, and produce exactly one durable effect per message.
 
+The PostgreSQL EF Core real-database suite passed 65 tests with zero skips on 2026-08-21. It covers transactional publishing, provider-specific claim and completion behavior, retries, terminal failure, lease ownership, competing claims, and migrations. Physical PostgreSQL container loss and recovery remains a separate destructive parity gate; the integration suite is not presented as evidence for that behavior.
+
 ### BETA-6 - Transactions, contracts, and deployment
 
 Complete the transactional, malformed-message, migration, alpha-upgrade, and rolling-upgrade scenarios.
+
+TE-S01 starts eight independent application migrators against a fresh SQL Server database. Every process completes successfully while the durable result contains one outbox table and one exact `001_CreateTinyOutbox` history row. This proves process-level migration serialization in addition to the provider's real-database integration tests.
 
 ### BETA-7 - Capacity, backlog, and retention
 

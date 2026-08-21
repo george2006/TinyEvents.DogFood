@@ -7,55 +7,18 @@ function Start-TED06Publisher {
         [string]$ArtifactDirectory
     )
 
-    $publisherName = "publisher-$PublisherNumber"
-    $standardOutput = Join-Path $ArtifactDirectory "$publisherName.stdout.log"
-    $standardError = Join-Path $ArtifactDirectory "$publisherName.stderr.log"
-    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $startInfo.FileName = "dotnet"
-    $startInfo.UseShellExecute = $false
-    $startInfo.CreateNoWindow = $true
-    $startInfo.RedirectStandardOutput = $true
-    $startInfo.RedirectStandardError = $true
-    $startInfo.Arguments =
-        "`"$Assembly`" publish `"$ScenarioId`" $MessageCount"
-
-    $process = [System.Diagnostics.Process]::new()
-    $process.StartInfo = $startInfo
-
-    if (!$process.Start()) {
-        throw "Publisher '$publisherName' could not be started."
-    }
-
-    return [pscustomobject]@{
-        Name = $publisherName
-        Process = $process
-        OutputPath = $standardOutput
-        ErrorPath = $standardError
-        OutputTask = $process.StandardOutput.ReadToEndAsync()
-        ErrorTask = $process.StandardError.ReadToEndAsync()
-    }
+    return Start-LoggedDotNetProcess `
+        $Assembly `
+        @("publish", $ScenarioId, [string]$MessageCount) `
+        $ArtifactDirectory `
+        "publisher-$PublisherNumber"
 }
 
 function Wait-ForTED06Publishers {
     param([pscustomobject[]]$Publishers)
 
     foreach ($publisher in $Publishers) {
-        $process = $publisher.Process
-
-        if (!$process.WaitForExit(30000)) {
-            throw "Publisher '$($publisher.Name)' did not finish within thirty seconds."
-        }
-
-        $process.WaitForExit()
-        $process.Refresh()
-        $standardOutput = $publisher.OutputTask.GetAwaiter().GetResult()
-        $standardError = $publisher.ErrorTask.GetAwaiter().GetResult()
-        $standardOutput | Set-Content $publisher.OutputPath
-        $standardError | Set-Content $publisher.ErrorPath
-
-        if ($process.ExitCode -ne 0) {
-            throw "Publisher '$($publisher.Name)' failed with exit code $($process.ExitCode)."
-        }
+        Complete-LoggedProcess $publisher 30000
     }
 }
 
