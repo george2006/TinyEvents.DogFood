@@ -94,3 +94,7 @@ TE-T05               True
 The dogfood application references the sibling TinyEvents source projects directly while the beta contract is being hardened. Package-consumer acceptance will use locally packed NuGet artifacts before release.
 
 Completed evidence and planned work are documented separately. The catalog describes only behavior demonstrated today; the hardening plan remains explicitly incomplete until the final release gate passes.
+
+## License
+
+TinyEvents Dogfood is licensed under the [MIT License](LICENSE).
