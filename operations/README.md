@@ -49,6 +49,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-T01` | Business rows and outbox messages commit together, then every committed event is processed. |
 | `TE-T02` | Rolling back after a real save removes both business state and its outbox message. |
 | `TE-T03` | TE-T01 commits several events together and TE-T02 rolls several back together, proving both all-or-nothing outcomes without a duplicate scenario. |
+| `TE-T04` | TE-D06 proves four concurrent publishers commit 100 unique operations without loss, partial outbox state, or duplicate effects. |
 | `TE-W01` | One hosted worker drains a known backlog without loss or duplicate effects. |
 | `TE-W02` | 2, 4, and 8 hosted-worker processes compete without loss or duplicate effects. |
 | `TE-W03` | A competing worker cannot steal a claim before its SQL lease expires. |

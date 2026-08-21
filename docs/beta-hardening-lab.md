@@ -438,6 +438,8 @@ The unchanged process-level scenario passed against both providers on 2026-08-21
 
 TE-T02 uses the normal application publisher inside an explicit database transaction, saves ten business rows and ten outbox messages together, and then rolls the transaction back. The independently observed durable state was empty against SQL Server and PostgreSQL on 2026-08-21. Together with the ten-operation commit proven by TE-T01, this also satisfies TE-T03's several-events all-or-nothing contract without a duplicate executable scenario.
 
+TE-D06 also satisfies TE-T04 without a duplicate executable scenario. Four concurrent publisher processes each acknowledge a 25-operation commit. The durable result contains exactly 100 business rows, 100 outbox rows, and 100 distinct consumer effects with no duplicates. The unchanged evidence passed against SQL Server and PostgreSQL while the worker connection pools were deliberately exhausted.
+
 ### BETA-7 - Capacity, backlog, and retention
 
 Execute TE-L01 through TE-L07. Make the retention decision from measured storage and claim behavior.
