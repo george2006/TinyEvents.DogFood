@@ -366,9 +366,9 @@ Processed rows remain retained. Cleanup is not part of BETA-4 and must not be im
 
 The first scaling curve also makes batched completion a load-test hypothesis. Evaluate it only if isolated measurements attribute material cost to per-message `MarkProcessed` round-trips. Any design must first measure the larger at-least-once redelivery window created when consumer effects complete before a pending completion batch is persisted.
 
-#### Next structural slice
+#### Worker laboratory structure
 
-Before adding TE-W09, split the now-proven worker laboratory by scenario and responsibility without changing behavior:
+The proven worker laboratory is split by scenario and responsibility without changing behavior:
 
 ```text
 operations/
@@ -387,7 +387,7 @@ operations/
     Assertions.ps1
 ```
 
-The split is a readability refactor over executable evidence, not a new scenario framework. Each scenario remains independently runnable and the suite retains one command that executes all of them and produces the existing manifest. Shared support contains only behavior already repeated by the committed scenarios.
+The split is a readability refactor over executable evidence, not a scenario framework. Each scenario can run through its named file or the suite's `-Scenario` selector. The suite retains one command that executes all scenarios and produces the existing manifest. Shared support contains only behavior repeated by the committed scenarios.
 
 ### BETA-5 - Database failure and recovery
 

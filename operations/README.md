@@ -20,6 +20,13 @@ Run active-lease and dead-worker recovery scenarios:
 .\operations\Run-WorkerRecovery.ps1
 ```
 
+Run one independently named scenario either through the suite selector or its own file:
+
+```powershell
+.\operations\Run-WorkerRecovery.ps1 -Scenario TE-W05
+.\operations\scenarios\TE-W05-effect-before-death.ps1
+```
+
 The runner starts the sibling TinyEvents SQL Server container, builds a backlog while workers are stopped, starts an independently addressable worker process, waits for the backlog to drain, and stores evidence under `artifacts/operations/<run-id>/`.
 
 | Scenario | Observable contract |
