@@ -1,18 +1,18 @@
-function Invoke-TEW10TransientFailureRecovers {
+function Invoke-TEW11PermanentFailureExhaustsRetries {
     param(
         [string]$Assembly,
         [string]$ArtifactDirectory
     )
 
-    $scenarioDirectory = Join-Path $ArtifactDirectory "TE-W10"
+    $scenarioDirectory = Join-Path $ArtifactDirectory "TE-W11"
     New-Item -ItemType Directory -Force -Path $scenarioDirectory | Out-Null
 
     Invoke-LoggedProcess $Assembly @("reset") $scenarioDirectory "reset"
-    Invoke-LoggedProcess $Assembly @("publish", "TE-W10-retry", "1") $scenarioDirectory "publish-retry"
-    Invoke-LoggedProcess $Assembly @("publish", "TE-W10-unrelated", "1") $scenarioDirectory "publish-unrelated"
+    Invoke-LoggedProcess $Assembly @("publish", "TE-W11-permanent", "1") $scenarioDirectory "publish-permanent"
+    Invoke-LoggedProcess $Assembly @("publish", "TE-W11-unrelated", "1") $scenarioDirectory "publish-unrelated"
 
-    $workerId = "TE-W10-worker"
-    $worker = Start-FailingWorker $Assembly $workerId "TE-W10-retry" 2 $scenarioDirectory
+    $workerId = "TE-W11-worker"
+    $worker = Start-FailingWorker $Assembly $workerId "TE-W11-permanent" 3 $scenarioDirectory
 
     try {
         $firstRetry = Wait-ForRetryAttemptState $Assembly $worker $workerId 1
@@ -30,10 +30,10 @@ function Invoke-TEW10TransientFailureRecovers {
         $secondRetryAtUtc = [DateTimeOffset]$secondRetry.EarliestNextAttemptAtUtc
         $secondAttemptRespectedBoundary = $secondAttemptAtUtc -ge $firstRetryAtUtc
 
-        $completed = Wait-ForTransientRecovery $Assembly $worker $workerId
-        Save-Observation $completed $scenarioDirectory "completed"
+        $failed = Wait-ForPermanentFailure $Assembly $worker $workerId
+        Save-Observation $failed $scenarioDirectory "terminal-failure"
 
-        $thirdAttemptAtUtc = [DateTimeOffset]$completed.LatestConsumerAttemptAtUtc
+        $thirdAttemptAtUtc = [DateTimeOffset]$failed.LatestConsumerAttemptAtUtc
         $thirdAttemptRespectedBoundary = $thirdAttemptAtUtc -ge $secondRetryAtUtc
         $workerSurvived = -not $worker.HasExited
         $passed =
@@ -41,20 +41,20 @@ function Invoke-TEW10TransientFailureRecovers {
             $secondAttemptRespectedBoundary -and
             $thirdAttemptRespectedBoundary -and
             $workerSurvived -and
-            (Test-TransientRecoveryResult $completed $workerId)
+            (Test-PermanentFailureResult $failed $workerId)
     }
     finally {
         Stop-Worker $worker
     }
 
     $result = [ordered]@{
-        Scenario = "TE-W10"
+        Scenario = "TE-W11"
         Worker = $workerId
         UnrelatedMessageContinued = $unrelatedMessageContinued
         SecondAttemptRespectedBoundary = $secondAttemptRespectedBoundary
         ThirdAttemptRespectedBoundary = $thirdAttemptRespectedBoundary
         WorkerSurvived = $workerSurvived
-        Observation = $completed
+        Observation = $failed
         AcceptancePassed = $passed
     }
 
@@ -64,5 +64,5 @@ function Invoke-TEW10TransientFailureRecovers {
 
 if ($MyInvocation.InvocationName -ne ".") {
     $runner = Join-Path (Split-Path $PSScriptRoot -Parent) "Run-WorkerRecovery.ps1"
-    & $runner -Scenario "TE-W10"
+    & $runner -Scenario "TE-W11"
 }

@@ -8,7 +8,8 @@ param(
         "TE-W08-idle",
         "TE-W08-active",
         "TE-W09",
-        "TE-W10")]
+        "TE-W10",
+        "TE-W11")]
     [string]$Scenario = "all"
 )
 
@@ -28,6 +29,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "scenarios\TE-W08-active-shutdown.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-W09-retry-survives-restart.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-W10-transient-failure-recovers.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-W11-permanent-failure-exhausts-retries.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -55,6 +57,7 @@ $scenarioRunners = [ordered]@{
     "TE-W08-active" = { Invoke-TEW08ActiveShutdown $assembly $artifactDirectory }
     "TE-W09" = { Invoke-TEW09RetrySurvivesRestart $assembly $artifactDirectory }
     "TE-W10" = { Invoke-TEW10TransientFailureRecovers $assembly $artifactDirectory }
+    "TE-W11" = { Invoke-TEW11PermanentFailureExhaustsRetries $assembly $artifactDirectory }
 }
 
 $selectedScenarios = if ($Scenario -eq "all") {

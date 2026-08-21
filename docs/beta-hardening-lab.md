@@ -360,6 +360,8 @@ TE-W09 rejected the first consumer invocation, persisted `AttemptCount = 1` and 
 
 TE-W10 rejected one message on its first two invocations while an unrelated message completed during the first retry delay. SQL-recorded attempt times proved both retry boundaries were respected. The same worker survived both failures and completed the third invocation, leaving two processed messages, two durable effects, and no duplicate.
 
+TE-W11 rejected one message on all three configured attempts while an unrelated message completed normally. SQL-recorded attempt times proved both retry boundaries were respected. The terminal row retained `AttemptCount = 3`, no further retry boundary, and the exact final error while the worker remained alive.
+
 Run the repeatable lease scenarios with:
 
 ```powershell
@@ -385,6 +387,7 @@ operations/
     TE-W08-active-shutdown.ps1
     TE-W09-retry-survives-restart.ps1
     TE-W10-transient-failure-recovers.ps1
+    TE-W11-permanent-failure-exhausts-retries.ps1
   support/
     Process.ps1
     SqlServer.ps1

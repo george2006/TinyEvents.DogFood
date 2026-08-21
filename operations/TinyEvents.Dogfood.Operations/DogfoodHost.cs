@@ -13,7 +13,11 @@ internal static class DogfoodHost
         DogfoodSettings settings,
         string workerId)
     {
-        return Build(settings, workerId, ConsumerExecutionTiming.None);
+        return Build(
+            settings,
+            workerId,
+            ConsumerExecutionTiming.None,
+            ConsumerFailureInjection.None);
     }
 
     public static IHost Build(
@@ -21,11 +25,25 @@ internal static class DogfoodHost
         string workerId,
         ConsumerExecutionTiming consumerTiming)
     {
+        return Build(
+            settings,
+            workerId,
+            consumerTiming,
+            ConsumerFailureInjection.None);
+    }
+
+    public static IHost Build(
+        DogfoodSettings settings,
+        string workerId,
+        ConsumerExecutionTiming consumerTiming,
+        ConsumerFailureInjection failureInjection)
+    {
         var builder = Host.CreateApplicationBuilder();
 
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(new WorkerIdentity(workerId));
         builder.Services.AddSingleton(consumerTiming);
+        builder.Services.AddSingleton(failureInjection);
         builder.Services.AddSingleton<DogfoodConsumerAttemptRecorder>();
         builder.Services.AddSingleton<DogfoodConsumerFailurePlan>();
         builder.Services.AddSingleton<DogfoodEffectRecorder>();

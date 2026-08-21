@@ -7,7 +7,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected reset, publish <scenario> <count>, inspect, worker, or worker-for.");
+    Console.Error.WriteLine("Expected reset, publish, inspect, worker, worker-with-failures, or worker-for.");
     return 1;
 }
 
@@ -48,6 +48,9 @@ switch (args[0].ToLowerInvariant())
     case "worker":
         return await RunWorkerAsync(args, settings);
 
+    case "worker-with-failures":
+        return await RunWorkerWithFailuresAsync(args, settings);
+
     case "worker-for":
         return await RunTimedWorkerAsync(args, settings);
 
@@ -76,6 +79,45 @@ static async Task<int> RunWorkerAsync(
     }
 
     using var host = DogfoodHost.Build(settings, arguments[1], consumerTiming);
+    await host.RunAsync();
+    return 0;
+}
+
+static async Task<int> RunWorkerWithFailuresAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var hasExpectedArgumentCount = arguments.Length == 4;
+    var hasWorkerId =
+        arguments.Length >= 2 &&
+        !string.IsNullOrWhiteSpace(arguments[1]);
+    var hasTargetScenarioId =
+        arguments.Length >= 3 &&
+        !string.IsNullOrWhiteSpace(arguments[2]);
+    var rejectedAttemptCount = 0;
+    var hasRejectedAttemptCount =
+        arguments.Length == 4 &&
+        int.TryParse(arguments[3], out rejectedAttemptCount) &&
+        rejectedAttemptCount > 0;
+
+    if (!hasExpectedArgumentCount ||
+        !hasWorkerId ||
+        !hasTargetScenarioId ||
+        !hasRejectedAttemptCount)
+    {
+        Console.Error.WriteLine(
+            "Expected worker-with-failures <worker-id> <target-scenario-id> <positive-rejected-attempt-count>.");
+        return 1;
+    }
+
+    var failureInjection = new ConsumerFailureInjection(
+        arguments[2],
+        rejectedAttemptCount);
+    using var host = DogfoodHost.Build(
+        settings,
+        arguments[1],
+        ConsumerExecutionTiming.None,
+        failureInjection);
     await host.RunAsync();
     return 0;
 }

@@ -23,7 +23,8 @@ internal static class DogfoodObservationReader
                 COALESCE(SUM(CASE WHEN Status = @FailedStatus THEN 1 ELSE 0 END), 0),
                 COALESCE(SUM(AttemptCount), 0),
                 MIN(ClaimExpiresAtUtc),
-                MIN(NextAttemptAtUtc)
+                MIN(NextAttemptAtUtc),
+                MAX(CASE WHEN Status = @FailedStatus THEN LastError END)
             FROM dbo.TinyOutbox;
 
             SELECT
@@ -91,6 +92,9 @@ internal static class DogfoodObservationReader
         DateTimeOffset? earliestNextAttemptAtUtc = reader.IsDBNull(7)
             ? null
             : reader.GetFieldValue<DateTimeOffset>(7);
+        var terminalError = reader.IsDBNull(8)
+            ? null
+            : reader.GetString(8);
 
         await reader.NextResultAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
@@ -117,6 +121,7 @@ internal static class DogfoodObservationReader
             databaseUtcNow,
             earliestClaimExpiresAtUtc,
             earliestNextAttemptAtUtc,
+            terminalError,
             businessOperations,
             outboxMessages,
             pendingMessages,

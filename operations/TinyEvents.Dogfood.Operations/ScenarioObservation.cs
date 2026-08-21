@@ -4,6 +4,7 @@ internal sealed record ScenarioObservation(
     DateTimeOffset DatabaseUtcNow,
     DateTimeOffset? EarliestClaimExpiresAtUtc,
     DateTimeOffset? EarliestNextAttemptAtUtc,
+    string? TerminalError,
     int BusinessOperations,
     int OutboxMessages,
     int PendingMessages,

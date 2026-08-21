@@ -251,7 +251,7 @@ function Wait-ForRetryCompletion {
     throw "Worker '$WorkerId' did not complete the retry within twenty seconds."
 }
 
-function Wait-ForTransientRetryState {
+function Wait-ForRetryAttemptState {
     param(
         [string]$Assembly,
         [System.Diagnostics.Process]$Worker,
@@ -263,7 +263,7 @@ function Wait-ForTransientRetryState {
 
     while ((Get-Date) -lt $deadline) {
         if ($Worker.HasExited) {
-            throw "Worker '$WorkerId' exited during transient failure recovery. Exit code: $($Worker.ExitCode)."
+            throw "Worker '$WorkerId' exited while scheduling retry attempt $ExpectedAttemptCount. Exit code: $($Worker.ExitCode)."
         }
 
         $observation = Get-Observation -Assembly $Assembly
@@ -317,4 +317,37 @@ function Wait-ForTransientRecovery {
     }
 
     throw "Worker '$WorkerId' did not recover from transient failures within twenty seconds."
+}
+
+function Wait-ForPermanentFailure {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$Worker,
+        [string]$WorkerId
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Worker.HasExited) {
+            throw "Worker '$WorkerId' exited before the permanent failure became terminal. Exit code: $($Worker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+
+        if ($observation.PendingMessages -eq 0 -and
+            $observation.ProcessingMessages -eq 0 -and
+            $observation.ProcessedMessages -eq 1 -and
+            $observation.FailedMessages -eq 1 -and
+            $observation.FailedAttempts -eq 3 -and
+            $observation.ConsumerAttempts -eq 3 -and
+            $observation.Effects -eq 1 -and
+            $observation.DuplicateEffects -eq 0) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Worker '$WorkerId' did not exhaust the permanent failure within twenty seconds."
 }

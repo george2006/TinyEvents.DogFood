@@ -41,6 +41,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-W08` | Graceful shutdown exits cleanly both while idle and during active consumer work, without misclassifying cancellation as failure. |
 | `TE-W09` | A scheduled retry remains durable across a complete worker restart and cannot execute before `NextAttemptAtUtc`. |
 | `TE-W10` | A transiently failing message respects both durable retry boundaries, recovers on its third attempt, and does not block unrelated work. |
+| `TE-W11` | A permanently failing message exhausts exactly three attempts, retains its terminal error, and does not kill or block the worker. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
 
@@ -57,6 +58,8 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 `TE-W09` fails the first consumer invocation deliberately, stops all workers during the durable retry delay, and starts a replacement before eligibility. SQL time proves the replacement does not invoke the consumer early and completes the second invocation after `NextAttemptAtUtc` with one final effect and no duplicate.
 
 `TE-W10` rejects one message twice and lets a second, unrelated message complete during the first retry delay. SQL-recorded invocation times prove attempts two and three begin no earlier than their persisted `NextAttemptAtUtc` boundaries. The same worker survives both failures and completes both messages without duplicate effects.
+
+`TE-W11` rejects one message on every invocation while an unrelated message completes. The first two failures schedule durable retries; the third reaches the configured maximum, clears retry eligibility, and retains the exact terminal error. The worker remains alive throughout.
 
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 

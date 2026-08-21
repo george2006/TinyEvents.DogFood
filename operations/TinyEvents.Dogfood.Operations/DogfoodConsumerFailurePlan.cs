@@ -1,15 +1,14 @@
 namespace TinyEvents.Dogfood.Operations;
 
 internal sealed class DogfoodConsumerFailurePlan(
-    DogfoodConsumerAttemptRecorder attempts)
+    DogfoodConsumerAttemptRecorder attempts,
+    ConsumerFailureInjection injection)
 {
     public async ValueTask RejectWhenPlannedAsync(
         OperationalEvent @event,
         CancellationToken cancellationToken)
     {
-        var failuresBeforeSuccess = GetFailuresBeforeSuccess(@event);
-
-        if (failuresBeforeSuccess == 0)
+        if (!injection.Targets(@event.ScenarioId))
         {
             return;
         }
@@ -19,21 +18,11 @@ internal sealed class DogfoodConsumerFailurePlan(
             @event.ScenarioId,
             cancellationToken);
 
-        if (attemptNumber <= failuresBeforeSuccess)
+        if (attemptNumber <= injection.RejectedAttemptCount)
         {
             throw new DogfoodPlannedFailureException(
                 $"{@event.ScenarioId} rejects consumer attempt {attemptNumber}.");
         }
-    }
-
-    private static int GetFailuresBeforeSuccess(OperationalEvent @event)
-    {
-        return @event.ScenarioId switch
-        {
-            "TE-W09" => 1,
-            "TE-W10-retry" => 2,
-            _ => 0
-        };
     }
 }
 

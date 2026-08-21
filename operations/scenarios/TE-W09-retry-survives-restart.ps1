@@ -12,7 +12,7 @@ function Invoke-TEW09RetrySurvivesRestart {
 
     $initialWorkerId = "TE-W09-initial-worker"
     $recoveryWorkerId = "TE-W09-recovery-worker"
-    $initialWorker = Start-Worker $Assembly $initialWorkerId 0 0 $scenarioDirectory
+    $initialWorker = Start-FailingWorker $Assembly $initialWorkerId "TE-W09" 1 $scenarioDirectory
     $recoveryWorker = $null
 
     try {
@@ -20,7 +20,7 @@ function Invoke-TEW09RetrySurvivesRestart {
         Save-Observation $scheduledRetry $scenarioDirectory "retry-scheduled"
         Stop-Worker $initialWorker
 
-        $recoveryWorker = Start-Worker $Assembly $recoveryWorkerId 0 0 $scenarioDirectory
+        $recoveryWorker = Start-FailingWorker $Assembly $recoveryWorkerId "TE-W09" 1 $scenarioDirectory
         Start-Sleep -Milliseconds 500
 
         if ($recoveryWorker.HasExited) {

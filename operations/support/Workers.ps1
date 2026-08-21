@@ -24,6 +24,32 @@ function Start-Worker {
         -PassThru
 }
 
+function Start-FailingWorker {
+    param(
+        [string]$Assembly,
+        [string]$WorkerId,
+        [string]$TargetScenarioId,
+        [int]$RejectedAttemptCount,
+        [string]$ArtifactDirectory
+    )
+
+    $standardOutput = Join-Path $ArtifactDirectory "$WorkerId.stdout.log"
+    $standardError = Join-Path $ArtifactDirectory "$WorkerId.stderr.log"
+
+    return Start-Process `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            $Assembly,
+            "worker-with-failures",
+            $WorkerId,
+            $TargetScenarioId,
+            [string]$RejectedAttemptCount) `
+        -RedirectStandardOutput $standardOutput `
+        -RedirectStandardError $standardError `
+        -WindowStyle Hidden `
+        -PassThru
+}
+
 function Start-TimedWorker {
     param(
         [string]$Assembly,
