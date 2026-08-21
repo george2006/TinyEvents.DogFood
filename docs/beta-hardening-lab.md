@@ -416,6 +416,8 @@ TE-D01 starts a worker while its SQL Server is unavailable. The worker reports t
 
 TE-D02 proves a worker processes one message before SQL Server disappears during polling, remains alive throughout the outage, announces recovery when SQL returns, and processes a second message without restarting or duplicating either effect.
 
+TE-D03 removes SQL Server after a slow consumer has acquired a claim and before its durable effect. The resulting consumer failure cannot update the unavailable outbox, so no failed attempt is recorded. Once SQL returns, the same process reclaims the expired lease, records one effect, completes the message, and announces recovery.
+
 ### BETA-6 - Transactions, contracts, and deployment
 
 Complete the transactional, malformed-message, migration, alpha-upgrade, and rolling-upgrade scenarios.
