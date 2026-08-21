@@ -57,6 +57,16 @@ internal static class DogfoodObservationReader
             FROM dbo.DogfoodEffects
             GROUP BY ProcessId
             ORDER BY ProcessId;
+
+            SELECT ScenarioId, COUNT(*)
+            FROM dbo.DogfoodEffects
+            GROUP BY ScenarioId
+            ORDER BY ScenarioId;
+
+            SELECT ScenarioId, COUNT(*)
+            FROM dbo.DogfoodConsumerAttempts
+            GROUP BY ScenarioId
+            ORDER BY ScenarioId;
             """;
 
         await using var connection = new SqlConnection(settings.ConnectionString);
@@ -125,6 +135,12 @@ internal static class DogfoodObservationReader
         await reader.NextResultAsync(cancellationToken);
         var processEffects = await ReadWorkerCountsAsync(reader, cancellationToken);
 
+        await reader.NextResultAsync(cancellationToken);
+        var scenarioEffects = await ReadWorkerCountsAsync(reader, cancellationToken);
+
+        await reader.NextResultAsync(cancellationToken);
+        var scenarioAttempts = await ReadWorkerCountsAsync(reader, cancellationToken);
+
         return new ScenarioObservation(
             databaseUtcNow,
             earliestClaimExpiresAtUtc,
@@ -144,7 +160,9 @@ internal static class DogfoodObservationReader
             workerClaims,
             workerEffects,
             workerAttempts,
-            processEffects);
+            processEffects,
+            scenarioEffects,
+            scenarioAttempts);
     }
 
     private static async ValueTask<IReadOnlyDictionary<string, int>> ReadWorkerCountsAsync(

@@ -54,6 +54,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-D02` | A healthy polling worker survives a SQL Server outage and processes work both before and after recovery. |
 | `TE-D03` | SQL Server disappears during active consumer work; the same process reclaims the expired lease after recovery. |
 | `TE-D04` | SQL Server disappears after the consumer effect; redelivery exposes the expected at-least-once duplicate. |
+| `TE-D05` | Mixed success, transient, permanent, and slow work reaches exact terminal outcomes across a SQL Server restart. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
 
@@ -84,6 +85,8 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 `TE-D03` removes SQL Server after a slow consumer has acquired its claim but before it writes its effect. Neither the effect nor the processing failure can be persisted during the outage. After SQL returns, the same worker reclaims the expired lease, records one effect, completes the message, and reports recovery.
 
 `TE-D04` removes SQL Server after the durable consumer effect and before the outbox completion update. The worker survives the failed update, reclaims the expired lease after SQL returns, and completes through redelivery. SQL evidence retains both consumer invocations and one duplicate effect, which is the expected at-least-once boundary.
+
+`TE-D05` holds a slow invocation after its durable effect while success, transient-failure, and permanent-failure messages share the backlog. SQL Server disappears at that exact point. The same worker recovers and drains every eligible message, preserves exact retry and terminal-failure counts, and exposes the slow message's expected duplicate effect.
 
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 

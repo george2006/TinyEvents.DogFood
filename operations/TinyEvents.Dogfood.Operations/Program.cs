@@ -7,7 +7,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected reset, publish, publish-multi-consumer, inspect, worker, worker-with-failures, or worker-for.");
+    Console.Error.WriteLine("Expected reset, publish, publish-multi-consumer, inspect, worker, worker-with-failures, worker-with-plan, or worker-for.");
     return 1;
 }
 
@@ -72,6 +72,9 @@ switch (args[0].ToLowerInvariant())
     case "worker-with-failures":
         return await RunWorkerWithFailuresAsync(args, settings);
 
+    case "worker-with-plan":
+        return await RunWorkerWithPlanAsync(args, settings);
+
     case "worker-for":
         return await RunTimedWorkerAsync(args, settings);
 
@@ -131,14 +134,57 @@ static async Task<int> RunWorkerWithFailuresAsync(
         return 1;
     }
 
-    var failureInjection = new ConsumerFailureInjection(
-        arguments[2],
-        rejectedAttemptCount);
+    var failureRules = new ConsumerFailureRules(
+        [new ConsumerFailureRule(arguments[2], rejectedAttemptCount)]);
     using var host = DogfoodHost.Build(
         settings,
         arguments[1],
         ConsumerExecutionTiming.None,
-        failureInjection);
+        failureRules);
+    await host.RunAsync();
+    return 0;
+}
+
+static async Task<int> RunWorkerWithPlanAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var hasWorkerId =
+        arguments.Length >= 2 &&
+        !string.IsNullOrWhiteSpace(arguments[1]);
+    var hasSlowScenarioId =
+        arguments.Length >= 3 &&
+        !string.IsNullOrWhiteSpace(arguments[2]);
+    var afterEffectDelayMilliseconds = 0;
+    var hasAfterEffectDelay =
+        arguments.Length >= 4 &&
+        int.TryParse(arguments[3], out afterEffectDelayMilliseconds) &&
+        afterEffectDelayMilliseconds >= 0;
+    var failureRulesAreValid = TryParseFailureRules(
+        arguments,
+        4,
+        out var failureRules);
+
+    if (!hasWorkerId ||
+        !hasSlowScenarioId ||
+        !hasAfterEffectDelay ||
+        !failureRulesAreValid)
+    {
+        Console.Error.WriteLine(
+            "Expected worker-with-plan <worker-id> <slow-scenario-id> <after-effect-delay-ms> <failure-scenario-id> <positive-rejected-attempt-count> [...].");
+        return 1;
+    }
+
+    var consumerTiming = new ConsumerExecutionTiming(
+        TimeSpan.Zero,
+        TimeSpan.FromMilliseconds(afterEffectDelayMilliseconds),
+        arguments[2]);
+    var consumerFailureRules = new ConsumerFailureRules(failureRules);
+    using var host = DogfoodHost.Build(
+        settings,
+        arguments[1],
+        consumerTiming,
+        consumerFailureRules);
     await host.RunAsync();
     return 0;
 }
@@ -215,4 +261,46 @@ static bool TryParseOptionalDelay(
         ? TimeSpan.FromMilliseconds(delayMilliseconds)
         : TimeSpan.Zero;
     return delayIsValid;
+}
+
+static bool TryParseFailureRules(
+    string[] arguments,
+    int firstRuleIndex,
+    out IReadOnlyList<ConsumerFailureRule> rules)
+{
+    var ruleArgumentCount = arguments.Length - firstRuleIndex;
+    var hasCompleteRulePairs =
+        ruleArgumentCount >= 2 &&
+        ruleArgumentCount % 2 == 0;
+
+    if (!hasCompleteRulePairs)
+    {
+        rules = [];
+        return false;
+    }
+
+    var parsedRules = new List<ConsumerFailureRule>();
+
+    for (var index = firstRuleIndex; index < arguments.Length; index += 2)
+    {
+        var scenarioId = arguments[index];
+        var rejectedAttemptCount = 0;
+        var rejectedAttemptCountIsValid =
+            !string.IsNullOrWhiteSpace(scenarioId) &&
+            int.TryParse(arguments[index + 1], out rejectedAttemptCount) &&
+            rejectedAttemptCount > 0;
+
+        if (!rejectedAttemptCountIsValid)
+        {
+            rules = [];
+            return false;
+        }
+
+        parsedRules.Add(new ConsumerFailureRule(
+            scenarioId,
+            rejectedAttemptCount));
+    }
+
+    rules = parsedRules;
+    return true;
 }

@@ -51,6 +51,34 @@ function Start-FailingWorker {
         -PassThru
 }
 
+function Start-PlannedWorker {
+    param(
+        [string]$Assembly,
+        [string]$WorkerId,
+        [string]$SlowScenarioId,
+        [int]$AfterEffectDelayMilliseconds,
+        [string[]]$FailureRules,
+        [string]$ArtifactDirectory
+    )
+
+    $standardOutput = Join-Path $ArtifactDirectory "$WorkerId.stdout.log"
+    $standardError = Join-Path $ArtifactDirectory "$WorkerId.stderr.log"
+    $arguments = @(
+        $Assembly,
+        "worker-with-plan",
+        $WorkerId,
+        $SlowScenarioId,
+        [string]$AfterEffectDelayMilliseconds) + $FailureRules
+
+    return Start-Process `
+        -FilePath "dotnet" `
+        -ArgumentList $arguments `
+        -RedirectStandardOutput $standardOutput `
+        -RedirectStandardError $standardError `
+        -WindowStyle Hidden `
+        -PassThru
+}
+
 function Start-TimedWorker {
     param(
         [string]$Assembly,

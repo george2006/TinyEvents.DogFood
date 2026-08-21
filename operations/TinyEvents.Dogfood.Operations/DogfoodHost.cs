@@ -17,7 +17,7 @@ internal static class DogfoodHost
             settings,
             workerId,
             ConsumerExecutionTiming.None,
-            ConsumerFailureInjection.None);
+            ConsumerFailureRules.None);
     }
 
     public static IHost Build(
@@ -29,21 +29,21 @@ internal static class DogfoodHost
             settings,
             workerId,
             consumerTiming,
-            ConsumerFailureInjection.None);
+            ConsumerFailureRules.None);
     }
 
     public static IHost Build(
         DogfoodSettings settings,
         string workerId,
         ConsumerExecutionTiming consumerTiming,
-        ConsumerFailureInjection failureInjection)
+        ConsumerFailureRules failureRules)
     {
         var builder = Host.CreateApplicationBuilder();
 
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(new WorkerIdentity(workerId));
         builder.Services.AddSingleton(consumerTiming);
-        builder.Services.AddSingleton(failureInjection);
+        builder.Services.AddSingleton(failureRules);
         builder.Services.AddSingleton<DogfoodConsumerAttemptRecorder>();
         builder.Services.AddSingleton<DogfoodConsumerFailurePlan>();
         builder.Services.AddSingleton<DogfoodEffectRecorder>();
@@ -74,9 +74,23 @@ internal sealed record WorkerIdentity(string Value);
 
 internal sealed record ConsumerExecutionTiming(
     TimeSpan BeforeEffectDelay,
-    TimeSpan AfterEffectDelay)
+    TimeSpan AfterEffectDelay,
+    string? TargetScenarioId = null)
 {
     public static ConsumerExecutionTiming None { get; } = new(
         TimeSpan.Zero,
         TimeSpan.Zero);
+
+    public ConsumerExecutionTiming ResolveFor(string scenarioId)
+    {
+        var targetsEveryScenario = TargetScenarioId is null;
+        var targetsCurrentScenario = string.Equals(
+            TargetScenarioId,
+            scenarioId,
+            StringComparison.Ordinal);
+
+        return targetsEveryScenario || targetsCurrentScenario
+            ? this
+            : None;
+    }
 }

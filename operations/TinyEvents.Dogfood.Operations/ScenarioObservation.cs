@@ -19,4 +19,6 @@ internal sealed record ScenarioObservation(
     IReadOnlyDictionary<string, int> WorkerClaims,
     IReadOnlyDictionary<string, int> WorkerEffects,
     IReadOnlyDictionary<string, int> WorkerAttempts,
-    IReadOnlyDictionary<string, int> ProcessEffects);
+    IReadOnlyDictionary<string, int> ProcessEffects,
+    IReadOnlyDictionary<string, int> ScenarioEffects,
+    IReadOnlyDictionary<string, int> ScenarioAttempts);

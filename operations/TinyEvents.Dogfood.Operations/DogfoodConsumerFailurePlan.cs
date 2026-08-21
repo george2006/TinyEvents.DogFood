@@ -2,14 +2,16 @@ namespace TinyEvents.Dogfood.Operations;
 
 internal sealed class DogfoodConsumerFailurePlan(
     DogfoodConsumerAttemptRecorder attempts,
-    ConsumerFailureInjection injection)
+    ConsumerFailureRules rules)
 {
     public async ValueTask RejectWhenPlannedAsync(
         Guid operationId,
         string scenarioId,
         CancellationToken cancellationToken)
     {
-        if (!injection.Targets(scenarioId))
+        var rejectedAttemptCount = rules.GetRejectedAttemptCount(scenarioId);
+
+        if (rejectedAttemptCount == 0)
         {
             return;
         }
@@ -19,7 +21,7 @@ internal sealed class DogfoodConsumerFailurePlan(
             scenarioId,
             cancellationToken);
 
-        if (attemptNumber <= injection.RejectedAttemptCount)
+        if (attemptNumber <= rejectedAttemptCount)
         {
             throw new DogfoodPlannedFailureException(
                 $"{scenarioId} rejects consumer attempt {attemptNumber}.");

@@ -17,9 +17,13 @@ internal sealed class OperationalEventConsumer(
             @event.ScenarioId,
             cancellationToken);
 
-        if (timing.BeforeEffectDelay > TimeSpan.Zero)
+        var executionTiming = timing.ResolveFor(@event.ScenarioId);
+
+        if (executionTiming.BeforeEffectDelay > TimeSpan.Zero)
         {
-            await Task.Delay(timing.BeforeEffectDelay, cancellationToken);
+            await Task.Delay(
+                executionTiming.BeforeEffectDelay,
+                cancellationToken);
         }
 
         await effects.RecordAsync(
@@ -27,9 +31,11 @@ internal sealed class OperationalEventConsumer(
             @event.ScenarioId,
             cancellationToken);
 
-        if (timing.AfterEffectDelay > TimeSpan.Zero)
+        if (executionTiming.AfterEffectDelay > TimeSpan.Zero)
         {
-            await Task.Delay(timing.AfterEffectDelay, cancellationToken);
+            await Task.Delay(
+                executionTiming.AfterEffectDelay,
+                cancellationToken);
         }
     }
 }
