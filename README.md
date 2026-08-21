@@ -6,6 +6,8 @@ This repository does not replace unit or integration tests. It runs real applica
 
 > **Status:** Active beta hardening. Every scenario listed as implemented has executable evidence. The complete V1 release gate is still in progress.
 
+This is the dogfood laboratory we are using to earn beta readiness. It is intentionally a work in progress: completed scenarios contain reproducible evidence, while roadmap items remain unproven and are not product guarantees.
+
 The current laboratory demonstrates:
 
 - atomic business-state and outbox persistence;
