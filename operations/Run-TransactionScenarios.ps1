@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "TE-T02")]
+    [ValidateSet("all", "TE-T02", "TE-T05")]
     [string]$Scenario = "all",
 
     [ValidateSet("SqlServer", "PostgreSql")]
@@ -13,6 +13,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "support\Database.ps1")
 . (Join-Path $PSScriptRoot "support\Observations.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-T02-business-transaction-rolls-back.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-T05-publisher-terminates-around-commit.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -33,6 +34,11 @@ $database = New-DogfoodDatabase $StorageProvider $composeFile
 $scenarioRunners = [ordered]@{
     "TE-T02" = {
         Invoke-TET02BusinessTransactionRollsBack `
+            $assembly `
+            $artifactDirectory
+    }
+    "TE-T05" = {
+        Invoke-TET05PublisherTerminatesAroundCommit `
             $assembly `
             $artifactDirectory
     }

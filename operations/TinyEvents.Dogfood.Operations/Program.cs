@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using TinyEvents;
@@ -7,7 +8,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected prepare, migrate, reset, publish, publish-then-rollback, publish-multi-consumer, inspect, inspect-migrations, worker, worker-with-failures, worker-with-plan, worker-under-pressure, or worker-for.");
+    Console.Error.WriteLine("Expected prepare, migrate, reset, publish, publish-with-timing, publish-then-rollback, publish-multi-consumer, inspect, inspect-migrations, worker, worker-with-failures, worker-with-plan, worker-under-pressure, or worker-for.");
     return 1;
 }
 
@@ -44,6 +45,9 @@ switch (args[0].ToLowerInvariant())
         }
 
         return 0;
+
+    case "publish-with-timing":
+        return await RunPublisherWithTimingAsync(args, settings);
 
     case "publish-then-rollback":
         if (args.Length != 3 ||
@@ -120,6 +124,49 @@ static async ValueTask MigrateAsync(DogfoodSettings settings)
 {
     using var host = DogfoodHost.Build(settings, "migration");
     await host.Services.MigrateTinyEventsAsync();
+}
+
+static async Task<int> RunPublisherWithTimingAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var hasScenarioId =
+        arguments.Length == 4 &&
+        !string.IsNullOrWhiteSpace(arguments[1]);
+    var beforeCommitDelayMilliseconds = 0;
+    var hasBeforeCommitDelay =
+        arguments.Length == 4 &&
+        int.TryParse(arguments[2], out beforeCommitDelayMilliseconds) &&
+        beforeCommitDelayMilliseconds >= 0;
+    var afterCommitDelayMilliseconds = 0;
+    var hasAfterCommitDelay =
+        arguments.Length == 4 &&
+        int.TryParse(arguments[3], out afterCommitDelayMilliseconds) &&
+        afterCommitDelayMilliseconds >= 0;
+
+    if (!hasScenarioId ||
+        !hasBeforeCommitDelay ||
+        !hasAfterCommitDelay)
+    {
+        Console.Error.WriteLine(
+            "Expected publish-with-timing <scenario> <non-negative-before-commit-delay-ms> <non-negative-after-commit-delay-ms>.");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(settings, "timed-publisher");
+    using var scope = host.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<DogfoodDbContext>();
+    var publisher = scope.ServiceProvider.GetRequiredService<DogfoodPublisher>();
+
+    await using var transaction =
+        await dbContext.Database.BeginTransactionAsync();
+    await publisher.PublishAsync(arguments[1], 1);
+    Console.WriteLine("Publisher waiting before commit.");
+    await Task.Delay(beforeCommitDelayMilliseconds);
+    await transaction.CommitAsync();
+    Console.WriteLine("Publisher commit completed.");
+    await Task.Delay(afterCommitDelayMilliseconds);
+    return 0;
 }
 
 static async Task<int> RunWorkerAsync(
