@@ -422,6 +422,8 @@ TE-D04 removes SQL Server after the consumer effect is durable and while the sam
 
 TE-D05 keeps success, transient-failure, permanent-failure, and slow work in one backlog while SQL Server restarts. The outage begins after the slow effect is durable but before completion. One unchanged worker recovers, drains all eligible work, exhausts the permanent failure, respects transient retries, and retains the expected duplicate slow effect with exact per-scenario evidence.
 
+TE-D06 bounds every process to two pooled SQL connections. Two workers deliberately exhaust their own pools while four concurrent publishers commit 100 messages. Both workers observe pool timeouts, remain alive, recover without restart, share the final drain, and produce exactly one durable effect per message.
+
 ### BETA-6 - Transactions, contracts, and deployment
 
 Complete the transactional, malformed-message, migration, alpha-upgrade, and rolling-upgrade scenarios.

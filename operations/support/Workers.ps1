@@ -79,6 +79,32 @@ function Start-PlannedWorker {
         -PassThru
 }
 
+function Start-WorkerUnderPressure {
+    param(
+        [string]$Assembly,
+        [string]$WorkerId,
+        [int]$HeldConnectionCount,
+        [int]$PressureDurationMilliseconds,
+        [string]$ArtifactDirectory
+    )
+
+    $standardOutput = Join-Path $ArtifactDirectory "$WorkerId.stdout.log"
+    $standardError = Join-Path $ArtifactDirectory "$WorkerId.stderr.log"
+
+    return Start-Process `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            $Assembly,
+            "worker-under-pressure",
+            $WorkerId,
+            [string]$HeldConnectionCount,
+            [string]$PressureDurationMilliseconds) `
+        -RedirectStandardOutput $standardOutput `
+        -RedirectStandardError $standardError `
+        -WindowStyle Hidden `
+        -PassThru
+}
+
 function Start-TimedWorker {
     param(
         [string]$Assembly,

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "TE-D01", "TE-D02", "TE-D03", "TE-D04", "TE-D05")]
+    [ValidateSet("all", "TE-D01", "TE-D02", "TE-D03", "TE-D04", "TE-D05", "TE-D06")]
     [string]$Scenario = "all"
 )
 
@@ -16,6 +16,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "scenarios\TE-D03-database-disappears-during-consumer.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-D04-database-disappears-while-marking-processed.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-D05-database-restart-under-mixed-load.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-D06-bounded-connection-pressure.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -63,6 +64,11 @@ $scenarioRunners = [ordered]@{
         Invoke-TED05DatabaseRestartUnderMixedLoad `
             $assembly `
             $composeFile `
+            $artifactDirectory
+    }
+    "TE-D06" = {
+        Invoke-TED06BoundedConnectionPressure `
+            $assembly `
             $artifactDirectory
     }
 }

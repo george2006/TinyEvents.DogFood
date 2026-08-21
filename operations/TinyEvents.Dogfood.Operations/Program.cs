@@ -7,7 +7,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected reset, publish, publish-multi-consumer, inspect, worker, worker-with-failures, worker-with-plan, or worker-for.");
+    Console.Error.WriteLine("Expected reset, publish, publish-multi-consumer, inspect, worker, worker-with-failures, worker-with-plan, worker-under-pressure, or worker-for.");
     return 1;
 }
 
@@ -74,6 +74,9 @@ switch (args[0].ToLowerInvariant())
 
     case "worker-with-plan":
         return await RunWorkerWithPlanAsync(args, settings);
+
+    case "worker-under-pressure":
+        return await RunWorkerUnderPressureAsync(args, settings);
 
     case "worker-for":
         return await RunTimedWorkerAsync(args, settings);
@@ -186,6 +189,50 @@ static async Task<int> RunWorkerWithPlanAsync(
         consumerTiming,
         consumerFailureRules);
     await host.RunAsync();
+    return 0;
+}
+
+static async Task<int> RunWorkerUnderPressureAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var hasWorkerId =
+        arguments.Length == 4 &&
+        !string.IsNullOrWhiteSpace(arguments[1]);
+    var heldConnectionCount = 0;
+    var hasHeldConnectionCount =
+        arguments.Length == 4 &&
+        int.TryParse(arguments[2], out heldConnectionCount) &&
+        heldConnectionCount > 0;
+    var pressureDurationMilliseconds = 0;
+    var hasPressureDuration =
+        arguments.Length == 4 &&
+        int.TryParse(arguments[3], out pressureDurationMilliseconds) &&
+        pressureDurationMilliseconds > 0;
+
+    if (!hasWorkerId ||
+        !hasHeldConnectionCount ||
+        !hasPressureDuration)
+    {
+        Console.Error.WriteLine(
+            "Expected worker-under-pressure <worker-id> <positive-held-connection-count> <positive-pressure-duration-ms>.");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(settings, arguments[1]);
+
+    await using (var pressure = await ConnectionPoolPressure.AcquireAsync(
+        settings.ConnectionString,
+        heldConnectionCount))
+    {
+        Console.WriteLine(
+            $"Connection pool pressure acquired {heldConnectionCount} connections.");
+        await host.StartAsync();
+        await Task.Delay(pressureDurationMilliseconds);
+    }
+
+    Console.WriteLine("Connection pool pressure released.");
+    await host.WaitForShutdownAsync();
     return 0;
 }
 
