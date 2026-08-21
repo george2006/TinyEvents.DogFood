@@ -7,7 +7,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected reset, publish, inspect, worker, worker-with-failures, or worker-for.");
+    Console.Error.WriteLine("Expected reset, publish, publish-multi-consumer, inspect, worker, worker-with-failures, or worker-for.");
     return 1;
 }
 
@@ -36,6 +36,27 @@ switch (args[0].ToLowerInvariant())
         {
             var publisher = scope.ServiceProvider.GetRequiredService<DogfoodPublisher>();
             await publisher.PublishAsync(args[1], count);
+        }
+
+        return 0;
+
+    case "publish-multi-consumer":
+        if (args.Length != 3 ||
+            !int.TryParse(args[2], out var multiConsumerCount) ||
+            multiConsumerCount <= 0)
+        {
+            Console.Error.WriteLine(
+                "Expected publish-multi-consumer <scenario> <positive-count>.");
+            return 1;
+        }
+
+        using (var host = DogfoodHost.Build(settings, "publisher"))
+        using (var scope = host.Services.CreateScope())
+        {
+            var publisher = scope.ServiceProvider.GetRequiredService<DogfoodPublisher>();
+            await publisher.PublishMultiConsumerAsync(
+                args[1],
+                multiConsumerCount);
         }
 
         return 0;

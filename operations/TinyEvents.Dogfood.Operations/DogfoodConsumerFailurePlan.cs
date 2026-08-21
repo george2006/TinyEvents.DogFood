@@ -5,23 +5,24 @@ internal sealed class DogfoodConsumerFailurePlan(
     ConsumerFailureInjection injection)
 {
     public async ValueTask RejectWhenPlannedAsync(
-        OperationalEvent @event,
+        Guid operationId,
+        string scenarioId,
         CancellationToken cancellationToken)
     {
-        if (!injection.Targets(@event.ScenarioId))
+        if (!injection.Targets(scenarioId))
         {
             return;
         }
 
         var attemptNumber = await attempts.RecordAsync(
-            @event.OperationId,
-            @event.ScenarioId,
+            operationId,
+            scenarioId,
             cancellationToken);
 
         if (attemptNumber <= injection.RejectedAttemptCount)
         {
             throw new DogfoodPlannedFailureException(
-                $"{@event.ScenarioId} rejects consumer attempt {attemptNumber}.");
+                $"{scenarioId} rejects consumer attempt {attemptNumber}.");
         }
     }
 }

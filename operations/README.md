@@ -42,6 +42,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-W09` | A scheduled retry remains durable across a complete worker restart and cannot execute before `NextAttemptAtUtc`. |
 | `TE-W10` | A transiently failing message respects both durable retry boundaries, recovers on its third attempt, and does not block unrelated work. |
 | `TE-W11` | A permanently failing message exhausts exactly three attempts, retains its terminal error, and does not kill or block the worker. |
+| `TE-W12` | A failure in a later consumer retries the complete event and may invoke an already successful consumer again. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
 
@@ -60,6 +61,8 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 `TE-W10` rejects one message twice and lets a second, unrelated message complete during the first retry delay. SQL-recorded invocation times prove attempts two and three begin no earlier than their persisted `NextAttemptAtUtc` boundaries. The same worker survives both failures and completes both messages without duplicate effects.
 
 `TE-W11` rejects one message on every invocation while an unrelated message completes. The first two failures schedule durable retries; the third reaches the configured maximum, clears retry eligibility, and retains the exact terminal error. The worker remains alive throughout.
+
+`TE-W12` gives one event two consumers. The recording consumer completes before the rejecting consumer fails once. Retrying the whole outbox message invokes both again, producing two durable effects for one operation. The scenario characterizes whole-event at-least-once delivery; it does not make consumer ordering a public contract.
 
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 

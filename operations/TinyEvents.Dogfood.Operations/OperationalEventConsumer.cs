@@ -12,7 +12,10 @@ internal sealed class OperationalEventConsumer(
         OperationalEvent @event,
         CancellationToken cancellationToken)
     {
-        await failurePlan.RejectWhenPlannedAsync(@event, cancellationToken);
+        await failurePlan.RejectWhenPlannedAsync(
+            @event.OperationId,
+            @event.ScenarioId,
+            cancellationToken);
 
         if (timing.BeforeEffectDelay > TimeSpan.Zero)
         {

@@ -118,3 +118,29 @@ function Test-PermanentFailureResult {
         $null -ne $effects -and
         $effects.Value -eq 1)
 }
+
+function Test-LaterConsumerRetryResult {
+    param(
+        [pscustomobject]$Observation,
+        [string]$WorkerId
+    )
+
+    $attempts = $Observation.WorkerAttempts.PSObject.Properties[$WorkerId]
+    $effects = $Observation.WorkerEffects.PSObject.Properties[$WorkerId]
+
+    return (
+        $Observation.BusinessOperations -eq 1 -and
+        $Observation.OutboxMessages -eq 1 -and
+        $Observation.PendingMessages -eq 0 -and
+        $Observation.ProcessingMessages -eq 0 -and
+        $Observation.ProcessedMessages -eq 1 -and
+        $Observation.FailedMessages -eq 0 -and
+        $Observation.FailedAttempts -eq 1 -and
+        $Observation.ConsumerAttempts -eq 2 -and
+        $Observation.Effects -eq 2 -and
+        $Observation.DuplicateEffects -eq 1 -and
+        $null -ne $attempts -and
+        $attempts.Value -eq 2 -and
+        $null -ne $effects -and
+        $effects.Value -eq 2)
+}

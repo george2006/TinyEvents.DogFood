@@ -351,3 +351,37 @@ function Wait-ForPermanentFailure {
 
     throw "Worker '$WorkerId' did not exhaust the permanent failure within twenty seconds."
 }
+
+function Wait-ForLaterConsumerRetry {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$Worker,
+        [string]$WorkerId
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Worker.HasExited) {
+            throw "Worker '$WorkerId' exited before the later consumer scheduled its retry. Exit code: $($Worker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+
+        if ($observation.PendingMessages -eq 1 -and
+            $observation.ProcessingMessages -eq 0 -and
+            $observation.ProcessedMessages -eq 0 -and
+            $observation.FailedMessages -eq 0 -and
+            $observation.FailedAttempts -eq 1 -and
+            $observation.ConsumerAttempts -eq 1 -and
+            $observation.Effects -eq 1 -and
+            $observation.DuplicateEffects -eq 0 -and
+            $null -ne $observation.EarliestNextAttemptAtUtc) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Worker '$WorkerId' did not schedule the later-consumer retry within twenty seconds."
+}

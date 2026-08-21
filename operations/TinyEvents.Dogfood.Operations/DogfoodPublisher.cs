@@ -29,4 +29,28 @@ internal sealed class DogfoodPublisher(
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async ValueTask PublishMultiConsumerAsync(
+        string scenarioId,
+        int count,
+        CancellationToken cancellationToken = default)
+    {
+        for (var index = 0; index < count; index++)
+        {
+            var operationId = Guid.NewGuid();
+
+            dbContext.BusinessOperations.Add(new DogfoodBusinessOperation
+            {
+                Id = operationId,
+                ScenarioId = scenarioId,
+                CreatedAtUtc = DateTimeOffset.UtcNow
+            });
+
+            await publisher.PublishAsync(
+                new MultiConsumerOperationalEvent(operationId, scenarioId),
+                cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

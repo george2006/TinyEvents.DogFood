@@ -362,6 +362,8 @@ TE-W10 rejected one message on its first two invocations while an unrelated mess
 
 TE-W11 rejected one message on all three configured attempts while an unrelated message completed normally. SQL-recorded attempt times proved both retry boundaries were respected. The terminal row retained `AttemptCount = 3`, no further retry boundary, and the exact final error while the worker remained alive.
 
+TE-W12 registered two consumers for one isolated dogfood event. The recording consumer completed before the later consumer failed once. Whole-message retry invoked the recording consumer again, leaving two effects for one operation and exposing the documented at-least-once boundary. The scenario does not promote consumer execution order to a public contract.
+
 Run the repeatable lease scenarios with:
 
 ```powershell
@@ -388,6 +390,7 @@ operations/
     TE-W09-retry-survives-restart.ps1
     TE-W10-transient-failure-recovers.ps1
     TE-W11-permanent-failure-exhausts-retries.ps1
+    TE-W12-later-consumer-failure.ps1
   support/
     Process.ps1
     SqlServer.ps1
