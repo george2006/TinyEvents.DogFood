@@ -7,7 +7,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected prepare, migrate, reset, publish, publish-multi-consumer, inspect, inspect-migrations, worker, worker-with-failures, worker-with-plan, worker-under-pressure, or worker-for.");
+    Console.Error.WriteLine("Expected prepare, migrate, reset, publish, publish-then-rollback, publish-multi-consumer, inspect, inspect-migrations, worker, worker-with-failures, worker-with-plan, worker-under-pressure, or worker-for.");
     return 1;
 }
 
@@ -41,6 +41,23 @@ switch (args[0].ToLowerInvariant())
         {
             var publisher = scope.ServiceProvider.GetRequiredService<DogfoodPublisher>();
             await publisher.PublishAsync(args[1], count);
+        }
+
+        return 0;
+
+    case "publish-then-rollback":
+        if (args.Length != 2)
+        {
+            Console.Error.WriteLine(
+                "Expected publish-then-rollback <scenario>.");
+            return 1;
+        }
+
+        using (var host = DogfoodHost.Build(settings, "rollback-publisher"))
+        using (var scope = host.Services.CreateScope())
+        {
+            var publisher = scope.ServiceProvider.GetRequiredService<DogfoodPublisher>();
+            await publisher.PublishThenRollbackAsync(args[1]);
         }
 
         return 0;

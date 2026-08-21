@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using TinyEvents;
 
 namespace TinyEvents.Dogfood.Operations;
@@ -52,5 +53,16 @@ internal sealed class DogfoodPublisher(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async ValueTask PublishThenRollbackAsync(
+        string scenarioId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction =
+            await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        await PublishAsync(scenarioId, 1, cancellationToken);
+        await transaction.RollbackAsync(cancellationToken);
     }
 }

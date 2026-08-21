@@ -9,6 +9,13 @@ Run both baseline scenarios:
 .\operations\Run-OperationalBaseline.ps1 -StorageProvider PostgreSql
 ```
 
+Run transactional publishing scenarios:
+
+```powershell
+.\operations\Run-TransactionScenarios.ps1
+.\operations\Run-TransactionScenarios.ps1 -StorageProvider PostgreSql
+```
+
 Run the competing-worker matrix:
 
 ```powershell
@@ -40,6 +47,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | Scenario | Observable contract |
 | --- | --- |
 | `TE-T01` | Business rows and outbox messages commit together, then every committed event is processed. |
+| `TE-T02` | Rolling back after a real save removes both business state and its outbox message. |
 | `TE-W01` | One hosted worker drains a known backlog without loss or duplicate effects. |
 | `TE-W02` | 2, 4, and 8 hosted-worker processes compete without loss or duplicate effects. |
 | `TE-W03` | A competing worker cannot steal a claim before its SQL lease expires. |
