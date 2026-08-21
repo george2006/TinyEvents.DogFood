@@ -1,13 +1,16 @@
 param(
     [ValidateSet("all", "TE-D01", "TE-D02", "TE-D03", "TE-D04", "TE-D05", "TE-D06")]
-    [string]$Scenario = "all"
+    [string]$Scenario = "all",
+
+    [ValidateSet("SqlServer", "PostgreSql")]
+    [string]$StorageProvider = "SqlServer"
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 . (Join-Path $PSScriptRoot "support\Process.ps1")
-. (Join-Path $PSScriptRoot "support\SqlServer.ps1")
+. (Join-Path $PSScriptRoot "support\Database.ps1")
 . (Join-Path $PSScriptRoot "support\Workers.ps1")
 . (Join-Path $PSScriptRoot "support\Observations.ps1")
 . (Join-Path $PSScriptRoot "support\Assertions.ps1")
@@ -32,39 +35,37 @@ $assembly = Join-Path $PSScriptRoot "TinyEvents.Dogfood.Operations\bin\Release\n
 $runId = Get-Date -Format "yyyyMMdd-HHmmss"
 $startedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
 $artifactDirectory = Join-Path $dogfoodRoot "artifacts\database\$runId"
-
-$env:TINYEVENTS_DOGFOOD_STORAGE = "sqlserver"
-$env:TINYEVENTS_DOGFOOD_SQLSERVER = "Server=localhost,14333;Database=TinyEventsDogfoodOperations;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
+$database = New-DogfoodDatabase $StorageProvider $composeFile
 
 $scenarioRunners = [ordered]@{
     "TE-D01" = {
         Invoke-TED01DatabaseUnavailableAtStartup `
             $assembly `
-            $composeFile `
+            $database `
             $artifactDirectory
     }
     "TE-D02" = {
         Invoke-TED02DatabaseDisappearsDuringPolling `
             $assembly `
-            $composeFile `
+            $database `
             $artifactDirectory
     }
     "TE-D03" = {
         Invoke-TED03DatabaseDisappearsDuringConsumer `
             $assembly `
-            $composeFile `
+            $database `
             $artifactDirectory
     }
     "TE-D04" = {
         Invoke-TED04DatabaseDisappearsWhileMarkingProcessed `
             $assembly `
-            $composeFile `
+            $database `
             $artifactDirectory
     }
     "TE-D05" = {
         Invoke-TED05DatabaseRestartUnderMixedLoad `
             $assembly `
-            $composeFile `
+            $database `
             $artifactDirectory
     }
     "TE-D06" = {
@@ -81,8 +82,17 @@ else {
     @($Scenario)
 }
 
+$unsupportedPostgreSqlScenarios = @(
+    $selectedScenarios |
+        Where-Object { $_ -ne "TE-D01" })
+
+if ($StorageProvider -eq "PostgreSql" -and
+    $unsupportedPostgreSqlScenarios.Count -gt 0) {
+    throw "PostgreSQL destructive parity currently supports TE-D01 only. Unsupported: $($unsupportedPostgreSqlScenarios -join ', ')."
+}
+
 New-Item -ItemType Directory -Force -Path $artifactDirectory | Out-Null
-Start-SqlServer $composeFile
+Start-DogfoodDatabase $database
 Invoke-Native "dotnet" @("build", $project, "-c", "Release")
 
 $results = foreach ($scenarioId in $selectedScenarios) {
@@ -98,7 +108,7 @@ $manifest = [ordered]@{
     DogfoodGitCommit = Get-GitCommit $dogfoodRoot
     TinyEventsGitCommit = Get-GitCommit $tinyEventsRoot
     DotNetSdk = (dotnet --version)
-    DatabaseEngine = "SQL Server 2022 Docker"
+    DatabaseEngine = $database.Description
     RequestedScenario = $Scenario
     Results = $results
 }

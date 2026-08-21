@@ -1,7 +1,7 @@
 function Invoke-TED01DatabaseUnavailableAtStartup {
     param(
         [string]$Assembly,
-        [string]$ComposeFile,
+        [pscustomobject]$Database,
         [string]$ArtifactDirectory
     )
 
@@ -11,22 +11,23 @@ function Invoke-TED01DatabaseUnavailableAtStartup {
     Invoke-LoggedProcess $Assembly @("reset") $scenarioDirectory "reset"
     Invoke-LoggedProcess $Assembly @("publish", "TE-D01", "1") $scenarioDirectory "publish"
 
-    Stop-SqlServer $ComposeFile
+    Stop-DogfoodDatabase $Database
 
     $workerId = "TE-D01-worker"
     $worker = Start-Worker $Assembly $workerId 0 0 $scenarioDirectory
     $workerLog = Join-Path $scenarioDirectory "$workerId.stdout.log"
-    $sqlServerRestored = $false
+    $databaseRestored = $false
 
     try {
         Wait-ForLogText `
-            $worker `
-            $workerLog `
-            "has failed 5 consecutive processing iterations" `
-            "Database recovery worker"
+            -Process $worker `
+            -LogPath $workerLog `
+            -ExpectedText "has failed 10 consecutive processing iterations" `
+            -ProcessDescription "Database recovery worker" `
+            -TimeoutSeconds 90
 
-        Start-SqlServer $ComposeFile
-        $sqlServerRestored = $true
+        Start-DogfoodDatabase $Database
+        $databaseRestored = $true
 
         $completed = Wait-ForCompletion $Assembly $worker $workerId
         Save-Observation $completed $scenarioDirectory "completed"
@@ -40,8 +41,8 @@ function Invoke-TED01DatabaseUnavailableAtStartup {
         $workerSurvived = -not $worker.HasExited
     }
     finally {
-        if (!$sqlServerRestored) {
-            Start-SqlServer $ComposeFile
+        if (!$databaseRestored) {
+            Start-DogfoodDatabase $Database
         }
 
         Stop-Worker $worker

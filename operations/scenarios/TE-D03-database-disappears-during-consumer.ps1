@@ -1,7 +1,7 @@
 function Invoke-TED03DatabaseDisappearsDuringConsumer {
     param(
         [string]$Assembly,
-        [string]$ComposeFile,
+        [pscustomobject]$Database,
         [string]$ArtifactDirectory
     )
 
@@ -14,14 +14,14 @@ function Invoke-TED03DatabaseDisappearsDuringConsumer {
     $workerId = "TE-D03-worker"
     $worker = Start-Worker $Assembly $workerId 10000 0 $scenarioDirectory
     $workerLog = Join-Path $scenarioDirectory "$workerId.stdout.log"
-    $sqlServerRestored = $false
+    $databaseRestored = $false
 
     try {
         $claimed = Wait-ForClaim $Assembly $worker $workerId
         Save-Observation $claimed $scenarioDirectory "consumer-active"
         $originalClaimExpiry = [DateTimeOffset]$claimed.EarliestClaimExpiresAtUtc
 
-        Stop-SqlServer $ComposeFile
+        Stop-DogfoodDatabase $Database
 
         Wait-ForLogText `
             $worker `
@@ -29,8 +29,8 @@ function Invoke-TED03DatabaseDisappearsDuringConsumer {
             "processing iteration failed" `
             "Active consumer worker"
 
-        Start-SqlServer $ComposeFile
-        $sqlServerRestored = $true
+        Start-DogfoodDatabase $Database
+        $databaseRestored = $true
 
         $completed = Wait-ForCompletion $Assembly $worker $workerId
         Save-Observation $completed $scenarioDirectory "recovered"
@@ -44,8 +44,8 @@ function Invoke-TED03DatabaseDisappearsDuringConsumer {
         $workerSurvived = -not $worker.HasExited
     }
     finally {
-        if (!$sqlServerRestored) {
-            Start-SqlServer $ComposeFile
+        if (!$databaseRestored) {
+            Start-DogfoodDatabase $Database
         }
 
         Stop-Worker $worker

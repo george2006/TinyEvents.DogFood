@@ -75,7 +75,7 @@ function Wait-ForTED05Completion {
 function Invoke-TED05DatabaseRestartUnderMixedLoad {
     param(
         [string]$Assembly,
-        [string]$ComposeFile,
+        [pscustomobject]$Database,
         [string]$ArtifactDirectory
     )
 
@@ -107,7 +107,7 @@ function Invoke-TED05DatabaseRestartUnderMixedLoad {
         $failureRules `
         $scenarioDirectory
     $workerLog = Join-Path $scenarioDirectory "$workerId.stdout.log"
-    $sqlServerRestored = $false
+    $databaseRestored = $false
 
     try {
         $beforeOutage = Wait-ForTED05OutagePoint `
@@ -117,7 +117,7 @@ function Invoke-TED05DatabaseRestartUnderMixedLoad {
             $slowScenarioId
         Save-Observation $beforeOutage $scenarioDirectory "before-outage"
 
-        Stop-SqlServer $ComposeFile
+        Stop-DogfoodDatabase $Database
 
         Wait-ForLogText `
             $worker `
@@ -125,8 +125,8 @@ function Invoke-TED05DatabaseRestartUnderMixedLoad {
             "processing iteration failed" `
             "Mixed-load worker"
 
-        Start-SqlServer $ComposeFile
-        $sqlServerRestored = $true
+        Start-DogfoodDatabase $Database
+        $databaseRestored = $true
 
         $completed = Wait-ForTED05Completion $Assembly $worker $workerId
         Save-Observation $completed $scenarioDirectory "completed"
@@ -140,8 +140,8 @@ function Invoke-TED05DatabaseRestartUnderMixedLoad {
         $workerSurvived = -not $worker.HasExited
     }
     finally {
-        if (!$sqlServerRestored) {
-            Start-SqlServer $ComposeFile
+        if (!$databaseRestored) {
+            Start-DogfoodDatabase $Database
         }
 
         Stop-Worker $worker

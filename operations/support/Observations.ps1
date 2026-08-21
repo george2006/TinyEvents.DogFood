@@ -458,10 +458,11 @@ function Wait-ForLogText {
         [System.Diagnostics.Process]$Process,
         [string]$LogPath,
         [string]$ExpectedText,
-        [string]$ProcessDescription
+        [string]$ProcessDescription,
+        [int]$TimeoutSeconds = 30
     )
 
-    $deadline = (Get-Date).AddSeconds(30)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 
     while ((Get-Date) -lt $deadline) {
         if ($Process.HasExited) {
@@ -476,7 +477,7 @@ function Wait-ForLogText {
         Start-Sleep -Milliseconds 100
     }
 
-    throw "$ProcessDescription did not log '$ExpectedText' within thirty seconds."
+    throw "$ProcessDescription did not log '$ExpectedText' within $TimeoutSeconds seconds."
 }
 
 function Get-WorkerFailureLogCounts {

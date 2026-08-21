@@ -1,7 +1,7 @@
 function Invoke-TED04DatabaseDisappearsWhileMarkingProcessed {
     param(
         [string]$Assembly,
-        [string]$ComposeFile,
+        [pscustomobject]$Database,
         [string]$ArtifactDirectory
     )
 
@@ -14,14 +14,14 @@ function Invoke-TED04DatabaseDisappearsWhileMarkingProcessed {
     $workerId = "TE-D04-worker"
     $worker = Start-Worker $Assembly $workerId 0 10000 $scenarioDirectory
     $workerLog = Join-Path $scenarioDirectory "$workerId.stdout.log"
-    $sqlServerRestored = $false
+    $databaseRestored = $false
 
     try {
         $effectBeforeCompletion = Wait-ForEffectBeforeCompletion $Assembly $worker $workerId
         Save-Observation $effectBeforeCompletion $scenarioDirectory "effect-before-outage"
         $originalClaimExpiry = [DateTimeOffset]$effectBeforeCompletion.EarliestClaimExpiresAtUtc
 
-        Stop-SqlServer $ComposeFile
+        Stop-DogfoodDatabase $Database
 
         Wait-ForLogText `
             $worker `
@@ -29,8 +29,8 @@ function Invoke-TED04DatabaseDisappearsWhileMarkingProcessed {
             "processing iteration failed" `
             "Completion worker"
 
-        Start-SqlServer $ComposeFile
-        $sqlServerRestored = $true
+        Start-DogfoodDatabase $Database
+        $databaseRestored = $true
 
         $completed = Wait-ForDuplicateCompletion $Assembly $worker $workerId
         Save-Observation $completed $scenarioDirectory "redelivered"
@@ -44,8 +44,8 @@ function Invoke-TED04DatabaseDisappearsWhileMarkingProcessed {
         $workerSurvived = -not $worker.HasExited
     }
     finally {
-        if (!$sqlServerRestored) {
-            Start-SqlServer $ComposeFile
+        if (!$databaseRestored) {
+            Start-DogfoodDatabase $Database
         }
 
         Stop-Worker $worker

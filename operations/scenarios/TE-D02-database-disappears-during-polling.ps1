@@ -1,7 +1,7 @@
 function Invoke-TED02DatabaseDisappearsDuringPolling {
     param(
         [string]$Assembly,
-        [string]$ComposeFile,
+        [pscustomobject]$Database,
         [string]$ArtifactDirectory
     )
 
@@ -14,13 +14,13 @@ function Invoke-TED02DatabaseDisappearsDuringPolling {
     $workerId = "TE-D02-worker"
     $worker = Start-Worker $Assembly $workerId 0 0 $scenarioDirectory
     $workerLog = Join-Path $scenarioDirectory "$workerId.stdout.log"
-    $sqlServerRestored = $false
+    $databaseRestored = $false
 
     try {
         $beforeOutage = Wait-ForCompletedMessages $Assembly $worker $workerId 1
         Save-Observation $beforeOutage $scenarioDirectory "before-outage"
 
-        Stop-SqlServer $ComposeFile
+        Stop-DogfoodDatabase $Database
 
         Wait-ForLogText `
             $worker `
@@ -28,8 +28,8 @@ function Invoke-TED02DatabaseDisappearsDuringPolling {
             "has failed 5 consecutive processing iterations" `
             "Polling worker"
 
-        Start-SqlServer $ComposeFile
-        $sqlServerRestored = $true
+        Start-DogfoodDatabase $Database
+        $databaseRestored = $true
 
         Wait-ForLogText `
             $worker `
@@ -48,8 +48,8 @@ function Invoke-TED02DatabaseDisappearsDuringPolling {
         $workerSurvived = -not $worker.HasExited
     }
     finally {
-        if (!$sqlServerRestored) {
-            Start-SqlServer $ComposeFile
+        if (!$databaseRestored) {
+            Start-DogfoodDatabase $Database
         }
 
         Stop-Worker $worker
