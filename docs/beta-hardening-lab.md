@@ -432,7 +432,9 @@ The destructive host selects one internal storage-provider implementation at sta
 
 Complete the transactional, malformed-message, migration, alpha-upgrade, and rolling-upgrade scenarios.
 
-TE-S01 starts eight independent application migrators against a fresh SQL Server database. Every process completes successfully while the durable result contains one outbox table and one exact `001_CreateTinyOutbox` history row. This proves process-level migration serialization in addition to the provider's real-database integration tests.
+TE-S01 starts eight independent application migrators against a fresh SQL Server or PostgreSQL database. Every process completes successfully while the durable result contains one outbox table and one exact `001_CreateTinyOutbox` history row. This proves process-level migration serialization in addition to each provider's real-database integration tests.
+
+The unchanged process-level scenario passed against both providers on 2026-08-21: one process applied the migration, seven observed the current schema, and the durable history contained exactly one migration.
 
 ### BETA-7 - Capacity, backlog, and retention
 

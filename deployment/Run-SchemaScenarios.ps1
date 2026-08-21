@@ -1,6 +1,9 @@
 param(
     [ValidateSet("all", "TE-S01")]
-    [string]$Scenario = "all"
+    [string]$Scenario = "all",
+
+    [ValidateSet("SqlServer", "PostgreSql")]
+    [string]$StorageProvider = "SqlServer"
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,7 +13,7 @@ $dogfoodRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $operationsDirectory = Join-Path $dogfoodRoot "operations"
 
 . (Join-Path $operationsDirectory "support\Process.ps1")
-. (Join-Path $operationsDirectory "support\SqlServer.ps1")
+. (Join-Path $operationsDirectory "support\Database.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-S01-concurrent-application-migrations.ps1")
 
 function Get-GitCommit {
@@ -26,9 +29,7 @@ $assembly = Join-Path $operationsDirectory "TinyEvents.Dogfood.Operations\bin\Re
 $runId = Get-Date -Format "yyyyMMdd-HHmmss"
 $startedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
 $artifactDirectory = Join-Path $dogfoodRoot "artifacts\schema\$runId"
-
-$env:TINYEVENTS_DOGFOOD_STORAGE = "sqlserver"
-$env:TINYEVENTS_DOGFOOD_SQLSERVER = "Server=localhost,14333;Database=TinyEventsDogfoodOperations;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
+$database = New-DogfoodDatabase $StorageProvider $composeFile
 
 $scenarioRunners = [ordered]@{
     "TE-S01" = {
@@ -46,7 +47,7 @@ else {
 }
 
 New-Item -ItemType Directory -Force -Path $artifactDirectory | Out-Null
-Start-SqlServer $composeFile
+Start-DogfoodDatabase $database
 Invoke-Native "dotnet" @("build", $project, "-c", "Release")
 
 $results = foreach ($scenarioId in $selectedScenarios) {
@@ -62,7 +63,7 @@ $manifest = [ordered]@{
     DogfoodGitCommit = Get-GitCommit $dogfoodRoot
     TinyEventsGitCommit = Get-GitCommit $tinyEventsRoot
     DotNetSdk = (dotnet --version)
-    DatabaseEngine = "SQL Server 2022 Docker"
+    DatabaseEngine = $database.Description
     RequestedScenario = $Scenario
     Results = $results
 }
