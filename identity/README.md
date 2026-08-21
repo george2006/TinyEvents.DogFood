@@ -2,6 +2,8 @@
 
 This process-level laboratory verifies the beta event-identity contract through the real SQL Server outbox and hosted worker.
 
+For commands across every implemented area, see the [scenario catalog](../docs/scenario-catalog.md).
+
 Run every identity scenario:
 
 ```powershell

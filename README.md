@@ -1,8 +1,10 @@
 # TinyEvents Dogfood
 
-An executable reliability laboratory for TinyEvents.
+An executable reliability laboratory for [TinyEvents](https://github.com/george2006/TinyEvents).
 
 This repository does not replace unit or integration tests. It runs real application processes against real SQL Server and PostgreSQL databases, introduces failures from outside the library, and decides success from durable state and process behavior.
+
+> **Status:** Active beta hardening. Every scenario listed as implemented has executable evidence. The complete V1 release gate is still in progress.
 
 The current laboratory demonstrates:
 
@@ -13,6 +15,18 @@ The current laboratory demonstrates:
 - bounded retry and permanent-failure behavior;
 - concurrent migration safety;
 - equivalent destructive scenarios against SQL Server and PostgreSQL.
+
+## Evidence at a Glance
+
+| Area | Implemented contracts | SQL Server | PostgreSQL | Explore |
+| --- | --- | :---: | :---: | --- |
+| Identity and compatibility | `TE-C01`–`TE-C05` | ✅ | — | [Identity evidence](identity/README.md) |
+| Transactional publishing | `TE-T01`–`TE-T05` | ✅ | ✅ | [Transaction commands](docs/scenario-catalog.md#transactional-publishing) |
+| Workers, claims, and retries | `TE-W01`–`TE-W13` | ✅ | `TE-W01` | [Worker commands](docs/scenario-catalog.md#workers-claims-retries-and-shutdown) |
+| Database failure and recovery | `TE-D01`–`TE-D06` | ✅ | ✅ | [Recovery commands](docs/scenario-catalog.md#database-failure-and-recovery) |
+| Concurrent schema migration | `TE-S01` | ✅ | ✅ | [Schema command](docs/scenario-catalog.md#schema-and-deployment) |
+
+Some contract IDs intentionally share stronger executable evidence instead of duplicating a scenario. The [scenario catalog](docs/scenario-catalog.md) identifies every shared proof explicitly.
 
 ## Quick Start
 
@@ -69,6 +83,7 @@ TE-T05               True
 ## Navigate the Laboratory
 
 - [Run the scenarios](docs/running-scenarios.md)
+- [Scenario catalog](docs/scenario-catalog.md)
 - [Identity and compatibility](identity/README.md)
 - [Transactions, workers, and database recovery](operations/README.md)
 - [Schema and deployment](deployment/README.md)
@@ -78,4 +93,4 @@ TE-T05               True
 
 The dogfood application references the sibling TinyEvents source projects directly while the beta contract is being hardened. Package-consumer acceptance will use locally packed NuGet artifacts before release.
 
-This repository is currently private. If it becomes public, verified behavior must remain clearly separated from planned or incomplete work.
+Completed evidence and planned work are documented separately. The catalog describes only behavior demonstrated today; the hardening plan remains explicitly incomplete until the final release gate passes.

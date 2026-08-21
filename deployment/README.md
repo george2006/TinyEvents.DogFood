@@ -2,6 +2,8 @@
 
 This laboratory executes destructive schema and deployment scenarios against real application processes and Docker-hosted databases.
 
+For commands across every implemented area, see the [scenario catalog](../docs/scenario-catalog.md).
+
 Run the current suite from the repository root:
 
 ```powershell

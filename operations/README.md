@@ -2,6 +2,8 @@
 
 This process-level laboratory verifies TinyEvents through the real SQL Server and PostgreSQL EF Core providers and hosted worker.
 
+For one copyable command per implemented scenario, see the [scenario catalog](../docs/scenario-catalog.md).
+
 Run both baseline scenarios:
 
 ```powershell

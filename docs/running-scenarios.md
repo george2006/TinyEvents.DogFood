@@ -101,6 +101,8 @@ Direct scenario files use their runner's default provider. Use the owning runner
 
 Provider support in this table describes executable evidence, not an unsupported TinyEvents product path. A scenario is enabled for a second provider only after the same behavioral assertions pass unchanged.
 
+See the [scenario catalog](scenario-catalog.md) for the exact command and expected result of every implemented scenario.
+
 ## Evidence and Exit Codes
 
 Every run creates a timestamped directory beneath `artifacts/`. Depending on the suite, it contains:
