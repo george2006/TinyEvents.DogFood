@@ -78,7 +78,11 @@ function Invoke-IdentityScenario {
     New-Item -ItemType Directory -Force -Path $scenarioDirectory | Out-Null
 
     Invoke-Native "dotnet" @($ProducerAssembly, "reset")
-    Invoke-Native "dotnet" @($ProducerAssembly, "publish", $Definition.Id)
+    Invoke-Native "dotnet" @(
+        $ProducerAssembly,
+        "publish",
+        $Definition.EventKind,
+        $Definition.Id)
 
     $standardOutput = Join-Path $scenarioDirectory "worker.stdout.log"
     $standardError = Join-Path $scenarioDirectory "worker.stderr.log"
@@ -203,11 +207,11 @@ $artifactDirectory = Join-Path $dogfoodRoot "artifacts\identity\$runId"
 $env:TINYEVENTS_DOGFOOD_SQLSERVER = "Server=localhost,14333;Database=TinyEventsDogfoodIdentity;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
 
 $definitions = @(
-    [pscustomobject]@{ Id = "TE-C01"; Contract = "Shared top-level contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported" },
-    [pscustomobject]@{ Id = "TE-C02"; Contract = "Nested contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported" },
-    [pscustomobject]@{ Id = "TE-C03"; Contract = "Closed generic contract"; ExpectedStatus = "Rejected"; ExpectedEffects = 0; ProductSupport = "Rejected by design" },
-    [pscustomobject]@{ Id = "TE-C04"; Contract = "Namespace rename with same type name"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported through explicit previous name" },
-    [pscustomobject]@{ Id = "TE-C05"; Contract = "Same full name moved between assemblies"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported" }
+    [pscustomobject]@{ Id = "TE-C01"; EventKind = "normal"; Contract = "Shared top-level contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported" },
+    [pscustomobject]@{ Id = "TE-C02"; EventKind = "nested"; Contract = "Nested contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported" },
+    [pscustomobject]@{ Id = "TE-C03"; EventKind = $null; Contract = "Closed generic contract"; ExpectedStatus = "Rejected"; ExpectedEffects = 0; ProductSupport = "Rejected by design" },
+    [pscustomobject]@{ Id = "TE-C04"; EventKind = "renamed"; Contract = "Namespace rename with same type name"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported through explicit previous name" },
+    [pscustomobject]@{ Id = "TE-C05"; EventKind = "moved"; Contract = "Same full name moved between assemblies"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported" }
 )
 
 if ($Scenario -ne "All") {

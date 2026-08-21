@@ -16,7 +16,7 @@ internal static class IdentityProducer
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("Expected reset, publish <scenario-id>, or inspect.");
+            Console.Error.WriteLine("Expected reset, publish <event-kind> <scenario-id>, or inspect.");
             return 2;
         }
 
@@ -27,14 +27,14 @@ internal static class IdentityProducer
             case "reset":
                 await ResetAsync(settings);
                 return 0;
-            case "publish" when args.Length == 2:
-                await PublishAsync(settings, args[1]);
+            case "publish" when args.Length == 3:
+                await PublishAsync(settings, args[1], args[2]);
                 return 0;
             case "inspect":
                 await InspectAsync(settings);
                 return 0;
             default:
-                Console.Error.WriteLine("Expected reset, publish <scenario-id>, or inspect.");
+                Console.Error.WriteLine("Expected reset, publish <event-kind> <scenario-id>, or inspect.");
                 return 2;
         }
     }
@@ -50,29 +50,31 @@ internal static class IdentityProducer
 
     private static async Task PublishAsync(
         DogfoodSettings settings,
+        string eventKind,
         string scenarioId)
     {
         await using var services = CreateServices(settings);
         await using var scope = services.CreateAsyncScope();
         var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();
 
-        await PublishScenarioAsync(publisher, scenarioId);
+        await PublishEventAsync(publisher, eventKind, scenarioId);
 
         var transaction = scope.ServiceProvider.GetRequiredService<DogfoodTransaction>();
         await transaction.CommitAsync();
     }
 
-    private static ValueTask PublishScenarioAsync(
+    private static ValueTask PublishEventAsync(
         ITinyEventPublisher publisher,
+        string eventKind,
         string scenarioId)
     {
-        return scenarioId switch
+        return eventKind switch
         {
-            "TE-C01" => publisher.PublishAsync(new NormalEvent(scenarioId)),
-            "TE-C02" => publisher.PublishAsync(new EventContainer.NestedEvent(scenarioId)),
-            "TE-C04" => publisher.PublishAsync(new RenamedEvent(scenarioId)),
-            "TE-C05" => publisher.PublishAsync(new MovedEvent(scenarioId)),
-            _ => throw new ArgumentException($"Unknown identity scenario '{scenarioId}'.", nameof(scenarioId))
+            "normal" => publisher.PublishAsync(new NormalEvent(scenarioId)),
+            "nested" => publisher.PublishAsync(new EventContainer.NestedEvent(scenarioId)),
+            "renamed" => publisher.PublishAsync(new RenamedEvent(scenarioId)),
+            "moved" => publisher.PublishAsync(new MovedEvent(scenarioId)),
+            _ => throw new ArgumentException($"Unknown event kind '{eventKind}'.", nameof(eventKind))
         };
     }
 
