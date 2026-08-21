@@ -37,4 +37,3 @@ internal sealed class DogfoodConsumerFailurePlan(
 
 internal sealed class DogfoodPlannedFailureException(string message)
     : Exception(message);
-

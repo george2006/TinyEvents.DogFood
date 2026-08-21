@@ -77,4 +77,3 @@ if ($MyInvocation.InvocationName -ne ".") {
     $runner = Join-Path (Split-Path $PSScriptRoot -Parent) "Run-WorkerRecovery.ps1"
     & $runner -Scenario "TE-W09"
 }
-
