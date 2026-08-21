@@ -7,7 +7,8 @@ param(
         "TE-W07",
         "TE-W08-idle",
         "TE-W08-active",
-        "TE-W09")]
+        "TE-W09",
+        "TE-W10")]
     [string]$Scenario = "all"
 )
 
@@ -26,6 +27,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "scenarios\TE-W08-idle-shutdown.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-W08-active-shutdown.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-W09-retry-survives-restart.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-W10-transient-failure-recovers.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -52,6 +54,7 @@ $scenarioRunners = [ordered]@{
     "TE-W08-idle" = { Invoke-TEW08IdleShutdown $assembly $artifactDirectory }
     "TE-W08-active" = { Invoke-TEW08ActiveShutdown $assembly $artifactDirectory }
     "TE-W09" = { Invoke-TEW09RetrySurvivesRestart $assembly $artifactDirectory }
+    "TE-W10" = { Invoke-TEW10TransientFailureRecovers $assembly $artifactDirectory }
 }
 
 $selectedScenarios = if ($Scenario -eq "all") {
@@ -88,7 +91,7 @@ $manifest = [ordered]@{
 }
 
 $manifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $artifactDirectory "manifest.json")
-$results | Format-Table Scenario, ProtectedBeforeExpiry, RecoveryDurationMilliseconds, AcceptancePassed
+$results | Format-Table Scenario, AcceptancePassed
 
 if ($results.AcceptancePassed -contains $false) {
     throw "Worker recovery acceptance failed. Evidence: $artifactDirectory"

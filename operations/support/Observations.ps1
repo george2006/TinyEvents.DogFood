@@ -250,3 +250,71 @@ function Wait-ForRetryCompletion {
 
     throw "Worker '$WorkerId' did not complete the retry within twenty seconds."
 }
+
+function Wait-ForTransientRetryState {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$Worker,
+        [string]$WorkerId,
+        [int]$ExpectedAttemptCount
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Worker.HasExited) {
+            throw "Worker '$WorkerId' exited during transient failure recovery. Exit code: $($Worker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+
+        if ($observation.PendingMessages -eq 1 -and
+            $observation.ProcessingMessages -eq 0 -and
+            $observation.ProcessedMessages -eq 1 -and
+            $observation.FailedMessages -eq 0 -and
+            $observation.FailedAttempts -eq $ExpectedAttemptCount -and
+            $observation.ConsumerAttempts -eq $ExpectedAttemptCount -and
+            $observation.Effects -eq 1 -and
+            $null -ne $observation.EarliestNextAttemptAtUtc -and
+            $null -ne $observation.LatestConsumerAttemptAtUtc) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Worker '$WorkerId' did not reach transient retry attempt $ExpectedAttemptCount within twenty seconds."
+}
+
+function Wait-ForTransientRecovery {
+    param(
+        [string]$Assembly,
+        [System.Diagnostics.Process]$Worker,
+        [string]$WorkerId
+    )
+
+    $deadline = (Get-Date).AddSeconds(20)
+
+    while ((Get-Date) -lt $deadline) {
+        if ($Worker.HasExited) {
+            throw "Worker '$WorkerId' exited before transient recovery completed. Exit code: $($Worker.ExitCode)."
+        }
+
+        $observation = Get-Observation -Assembly $Assembly
+
+        if ($observation.PendingMessages -eq 0 -and
+            $observation.ProcessingMessages -eq 0 -and
+            $observation.ProcessedMessages -eq 2 -and
+            $observation.FailedMessages -eq 0 -and
+            $observation.FailedAttempts -eq 2 -and
+            $observation.ConsumerAttempts -eq 3 -and
+            $observation.Effects -eq 2 -and
+            $observation.DuplicateEffects -eq 0) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Worker '$WorkerId' did not recover from transient failures within twenty seconds."
+}

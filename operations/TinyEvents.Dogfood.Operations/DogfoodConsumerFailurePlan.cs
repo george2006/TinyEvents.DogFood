@@ -7,7 +7,9 @@ internal sealed class DogfoodConsumerFailurePlan(
         OperationalEvent @event,
         CancellationToken cancellationToken)
     {
-        if (!IsRestartRetryScenario(@event))
+        var failuresBeforeSuccess = GetFailuresBeforeSuccess(@event);
+
+        if (failuresBeforeSuccess == 0)
         {
             return;
         }
@@ -17,21 +19,21 @@ internal sealed class DogfoodConsumerFailurePlan(
             @event.ScenarioId,
             cancellationToken);
 
-        if (IsFirstAttempt(attemptNumber))
+        if (attemptNumber <= failuresBeforeSuccess)
         {
             throw new DogfoodPlannedFailureException(
-                "TE-W09 rejects its first consumer invocation.");
+                $"{@event.ScenarioId} rejects consumer attempt {attemptNumber}.");
         }
     }
 
-    private static bool IsRestartRetryScenario(OperationalEvent @event)
+    private static int GetFailuresBeforeSuccess(OperationalEvent @event)
     {
-        return @event.ScenarioId == "TE-W09";
-    }
-
-    private static bool IsFirstAttempt(int attemptNumber)
-    {
-        return attemptNumber == 1;
+        return @event.ScenarioId switch
+        {
+            "TE-W09" => 1,
+            "TE-W10-retry" => 2,
+            _ => 0
+        };
     }
 }
 

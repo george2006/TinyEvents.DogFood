@@ -358,6 +358,8 @@ TE-W08 exercised normal host cancellation while idle and during a delayed consum
 
 TE-W09 rejected the first consumer invocation, persisted `AttemptCount = 1` and `NextAttemptAtUtc`, and stopped all worker capacity during the retry delay. A replacement process started before eligibility without invoking the consumer. It completed the second invocation only after the SQL retry boundary, producing one durable effect and no duplicate. Retry state therefore survives process loss and remains database-authoritative.
 
+TE-W10 rejected one message on its first two invocations while an unrelated message completed during the first retry delay. SQL-recorded attempt times proved both retry boundaries were respected. The same worker survived both failures and completed the third invocation, leaving two processed messages, two durable effects, and no duplicate.
+
 Run the repeatable lease scenarios with:
 
 ```powershell
@@ -382,6 +384,7 @@ operations/
     TE-W08-idle-shutdown.ps1
     TE-W08-active-shutdown.ps1
     TE-W09-retry-survives-restart.ps1
+    TE-W10-transient-failure-recovers.ps1
   support/
     Process.ps1
     SqlServer.ps1

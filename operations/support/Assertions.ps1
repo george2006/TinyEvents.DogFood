@@ -60,3 +60,31 @@ function Test-RetryCompletedResult {
         $null -ne $recoveryEffect -and
         $recoveryEffect.Value -eq 1)
 }
+
+function Test-TransientRecoveryResult {
+    param(
+        [pscustomobject]$Observation,
+        [string]$WorkerId
+    )
+
+    $attempts = $Observation.WorkerAttempts.PSObject.Properties[$WorkerId]
+    $effects = $Observation.WorkerEffects.PSObject.Properties[$WorkerId]
+
+    return (
+        $Observation.BusinessOperations -eq 2 -and
+        $Observation.OutboxMessages -eq 2 -and
+        $Observation.PendingMessages -eq 0 -and
+        $Observation.ProcessingMessages -eq 0 -and
+        $Observation.ProcessedMessages -eq 2 -and
+        $Observation.FailedMessages -eq 0 -and
+        $Observation.FailedAttempts -eq 2 -and
+        $Observation.ConsumerAttempts -eq 3 -and
+        $Observation.Effects -eq 2 -and
+        $Observation.DuplicateEffects -eq 0 -and
+        @($Observation.WorkerAttempts.PSObject.Properties).Count -eq 1 -and
+        @($Observation.WorkerEffects.PSObject.Properties).Count -eq 1 -and
+        $null -ne $attempts -and
+        $attempts.Value -eq 3 -and
+        $null -ne $effects -and
+        $effects.Value -eq 2)
+}

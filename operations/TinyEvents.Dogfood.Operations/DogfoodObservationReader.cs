@@ -31,7 +31,9 @@ internal static class DogfoodObservationReader
                 COUNT(*) - COUNT(DISTINCT OperationId)
             FROM dbo.DogfoodEffects;
 
-            SELECT COUNT(*)
+            SELECT
+                COUNT(*),
+                MAX(RecordedAtUtc)
             FROM dbo.DogfoodConsumerAttempts;
 
             SELECT ClaimedBy, COUNT(*)
@@ -98,6 +100,9 @@ internal static class DogfoodObservationReader
         await reader.NextResultAsync(cancellationToken);
         await reader.ReadAsync(cancellationToken);
         var consumerAttempts = reader.GetInt32(0);
+        DateTimeOffset? latestConsumerAttemptAtUtc = reader.IsDBNull(1)
+            ? null
+            : reader.GetFieldValue<DateTimeOffset>(1);
 
         await reader.NextResultAsync(cancellationToken);
         var workerClaims = await ReadWorkerCountsAsync(reader, cancellationToken);
@@ -122,6 +127,7 @@ internal static class DogfoodObservationReader
             effects,
             duplicateEffects,
             consumerAttempts,
+            latestConsumerAttemptAtUtc,
             workerClaims,
             workerEffects,
             workerAttempts);
