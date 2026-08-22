@@ -28,7 +28,7 @@ This phase is complete when a real application can upgrade without losing suppor
 - [x] `TE-L01` — Measure sustained publishing at 200, 400, and 800 committed requests per second, independently from consumer throughput, with identical durable assertions for SQL Server and PostgreSQL.
 - [x] `TE-L02` — Measure a prebuilt 10,000-message backlog with 1, 2, 4, and 8 worker processes independently from publisher throughput, with identical durable assertions for SQL Server and PostgreSQL.
 - [x] `TE-L03` — Sustain successful, transient, permanent, and slow processing together while proving unrelated progress, exact retries, terminal outcomes, and bounded connection usage.
-- [ ] `TE-L04` — Build and drain a large backlog while measuring recovery time and fairness.
+- [x] `TE-L04` — Recover a controlled live backlog to no more than one second of incoming traffic while publishing continues, measuring recovery time and worker participation with identical durable assertions for SQL Server and PostgreSQL.
 - [ ] `TE-L05` — Measure bytes per pending, processing, processed, and failed row with representative payloads.
 - [ ] `TE-L06` — Define processed and failed retention, cleanup batch size, and a documented storage budget from `TE-L05` evidence.
 - [ ] `TE-L07` — Run a soak test with repeated worker and database disruption.

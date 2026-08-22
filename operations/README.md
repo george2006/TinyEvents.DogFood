@@ -58,6 +58,13 @@ Run sustained successful, retrying, terminal, and slow work together:
 .\operations\Run-MixedLoad.ps1 -StorageProvider PostgreSql
 ```
 
+Recover a live backlog without stopping the publisher:
+
+```powershell
+.\operations\Run-BacklogRecoveryLoad.ps1
+.\operations\Run-BacklogRecoveryLoad.ps1 -StorageProvider PostgreSql
+```
+
 Run one independently named scenario either through the suite selector or its own file:
 
 ```powershell
@@ -95,6 +102,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-L01` | Workers remain stopped while 200, 400, and 800 real publishing requests per second record committed throughput, latency, errors, and exact durable outbox growth. |
 | `TE-L02` | Publishers remain stopped while 1, 2, 4, and 8 workers drain identical 10,000-message backlogs and record throughput, speedup, efficiency, participation, and exact durable outcomes. |
 | `TE-L03` | One publisher and four workers sustain a known success, transient, permanent, and slow mix while proving unrelated progress, exact retry pressure, terminal outcomes, and bounded connections. |
+| `TE-L04` | Four workers reduce a 1,000-message accumulated backlog to no more than one second of incoming traffic while the 200-request-per-second publisher remains active. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
 
@@ -136,7 +144,9 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 
 `TE-L03` runs unchanged against SQL Server and PostgreSQL. One process publishes 80% successful, 10% transient, 5% permanent, and 5% slow work at a combined target of 200 requests per second while four independent worker processes consume it. Every process is limited to a 16-connection pool. An intermediate durable observation must show retry pressure and successful work advancing together. Final acceptance requires 1,900 processed messages, 100 deliberately failed messages, 700 failed attempts, 900 recorded failure-plan invocations, 1,900 effects, and no duplicate.
 
-The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, and `TE-L01` through `TE-L03` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, prebuilt-backlog drain, and sustained mixed load are proven without provider-specific scenario copies.
+`TE-L04` runs unchanged against SQL Server and PostgreSQL. One process publishes 4,000 operations at 200 requests per second. Workers remain stopped until at least 1,000 messages are pending, then four independent workers must process at least that initial backlog and reduce outstanding work to no more than one second of current input while the publisher is still running. Final acceptance requires all 4,000 messages to complete once, every worker to participate, and no failed attempt or duplicate effect. Recovery timing includes worker startup and up to one 100-millisecond observation interval.
+
+The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, and `TE-L01` through `TE-L04` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, prebuilt-backlog drain, sustained mixed load, and live backlog recovery are proven without provider-specific scenario copies.
 
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 

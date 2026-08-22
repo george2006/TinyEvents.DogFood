@@ -271,6 +271,8 @@ Run a stable mix of success, transient failure, permanent failure, and slow even
 
 Publish while workers are stopped, build a controlled backlog, start workers, and measure recovery time without changing the publishing rate.
 
+**Executable:** `.\operations\Run-BacklogRecoveryLoad.ps1` builds at least 1,000 pending messages at 200 requests per second, starts four workers, and requires outstanding work to fall to no more than one second of incoming traffic while the publisher remains active. The one-second boundary measures removal of accumulated debt without relying on a polling query to observe a transient empty queue.
+
 #### TE-L05 - Large historical outbox
 
 Measure claim and completion behavior with growing processed history. The initial checkpoints are 10,000, 100,000, and 1,000,000 rows, adjusted only when measured cost justifies it.
@@ -482,6 +484,8 @@ The first canonical SQL Server run also exposed the dogfood observation query as
 TE-L03 uses one application publisher to sustain a 2,000-message mix at a combined target of 200 requests per second: 80% successful, 10% transient, 5% permanent, and 5% delayed after their durable effect. Four worker processes run concurrently. Both providers committed all 2,000 messages, processed 1,900, deliberately exhausted 100, recorded exactly 700 failed attempts and 900 failure-plan invocations, produced 1,900 effects, and produced no duplicate. An intermediate durable observation proved successful work advanced while retries remained active. SQL Server settled 6.28 seconds after publishing completed; PostgreSQL settled in 6.23 seconds. The two configured three-second retry boundaries account for that expected tail.
 
 The first PostgreSQL topology used four publisher processes solely to create four traffic classes. Their independent default pools exhausted the container's 100-connection limit and produced `53300: too many clients already`. TinyEvents correctly settled every accepted message, while the enhanced publisher evidence retained the rejected commits and root cause. The accepted scenario now uses one publisher process with four concurrent traffic definitions and limits every publisher and worker pool to 16 connections. This leaves explicit capacity for observation and administration without increasing the database limit or retrying rejected connections. The same bounded topology passes unchanged against SQL Server.
+
+TE-L04 starts one publisher at 200 requests per second with workers stopped, observes at least 1,000 pending messages, and then starts four worker processes without stopping or slowing that publisher. SQL Server reduced 1,009 outstanding messages to no more than one second of incoming traffic in 5.10 seconds; PostgreSQL reduced 1,057 in 3.17 seconds. Both publishers committed all 4,000 operations, every worker participated, every message completed once, and neither provider recorded a failed attempt or duplicate effect. Recovery is deliberately defined by the bounded live backlog rather than requiring a 100-millisecond polling observation to coincide with a transient empty queue.
 
 ### BETA-8 - Package and release gates
 

@@ -104,6 +104,7 @@ Direct scenario files use their runner's default provider. Use the owning runner
 | Sustained publishing load | `operations/Run-PublishingLoad.ps1` | SQL Server, PostgreSQL |
 | Prebuilt backlog drain | `operations/Run-WorkerDrainLoad.ps1` | SQL Server, PostgreSQL |
 | Sustained mixed load | `operations/Run-MixedLoad.ps1` | SQL Server, PostgreSQL |
+| Live backlog recovery | `operations/Run-BacklogRecoveryLoad.ps1` | SQL Server, PostgreSQL |
 | Schema and deployment | `deployment/Run-SchemaScenarios.ps1` | SQL Server, PostgreSQL |
 | Published-alpha and rolling upgrades | `deployment/Run-RollingUpgrade.ps1` | SQL Server, PostgreSQL |
 
