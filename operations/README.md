@@ -81,6 +81,15 @@ Measure pending, processing, processed, and failed outbox states created through
 
 The state runner creates an isolated empty-database baseline for every state. Its default 5,000-row population uses 1 KB of deterministic, compression-resistant content, four worker processes, and a batch of 10. Acceptance requires the exact requested state and effect counts before physical table and index allocation is reported.
 
+Measure an identical active backlog with empty, 10,000-row, and 100,000-row processed histories:
+
+```powershell
+.\operations\Run-RetainedHistoryLoad.ps1
+.\operations\Run-RetainedHistoryLoad.ps1 -StorageProvider PostgreSql
+```
+
+`TE-L05-C` creates every retained row through the real publisher and worker, then measures a separate 1,000-message drain. A lightweight indexed probe detects outstanding work without repeatedly scanning the complete evidence model. One exact observation validates all terminal counts after the drain. The completion probe adds at most 250 ms of boundary distortion, recorded in the result.
+
 Run one independently named scenario either through the suite selector or its own file:
 
 ```powershell
@@ -166,6 +175,6 @@ The same boundary applies to the cumulative duration of a claimed batch. Workers
 
 The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, and `TE-L01` through `TE-L04` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, prebuilt-backlog drain, sustained mixed load, and live backlog recovery are proven without provider-specific scenario copies.
 
-Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
+Processed outbox rows are intentionally retained during current hardening. `TE-L05` has now measured payload curves, physical cost by status, and active drain behavior through 100,000 retained rows. `TE-L06` must turn that evidence into explicit retention, deletion-batch, and storage-budget decisions before production cleanup behavior is added.
 
 The operational executable also exposes `reset`, `publish`, `inspect`, `worker`, and dogfood-only `worker-for` commands for later destructive scenarios. It references the sibling TinyEvents source projects until hardened packages are published.
