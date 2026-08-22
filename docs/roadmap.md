@@ -4,7 +4,7 @@ This roadmap lists the evidence still required before TinyEvents can be consider
 
 Current as of August 22, 2026:
 
-- 37 named behavioral contracts have executable evidence;
+- 38 named behavioral contracts have executable evidence;
 - contract compatibility, invalid-message isolation, transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
 - SQL Server and PostgreSQL pass the complete database-recovery suite;
 - the final package and retention gates remain open.
@@ -25,7 +25,7 @@ This phase is complete when a real application can upgrade without losing suppor
 
 ## 3. Load, Backlog, and Storage
 
-- [ ] `TE-L01` — Measure sustained publishing at explicit target rates.
+- [x] `TE-L01` — Measure sustained publishing at 200, 400, and 800 committed requests per second, independently from consumer throughput, with identical durable assertions for SQL Server and PostgreSQL.
 - [ ] `TE-L02` — Separate publisher throughput, prebuilt-backlog drain rate, and database pressure. `TE-W02` already provides the first end-to-end scaling curve.
 - [ ] `TE-L03` — Sustain mixed successful, transient, permanent, and slow processing. `TE-D05` already proves the recovery semantics on a bounded workload.
 - [ ] `TE-L04` — Build and drain a large backlog while measuring recovery time and fairness.

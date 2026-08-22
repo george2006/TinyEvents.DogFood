@@ -257,6 +257,8 @@ Run old and new worker binaries concurrently against the same compatible schema 
 
 Drive 200, 400, and 800 committed publishing requests per second. Measure publisher latency, committed events per second, errors, and outbox growth independently from consumer throughput.
 
+**Executable:** `.\operations\Run-PublishingLoad.ps1` runs this curve with workers stopped against SQL Server or PostgreSQL. Behavioral acceptance requires exact durable counts and zero failed commits. Whether the local machine sustained at least 95% of each requested rate remains separate, visible capacity evidence.
+
 #### TE-L02 - Worker scaling
 
 Drain identical backlogs with 1, 2, 4, and 8 worker processes. Measure claim rate, processed events per second, database pressure, scaling efficiency, and duplicate effects.
@@ -470,6 +472,8 @@ TE-S05 builds package-only application assemblies against published `0.1.0-alpha
 ### BETA-7 - Capacity, backlog, and retention
 
 Execute TE-L01 through TE-L07. Make the retention decision from measured storage and claim behavior.
+
+TE-L01 issues one real application scope and database commit per request while workers remain stopped. On 2026-08-22, both providers committed all 14,000 attempted requests across independent 200, 400, and 800 requests-per-second runs, with exact business and pending-outbox counts and no failed commit. SQL Server sustained 200.02, 399.49, and 576.04 committed requests per second; PostgreSQL sustained 199.85, 399.81, and 799.59. These are local capacity observations, not product guarantees. The repeatable result retains target achievement and committed-request p50, p95, and p99 latency so later runs can be compared without mixing publisher and worker throughput.
 
 ### BETA-8 - Package and release gates
 

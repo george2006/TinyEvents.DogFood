@@ -101,6 +101,7 @@ Direct scenario files use their runner's default provider. Use the owning runner
 | Competing workers | `operations/Run-WorkerScaling.ps1` | SQL Server |
 | Claims, death, retries, and shutdown | `operations/Run-WorkerRecovery.ps1` | SQL Server |
 | Database failure and recovery | `operations/Run-DatabaseRecovery.ps1` | SQL Server, PostgreSQL |
+| Sustained publishing load | `operations/Run-PublishingLoad.ps1` | SQL Server, PostgreSQL |
 | Schema and deployment | `deployment/Run-SchemaScenarios.ps1` | SQL Server, PostgreSQL |
 | Published-alpha and rolling upgrades | `deployment/Run-RollingUpgrade.ps1` | SQL Server, PostgreSQL |
 

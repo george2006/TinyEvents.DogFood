@@ -16,6 +16,7 @@ The current laboratory demonstrates:
 - honest at-least-once redelivery boundaries;
 - bounded retry and permanent-failure behavior;
 - concurrent migration safety;
+- isolated publishing capacity with exact durable outbox growth;
 - equivalent destructive scenarios against SQL Server and PostgreSQL.
 
 ## Evidence at a Glance
@@ -27,6 +28,7 @@ The current laboratory demonstrates:
 | Workers, claims, and retries | `TE-W01`–`TE-W13` | ✅ | `TE-W01` | [Worker commands](docs/scenario-catalog.md#workers-claims-retries-and-shutdown) |
 | Database failure and recovery | `TE-D01`–`TE-D06` | ✅ | ✅ | [Recovery commands](docs/scenario-catalog.md#database-failure-and-recovery) |
 | Schema and deployment | `TE-S01`–`TE-S05` | ✅ | ✅ | [Schema commands](docs/scenario-catalog.md#schema-and-deployment) |
+| Load and storage | `TE-L01` | ✅ | ✅ | [Load command](docs/scenario-catalog.md#load-backlog-and-storage) |
 
 Some contract IDs intentionally share stronger executable evidence instead of duplicating a scenario. The [scenario catalog](docs/scenario-catalog.md) identifies every shared proof explicitly.
 
