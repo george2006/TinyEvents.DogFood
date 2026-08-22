@@ -1,6 +1,7 @@
 param(
     [string]$AlphaVersion = "0.1.0-alpha.3",
-    [string]$CandidateRoot = ""
+    [string]$CandidateRoot = "",
+    [string]$RunId = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -166,7 +167,14 @@ Assert-CleanMainCandidate $CandidateRoot
 $composeFile = Join-Path $tinyEventsInfrastructureRoot "docker-compose.yml"
 $packageSmokeScript = Join-Path $CandidateRoot "samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1"
 $project = Join-Path $PSScriptRoot "TinyEvents.Dogfood.AlphaUpgrade\TinyEvents.Dogfood.AlphaUpgrade.csproj"
-$runId = Get-Date -Format "yyyyMMdd-HHmmss"
+if ([string]::IsNullOrWhiteSpace($RunId)) {
+    $RunId = Get-Date -Format "yyyyMMdd-HHmmss"
+}
+
+if ($RunId -notmatch '^\d{8}-\d{6}$') {
+    throw "RunId must use the yyyyMMdd-HHmmss format. Actual: '$RunId'."
+}
+
 $databaseSuffix = $runId.Replace('-', '')
 $startedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
 $scenarioDirectory = Join-Path $dogfoodRoot "artifacts\deployment\$runId\TE-S02"
