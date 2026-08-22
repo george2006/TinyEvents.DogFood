@@ -4,7 +4,7 @@ This roadmap lists the evidence still required before TinyEvents can be consider
 
 Current as of August 22, 2026:
 
-- 40 named behavioral contracts have executable evidence;
+- 41 named behavioral contracts have executable evidence;
 - contract compatibility, invalid-message isolation, transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
 - SQL Server and PostgreSQL pass the complete database-recovery suite;
 - the final package and retention gates remain open.
