@@ -84,14 +84,34 @@ function Complete-LoggedProcess {
         throw "Process '$($ProcessHandle.Name)' did not finish within $TimeoutMilliseconds milliseconds."
     }
 
+    Save-LoggedProcessOutput $ProcessHandle
+
+    if ($process.ExitCode -ne 0) {
+        throw "Process '$($ProcessHandle.Name)' failed with exit code $($process.ExitCode)."
+    }
+}
+
+function Stop-LoggedProcess {
+    param([pscustomobject]$ProcessHandle)
+
+    $process = $ProcessHandle.Process
+
+    if (!$process.HasExited) {
+        Stop-Process -Id $process.Id
+    }
+
+    Save-LoggedProcessOutput $ProcessHandle
+    return $process.ExitCode
+}
+
+function Save-LoggedProcessOutput {
+    param([pscustomobject]$ProcessHandle)
+
+    $process = $ProcessHandle.Process
     $process.WaitForExit()
     $process.Refresh()
     $standardOutput = $ProcessHandle.OutputTask.GetAwaiter().GetResult()
     $standardError = $ProcessHandle.ErrorTask.GetAwaiter().GetResult()
     $standardOutput | Set-Content $ProcessHandle.OutputPath
     $standardError | Set-Content $ProcessHandle.ErrorPath
-
-    if ($process.ExitCode -ne 0) {
-        throw "Process '$($ProcessHandle.Name)' failed with exit code $($process.ExitCode)."
-    }
 }

@@ -28,6 +28,21 @@ The unchanged scenario passed against SQL Server and PostgreSQL on 2026-08-21.
 
 Evidence is retained under `artifacts/schema/<run-id>/`.
 
+## Interrupted Migration Recovery
+
+Run the process-death scenario against either provider:
+
+```powershell
+.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S03
+.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S03 -StorageProvider PostgreSql
+```
+
+`TE-S03` installs a temporary database-side DDL interruption, starts the real TinyEvents migrator, and waits until the database proves that one migrator is blocked inside DDL while holding the provider migration lock. Only then does the runner terminate the application process.
+
+The scenario waits for the database to release the abandoned session lock before inspecting durable state. The interrupted transaction may leave no schema, an empty migration-history table, or a completely committed migration; all are safe atomic boundaries. An outbox without its matching history entry, or a history entry without its outbox, fails acceptance. After removing the external interruption, a second process must finish with one exact `001_CreateTinyOutbox` history row.
+
+The DDL trigger/event trigger belongs only to the dogfood fault injector. It is removed in a `finally` block and is not part of TinyEvents production code.
+
 ## Published Alpha Upgrade
 
 Run the complete SQL Server and PostgreSQL upgrade contract with:

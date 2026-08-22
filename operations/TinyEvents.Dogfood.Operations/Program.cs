@@ -8,7 +8,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected prepare, migrate, reset, publish, publish-with-timing, publish-then-rollback, publish-multi-consumer, inspect, inspect-migrations, worker, worker-with-failures, worker-with-plan, worker-under-pressure, or worker-for.");
+    WriteUsage();
     return 1;
 }
 
@@ -100,6 +100,26 @@ switch (args[0].ToLowerInvariant())
         Console.WriteLine(JsonSerializer.Serialize(migrationObservation));
         return 0;
 
+    case "install-migration-interruption":
+        await GetMigrationInterruption(settings).InstallAsync(
+            settings,
+            CancellationToken.None);
+        return 0;
+
+    case "inspect-migration-interruption":
+        var interruptionObservation =
+            await GetMigrationInterruption(settings).ReadAsync(
+                settings,
+                CancellationToken.None);
+        Console.WriteLine(JsonSerializer.Serialize(interruptionObservation));
+        return 0;
+
+    case "remove-migration-interruption":
+        await GetMigrationInterruption(settings).RemoveAsync(
+            settings,
+            CancellationToken.None);
+        return 0;
+
     case "worker":
         return await RunWorkerAsync(args, settings);
 
@@ -117,7 +137,20 @@ switch (args[0].ToLowerInvariant())
 
     default:
         Console.Error.WriteLine($"Unknown command '{args[0]}'.");
+        WriteUsage();
         return 1;
+}
+
+static IMigrationInterruption GetMigrationInterruption(
+    DogfoodSettings settings)
+{
+    return MigrationInterruptionSelector.Select(settings.StorageProvider);
+}
+
+static void WriteUsage()
+{
+    Console.Error.WriteLine(
+        "Expected a supported operational or deployment dogfood command. See the repository scenario runners for reproducible usage.");
 }
 
 static async ValueTask MigrateAsync(DogfoodSettings settings)

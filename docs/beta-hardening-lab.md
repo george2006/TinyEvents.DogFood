@@ -461,6 +461,8 @@ TE-S02-B packs the release train from clean `main`, restores the same package-on
 
 TE-S02-C runs that unchanged package-only contract against PostgreSQL. The parity acceptance run on 2026-08-22 passed both providers together against candidate commit `560d1d98724140bde31980bb1c357d3edf0bb8fa`. Each provider processed two supported rows with two distinct effects, preserved the exact terminal failure, and retained one migration history row. `TE-S02` is complete.
 
+TE-S03 uses a temporary SQL Server DDL trigger or PostgreSQL event trigger to block the real migrator after it owns the provider migration lock. The runner observes that boundary from the database, terminates the application process, waits for the abandoned lock to disappear, removes the fault, and starts a replacement process. Acceptance allows any atomic resumable boundary after process death: no migration infrastructure, empty history infrastructure, or a completely committed migration. Mixed outbox/history state is rejected. Both providers passed on 2026-08-22 and recovered to one exact `001_CreateTinyOutbox` history row.
+
 ### BETA-7 - Capacity, backlog, and retention
 
 Execute TE-L01 through TE-L07. Make the retention decision from measured storage and claim behavior.
