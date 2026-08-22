@@ -24,7 +24,9 @@ internal static class PostgreSqlUpgradeStateObservationReader
                 (SELECT COUNT(DISTINCT "MessageState")::integer FROM "UpgradeProbeEffects"),
                 (SELECT COUNT(*)::integer FROM "UpgradeProbeEffects" WHERE "MessageState" = 'pending'),
                 (SELECT COUNT(*)::integer FROM "UpgradeProbeEffects" WHERE "MessageState" = 'processing'),
-                (SELECT COUNT(*)::integer FROM "UpgradeProbeEffects" WHERE "MessageState" = 'failed')
+                (SELECT COUNT(*)::integer FROM "UpgradeProbeEffects" WHERE "MessageState" = 'failed'),
+                (SELECT COUNT(DISTINCT "OperationId")::integer FROM "UpgradeProbeEffects"),
+                (SELECT COUNT(DISTINCT "WorkerId")::integer FROM "UpgradeProbeEffects")
             FROM "TinyOutbox";
             """;
 

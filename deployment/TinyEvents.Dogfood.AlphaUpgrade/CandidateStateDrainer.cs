@@ -3,6 +3,8 @@ using TinyEvents;
 
 internal static class CandidateStateDrainer
 {
+    private const string WorkerId = "upgrade-candidate";
+
     public static async Task ExecuteAsync(
         IUpgradeStorageProvider storage,
         UpgradeSettings settings)
@@ -21,6 +23,7 @@ internal static class CandidateStateDrainer
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton(new UpgradeWorkerIdentity(WorkerId));
         storage.AddProcessorServices(services, settings);
         services.UseTinyEvents(options =>
         {
@@ -28,7 +31,7 @@ internal static class CandidateStateDrainer
             options.MaxAttempts = 1;
             options.ClaimTimeout = TimeSpan.FromSeconds(10);
             options.RetryDelay = TimeSpan.Zero;
-            options.WorkerId = "upgrade-candidate";
+            options.WorkerId = WorkerId;
         });
 
         return services.BuildServiceProvider();

@@ -33,7 +33,7 @@ internal static class AlphaStateSeeder
     {
         await using var scope = services.CreateAsyncScope();
         var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();
-        await publisher.PublishAsync(new UpgradeProbeEvent(state));
+        await publisher.PublishAsync(new UpgradeProbeEvent(Guid.NewGuid(), state));
 
         var transaction = scope.ServiceProvider.GetRequiredService<IUpgradeTransaction>();
         await transaction.CommitAsync();

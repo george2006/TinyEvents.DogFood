@@ -10,7 +10,9 @@ internal static class SqlServerUpgradeEvidenceSchema
             CREATE TABLE dbo.UpgradeProbeEffects
             (
                 Id BIGINT IDENTITY(1, 1) NOT NULL PRIMARY KEY,
+                OperationId UNIQUEIDENTIFIER NOT NULL,
                 MessageState NVARCHAR(32) NOT NULL,
+                WorkerId NVARCHAR(256) NOT NULL,
                 RecordedAtUtc DATETIMEOFFSET NOT NULL
             );
             """;

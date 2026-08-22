@@ -14,4 +14,6 @@ internal sealed record UpgradeStateObservation(
     int DistinctEffectCount,
     int PendingEffectCount,
     int ProcessingEffectCount,
-    int FailedEffectCount);
+    int FailedEffectCount,
+    int DistinctOperationEffectCount,
+    int DistinctWorkerCount);

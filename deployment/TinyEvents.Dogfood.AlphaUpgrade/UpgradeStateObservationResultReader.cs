@@ -20,6 +20,8 @@ internal static class UpgradeStateObservationResultReader
             reader.GetInt32(12),
             reader.GetInt32(13),
             reader.GetInt32(14),
-            reader.GetInt32(15));
+            reader.GetInt32(15),
+            reader.GetInt32(16),
+            reader.GetInt32(17));
     }
 }

@@ -24,7 +24,9 @@ internal static class SqlServerUpgradeStateObservationReader
                 (SELECT COUNT(DISTINCT MessageState) FROM dbo.UpgradeProbeEffects) AS DistinctEffectCount,
                 (SELECT COUNT(*) FROM dbo.UpgradeProbeEffects WHERE MessageState = 'pending') AS PendingEffectCount,
                 (SELECT COUNT(*) FROM dbo.UpgradeProbeEffects WHERE MessageState = 'processing') AS ProcessingEffectCount,
-                (SELECT COUNT(*) FROM dbo.UpgradeProbeEffects WHERE MessageState = 'failed') AS FailedEffectCount
+                (SELECT COUNT(*) FROM dbo.UpgradeProbeEffects WHERE MessageState = 'failed') AS FailedEffectCount,
+                (SELECT COUNT(DISTINCT OperationId) FROM dbo.UpgradeProbeEffects) AS DistinctOperationEffectCount,
+                (SELECT COUNT(DISTINCT WorkerId) FROM dbo.UpgradeProbeEffects) AS DistinctWorkerCount
             FROM dbo.TinyOutbox;
             """;
 

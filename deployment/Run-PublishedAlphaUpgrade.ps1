@@ -146,6 +146,8 @@ function Test-CandidateObservation {
         $Observation.MigrationCount -eq 1 -and
         $Observation.EffectCount -eq 2 -and
         $Observation.DistinctEffectCount -eq 2 -and
+        $Observation.DistinctOperationEffectCount -eq 2 -and
+        $Observation.DistinctWorkerCount -eq 1 -and
         $Observation.PendingEffectCount -eq 1 -and
         $Observation.ProcessingEffectCount -eq 1 -and
         $Observation.FailedEffectCount -eq 0)
