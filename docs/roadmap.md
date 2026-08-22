@@ -4,7 +4,7 @@ This roadmap lists the evidence still required before TinyEvents can be consider
 
 Current as of August 22, 2026:
 
-- 31 named behavioral contracts have executable evidence;
+- 32 named behavioral contracts have executable evidence;
 - transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
 - SQL Server and PostgreSQL pass the complete database-recovery suite;
 - the final package and retention gates remain open.
@@ -13,7 +13,6 @@ See the [scenario catalog](scenario-catalog.md) for completed evidence and copya
 
 ## 1. Contract Compatibility and Invalid Messages
 
-- [ ] `TE-C07` — Reach the documented terminal state for an unknown event type.
 - [ ] `TE-C08` — Reach the documented terminal state for malformed JSON or an incompatible payload.
 - [ ] Prove that unknown or malformed messages do not stop later valid messages from being processed.
 

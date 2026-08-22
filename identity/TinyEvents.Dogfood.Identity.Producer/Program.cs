@@ -7,6 +7,7 @@ using TinyEvents.Dogfood.Identity.Contracts;
 using TinyEvents.Dogfood.Identity.Moved;
 using TinyEvents.Dogfood.Identity.Nested;
 using TinyEvents.Dogfood.Identity.Rename.V1;
+using TinyEvents.Dogfood.Identity.Unknown;
 using TinyEvents.SqlServer.AdoNet;
 
 return await IdentityProducer.RunAsync(args);
@@ -76,6 +77,7 @@ internal static class IdentityProducer
             "renamed" => publisher.PublishAsync(new RenamedEvent(scenarioId)),
             "moved" => publisher.PublishAsync(new MovedEvent(scenarioId)),
             "additive" => publisher.PublishAsync(new AdditiveEvent(scenarioId)),
+            "unknown" => publisher.PublishAsync(new UnknownEvent(scenarioId)),
             _ => throw new ArgumentException($"Unknown event kind '{eventKind}'.", nameof(eventKind))
         };
     }
@@ -99,12 +101,24 @@ internal static class IdentityProducer
                 o.LastError,
                 (SELECT COUNT(*) FROM dbo.DogfoodEffects) AS EffectCount,
                 (SELECT TOP (1) ConsumerName FROM dbo.DogfoodEffects ORDER BY Id) AS ConsumerName,
-                (SELECT TOP (1) ObservedValue FROM dbo.DogfoodEffects ORDER BY Id) AS ObservedValue
+                (SELECT TOP (1) ObservedValue FROM dbo.DogfoodEffects ORDER BY Id) AS ObservedValue,
+                (SELECT COUNT(*) FROM dbo.TinyOutbox) AS MessageCount,
+                (SELECT COUNT(*) FROM dbo.TinyOutbox WHERE Status = @ProcessedStatus) AS ProcessedMessageCount,
+                (SELECT COUNT(*) FROM dbo.TinyOutbox WHERE Status = @FailedStatus) AS FailedMessageCount
             FROM dbo.TinyOutbox AS o
-            ORDER BY o.CreatedAtUtc;
+            ORDER BY
+                CASE WHEN o.Status = @FailedStatus THEN 0 ELSE 1 END,
+                o.CreatedAtUtc,
+                o.Id;
             """;
 
         await using var command = new SqlCommand(sql, connection);
+        command.Parameters.AddWithValue(
+            "@ProcessedStatus",
+            (int)TinyOutboxMessageStatus.Processed);
+        command.Parameters.AddWithValue(
+            "@FailedStatus",
+            (int)TinyOutboxMessageStatus.Failed);
         await using var reader = await command.ExecuteReaderAsync();
 
         if (!await reader.ReadAsync())
@@ -121,7 +135,10 @@ internal static class IdentityProducer
             reader.IsDBNull(3) ? null : reader.GetString(3),
             reader.GetInt32(4),
             reader.IsDBNull(5) ? null : reader.GetString(5),
-            reader.IsDBNull(6) ? null : reader.GetString(6));
+            reader.IsDBNull(6) ? null : reader.GetString(6),
+            reader.GetInt32(7),
+            reader.GetInt32(8),
+            reader.GetInt32(9));
     }
 
     private static ServiceProvider CreateServices(DogfoodSettings settings)

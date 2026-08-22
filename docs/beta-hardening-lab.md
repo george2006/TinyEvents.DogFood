@@ -64,13 +64,14 @@ TinyEvents keeps two distinct identities:
 
 These responsibilities remain separate.
 
-The current publisher and source generator share the same canonical runtime event-name contract. The completed `TE-C01` through `TE-C06` scenarios demonstrate that:
+The current publisher and source generator share the same canonical runtime event-name contract. The completed `TE-C01` through `TE-C07` scenarios demonstrate that:
 
 - top-level and nested non-generic event contracts process successfully;
 - closed generic event contracts are rejected at build time with `TEV002`;
 - moving a contract between assemblies works when its full type name remains unchanged;
 - namespace or event-type renames require an explicit previous-name mapping for in-flight messages.
 - adding an optional contract member preserves the meaning of a previously persisted payload.
+- an event type absent from the worker exhausts its configured retries without blocking later valid work.
 
 Applications declare a renamed durable contract through `AcceptPreviousEventName<TEvent>(previousEventName)`. TinyEvents then resolves the current generated dispatcher, deserializes the old payload into the current event type, and invokes the current consumers. The complete product contract and deployment guidance live in [Event Contracts and Durable Names](https://github.com/george2006/TinyEvents/blob/main/docs/event-contracts.md).
 
@@ -448,6 +449,8 @@ TE-D06 also satisfies TE-T04 without a duplicate executable scenario. Four concu
 TE-T05 writes business state and its outbox message inside an open transaction, then terminates the publisher process on each side of the commit boundary. Saved but uncommitted work disappears, a commit survives immediate process termination, and a normally acknowledged commit remains durable. The unchanged scenario passed against SQL Server and PostgreSQL on 2026-08-21.
 
 TE-C06 publishes the V1 contract, then starts a V2 worker whose same durable event type adds one optional member. The SQL Server acceptance run on 2026-08-22 reached `Processed`, recorded exactly one durable effect, and observed the absent V2 member as `not-provided`. This demonstrates the supported additive evolution path without changing TinyEvents production code.
+
+TE-C07 publishes one producer-only event followed by one registered event through the normal publisher API. With one configured maximum attempt, the SQL Server acceptance run on 2026-08-22 left the unknown event in `Failed`, retained the exact missing-dispatcher error, emitted `EventRetriesExhausted`, and processed the valid event later in the same batch with exactly one durable effect. This demonstrates that one unknown contract does not stop valid work behind it.
 
 ### BETA-7 - Capacity, backlog, and retention
 

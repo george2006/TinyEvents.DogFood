@@ -39,6 +39,7 @@ Evidence: `artifacts/identity/<run-id>/`
 | `TE-C04` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C04` | A namespace rename processes an in-flight message through an explicit previous name. |
 | `TE-C05` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C05` | Moving a contract between assemblies preserves processing when its full type name remains unchanged. |
 | `TE-C06` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C06` | A V1 payload is consumed by the V2 contract, records one durable effect, and observes its absent optional member as `not-provided`. |
+| `TE-C07` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C07` | An event type absent from the worker reaches `Failed` with one attempt and an actionable error. A valid event later in the same batch reaches `Processed` and records one durable effect. |
 
 See [Identity dogfood](../identity/README.md) for the identity contract and current characterization.
 

@@ -20,3 +20,8 @@ namespace TinyEvents.Dogfood.Identity.Additive
 {
     public sealed record AdditiveEvent(string ScenarioId);
 }
+
+namespace TinyEvents.Dogfood.Identity.Unknown
+{
+    public sealed record UnknownEvent(string ScenarioId);
+}

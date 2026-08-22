@@ -28,5 +28,6 @@ The runner starts the sibling TinyEvents repository SQL Server container and rec
 | TE-C04 | Namespace rename with the same type name | Processed through an explicit previous name |
 | TE-C05 | Same full name moved between assemblies | Processed with one durable effect |
 | TE-C06 | V1 payload read by a V2 contract with an optional member | Processed with one durable effect; the absent member is observed as `not-provided` |
+| TE-C07 | Event type absent from the worker | Failed with one attempt and an actionable durable error; the following valid event is processed |
 
 Every result in this table is an acceptance outcome. A rejected generic contract is successful only when compilation fails with the expected actionable diagnostic.

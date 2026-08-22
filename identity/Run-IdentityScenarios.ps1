@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("All", "TE-C01", "TE-C02", "TE-C03", "TE-C04", "TE-C05", "TE-C06")]
+    [ValidateSet("All", "TE-C01", "TE-C02", "TE-C03", "TE-C04", "TE-C05", "TE-C06", "TE-C07")]
     [string]$Scenario = "All"
 )
 
@@ -38,7 +38,8 @@ function Wait-ForSqlServer {
 function Wait-ForTerminalObservation {
     param(
         [string]$ProducerAssembly,
-        [System.Diagnostics.Process]$WorkerProcess
+        [System.Diagnostics.Process]$WorkerProcess,
+        [int]$ExpectedMessageCount
     )
 
     $deadline = (Get-Date).AddSeconds(20)
@@ -56,7 +57,13 @@ function Wait-ForTerminalObservation {
 
         $observation = $json | ConvertFrom-Json
 
-        if ($observation.Status -in @("Processed", "Failed")) {
+        $terminalMessageCount =
+            $observation.ProcessedMessageCount + $observation.FailedMessageCount
+        $allMessagesReachedTerminalState =
+            $observation.MessageCount -eq $ExpectedMessageCount -and
+            $terminalMessageCount -eq $ExpectedMessageCount
+
+        if ($allMessagesReachedTerminalState) {
             return $observation
         }
 
@@ -84,6 +91,14 @@ function Invoke-IdentityScenario {
         $Definition.EventKind,
         $Definition.Id)
 
+    if ($null -ne $Definition.FollowUpEventKind) {
+        Invoke-Native "dotnet" @(
+            $ProducerAssembly,
+            "publish",
+            $Definition.FollowUpEventKind,
+            $Definition.Id)
+    }
+
     $standardOutput = Join-Path $scenarioDirectory "worker.stdout.log"
     $standardError = Join-Path $scenarioDirectory "worker.stderr.log"
     $workerStart = @{
@@ -97,7 +112,12 @@ function Invoke-IdentityScenario {
     $worker = Start-Process @workerStart
 
     try {
-        $observation = Wait-ForTerminalObservation -ProducerAssembly $ProducerAssembly -WorkerProcess $worker
+        $waitArguments = @{
+            ProducerAssembly = $ProducerAssembly
+            WorkerProcess = $worker
+            ExpectedMessageCount = $Definition.ExpectedMessageCount
+        }
+        $observation = Wait-ForTerminalObservation @waitArguments
     }
     finally {
         if (-not $worker.HasExited) {
@@ -107,16 +127,36 @@ function Invoke-IdentityScenario {
     }
 
     $matchesStatus = $observation.Status -eq $Definition.ExpectedStatus
+    $matchesAttemptCount = $observation.AttemptCount -eq $Definition.ExpectedAttemptCount
+    $matchesLastError = $observation.LastError -eq $Definition.ExpectedLastError
     $matchesEffects = $observation.EffectCount -eq $Definition.ExpectedEffects
     $matchesObservedValue = $observation.ObservedValue -eq $Definition.ExpectedObservedValue
-    $passed = $matchesStatus -and $matchesEffects -and $matchesObservedValue
+    $matchesMessageCount = $observation.MessageCount -eq $Definition.ExpectedMessageCount
+    $matchesProcessedMessages =
+        $observation.ProcessedMessageCount -eq $Definition.ExpectedProcessedMessages
+    $matchesFailedMessages =
+        $observation.FailedMessageCount -eq $Definition.ExpectedFailedMessages
+    $passed =
+        $matchesStatus -and
+        $matchesAttemptCount -and
+        $matchesLastError -and
+        $matchesEffects -and
+        $matchesObservedValue -and
+        $matchesMessageCount -and
+        $matchesProcessedMessages -and
+        $matchesFailedMessages
 
     $result = [ordered]@{
         Scenario = $Definition.Id
         Contract = $Definition.Contract
         ExpectedStatus = $Definition.ExpectedStatus
+        ExpectedAttemptCount = $Definition.ExpectedAttemptCount
+        ExpectedLastError = $Definition.ExpectedLastError
         ExpectedEffects = $Definition.ExpectedEffects
         ExpectedObservedValue = $Definition.ExpectedObservedValue
+        ExpectedMessageCount = $Definition.ExpectedMessageCount
+        ExpectedProcessedMessages = $Definition.ExpectedProcessedMessages
+        ExpectedFailedMessages = $Definition.ExpectedFailedMessages
         Actual = $observation
         AcceptancePassed = $passed
         ProductSupport = $Definition.ProductSupport
@@ -208,13 +248,114 @@ $artifactDirectory = Join-Path $dogfoodRoot "artifacts\identity\$runId"
 
 $env:TINYEVENTS_DOGFOOD_SQLSERVER = "Server=localhost,14333;Database=TinyEventsDogfoodIdentity;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
 
+$unknownEventError =
+    "Event type 'TinyEvents.Dogfood.Identity.Unknown.UnknownEvent' is not registered."
 $definitions = @(
-    [pscustomobject]@{ Id = "TE-C01"; EventKind = "normal"; Contract = "Shared top-level contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = $null; ProductSupport = "Supported" },
-    [pscustomobject]@{ Id = "TE-C02"; EventKind = "nested"; Contract = "Nested contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = $null; ProductSupport = "Supported" },
-    [pscustomobject]@{ Id = "TE-C03"; EventKind = $null; Contract = "Closed generic contract"; ExpectedStatus = "Rejected"; ExpectedEffects = 0; ExpectedObservedValue = $null; ProductSupport = "Rejected by design" },
-    [pscustomobject]@{ Id = "TE-C04"; EventKind = "renamed"; Contract = "Namespace rename with same type name"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = $null; ProductSupport = "Supported through explicit previous name" },
-    [pscustomobject]@{ Id = "TE-C05"; EventKind = "moved"; Contract = "Same full name moved between assemblies"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = $null; ProductSupport = "Supported" },
-    [pscustomobject]@{ Id = "TE-C06"; EventKind = "additive"; Contract = "V1 payload consumed by V2 contract with optional member"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = "not-provided"; ProductSupport = "Supported" }
+    [pscustomobject]@{
+        Id = "TE-C01"
+        EventKind = "normal"
+        FollowUpEventKind = $null
+        Contract = "Shared top-level contract"
+        ExpectedStatus = "Processed"
+        ExpectedAttemptCount = 0
+        ExpectedLastError = $null
+        ExpectedEffects = 1
+        ExpectedObservedValue = $null
+        ExpectedMessageCount = 1
+        ExpectedProcessedMessages = 1
+        ExpectedFailedMessages = 0
+        ProductSupport = "Supported"
+    },
+    [pscustomobject]@{
+        Id = "TE-C02"
+        EventKind = "nested"
+        FollowUpEventKind = $null
+        Contract = "Nested contract"
+        ExpectedStatus = "Processed"
+        ExpectedAttemptCount = 0
+        ExpectedLastError = $null
+        ExpectedEffects = 1
+        ExpectedObservedValue = $null
+        ExpectedMessageCount = 1
+        ExpectedProcessedMessages = 1
+        ExpectedFailedMessages = 0
+        ProductSupport = "Supported"
+    },
+    [pscustomobject]@{
+        Id = "TE-C03"
+        EventKind = $null
+        FollowUpEventKind = $null
+        Contract = "Closed generic contract"
+        ExpectedStatus = "Rejected"
+        ExpectedAttemptCount = 0
+        ExpectedLastError = $null
+        ExpectedEffects = 0
+        ExpectedObservedValue = $null
+        ExpectedMessageCount = 0
+        ExpectedProcessedMessages = 0
+        ExpectedFailedMessages = 0
+        ProductSupport = "Rejected by design"
+    },
+    [pscustomobject]@{
+        Id = "TE-C04"
+        EventKind = "renamed"
+        FollowUpEventKind = $null
+        Contract = "Namespace rename with same type name"
+        ExpectedStatus = "Processed"
+        ExpectedAttemptCount = 0
+        ExpectedLastError = $null
+        ExpectedEffects = 1
+        ExpectedObservedValue = $null
+        ExpectedMessageCount = 1
+        ExpectedProcessedMessages = 1
+        ExpectedFailedMessages = 0
+        ProductSupport = "Supported through explicit previous name"
+    },
+    [pscustomobject]@{
+        Id = "TE-C05"
+        EventKind = "moved"
+        FollowUpEventKind = $null
+        Contract = "Same full name moved between assemblies"
+        ExpectedStatus = "Processed"
+        ExpectedAttemptCount = 0
+        ExpectedLastError = $null
+        ExpectedEffects = 1
+        ExpectedObservedValue = $null
+        ExpectedMessageCount = 1
+        ExpectedProcessedMessages = 1
+        ExpectedFailedMessages = 0
+        ProductSupport = "Supported"
+    },
+    [pscustomobject]@{
+        Id = "TE-C06"
+        EventKind = "additive"
+        FollowUpEventKind = $null
+        Contract = "V1 payload consumed by V2 contract with optional member"
+        ExpectedStatus = "Processed"
+        ExpectedAttemptCount = 0
+        ExpectedLastError = $null
+        ExpectedEffects = 1
+        ExpectedObservedValue = "not-provided"
+        ExpectedMessageCount = 1
+        ExpectedProcessedMessages = 1
+        ExpectedFailedMessages = 0
+        ProductSupport = "Supported"
+    },
+    [pscustomobject]@{
+        Id = "TE-C07"
+        EventKind = "unknown"
+        FollowUpEventKind = "normal"
+        Contract = "Unknown event reaches failed state without blocking later valid work"
+        ExpectedStatus = "Failed"
+        ExpectedAttemptCount = 1
+        ExpectedLastError = $unknownEventError
+        ExpectedEffects = 1
+        ExpectedObservedValue = $null
+        ExpectedMessageCount = 2
+        ExpectedProcessedMessages = 1
+        ExpectedFailedMessages = 1
+        ProductSupport = "Failed by design"
+    }
 )
 
 if ($Scenario -ne "All") {
