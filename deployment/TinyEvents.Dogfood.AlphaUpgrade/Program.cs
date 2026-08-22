@@ -13,8 +13,11 @@ switch (args[0].ToLowerInvariant())
     case "create-alpha-state":
         await AlphaStateSeeder.CreateAsync(settings);
         return 0;
+    case "migrate-and-drain":
+        await CandidateStateDrainer.ExecuteAsync(settings);
+        return 0;
     case "inspect":
-        var observation = await AlphaStateObservationReader.ReadAsync(settings);
+        var observation = await UpgradeStateObservationReader.ReadAsync(settings);
         Console.WriteLine(JsonSerializer.Serialize(observation));
         return 0;
     default:
@@ -24,5 +27,5 @@ switch (args[0].ToLowerInvariant())
 
 static void WriteUsage()
 {
-    Console.Error.WriteLine("Expected create-alpha-state or inspect.");
+    Console.Error.WriteLine("Expected create-alpha-state, migrate-and-drain, or inspect.");
 }

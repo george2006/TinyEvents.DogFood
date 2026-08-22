@@ -30,11 +30,13 @@ Evidence is retained under `artifacts/schema/<run-id>/`.
 
 ## Published Alpha Upgrade — Work in Progress
 
-TE-S02 is intentionally split into reviewable checkpoints. Run its completed alpha-state checkpoint with:
+TE-S02 is intentionally split into reviewable checkpoints. Run the completed SQL Server upgrade contract with:
 
 ```powershell
 .\deployment\Run-PublishedAlphaUpgrade.ps1
 ```
+
+By default, the runner expects a clean TinyEvents `main` checkout beside this repository. Pass `-CandidateRoot <path>` when the clean checkout lives elsewhere. The runner refuses a candidate that is not on `main` or has uncommitted files.
 
 `TE-S02-A` restores the package-consuming host from nuget.org with an isolated package cache, compiles it against published `0.1.0-alpha.3`, and uses the package's public publisher, store, and migration APIs to create:
 
@@ -44,4 +46,6 @@ TE-S02 is intentionally split into reviewable checkpoints. Run its completed alp
 - one exact durable event type and migration history row;
 - no consumer effects before the candidate starts.
 
-The runner stores `result.json` and `manifest.json` under `artifacts/deployment/<run-id>/TE-S02/`. The result deliberately reports `TeS02Complete = false`. TE-S02 remains pending until a locally packed candidate from clean `main` migrates and drains the supported alpha state, and the same contract passes against PostgreSQL.
+`TE-S02-B` then builds and packs the release train from clean `main`, restores the same host only from those local candidate packages, migrates the existing database, and runs the real outbox processor once. Acceptance requires the pending row and expired processing row to become processed with one effect each, while the terminally failed row, attempt count, and error remain unchanged. The migration history must still contain exactly one row.
+
+The runner stores `alpha-state.json`, `result.json`, and `manifest.json` under `artifacts/deployment/<run-id>/TE-S02/`. The result deliberately reports `TeS02Complete = false`: SQL Server is demonstrated, but TE-S02 remains pending until the unchanged contract passes against PostgreSQL in `TE-S02-C`.

@@ -1,3 +1,3 @@
 namespace TinyEvents.Dogfood.AlphaUpgrade.Contracts;
 
-internal sealed record UpgradeProbeEvent(string State);
+public sealed record UpgradeProbeEvent(string State);
