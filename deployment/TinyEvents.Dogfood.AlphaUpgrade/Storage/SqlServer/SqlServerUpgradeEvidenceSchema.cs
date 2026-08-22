@@ -1,8 +1,10 @@
 using Microsoft.Data.SqlClient;
 
-internal static class UpgradeEvidenceSchema
+internal static class SqlServerUpgradeEvidenceSchema
 {
-    public static async Task CreateAsync(UpgradeSettings settings)
+    public static async ValueTask CreateAsync(
+        UpgradeSettings settings,
+        CancellationToken cancellationToken)
     {
         const string sql = """
             CREATE TABLE dbo.UpgradeProbeEffects
@@ -14,8 +16,8 @@ internal static class UpgradeEvidenceSchema
             """;
 
         await using var connection = new SqlConnection(settings.ConnectionString);
-        await connection.OpenAsync();
+        await connection.OpenAsync(cancellationToken);
         await using var command = new SqlCommand(sql, connection);
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }

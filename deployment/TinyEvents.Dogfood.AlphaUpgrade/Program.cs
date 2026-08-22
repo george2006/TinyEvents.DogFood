@@ -1,6 +1,7 @@
 using System.Text.Json;
 
-var settings = UpgradeSettings.Load();
+var storage = UpgradeStorageProviderSelector.Load();
+var settings = storage.LoadSettings();
 
 if (args.Length != 1)
 {
@@ -11,13 +12,15 @@ if (args.Length != 1)
 switch (args[0].ToLowerInvariant())
 {
     case "create-alpha-state":
-        await AlphaStateSeeder.CreateAsync(settings);
+        await AlphaStateSeeder.CreateAsync(storage, settings);
         return 0;
     case "migrate-and-drain":
-        await CandidateStateDrainer.ExecuteAsync(settings);
+        await CandidateStateDrainer.ExecuteAsync(storage, settings);
         return 0;
     case "inspect":
-        var observation = await UpgradeStateObservationReader.ReadAsync(settings);
+        var observation = await storage.ReadObservationAsync(
+            settings,
+            CancellationToken.None);
         Console.WriteLine(JsonSerializer.Serialize(observation));
         return 0;
     default:

@@ -1,9 +1,11 @@
 using Microsoft.Data.SqlClient;
 using TinyEvents;
 
-internal static class UpgradeStateObservationReader
+internal static class SqlServerUpgradeStateObservationReader
 {
-    public static async Task<UpgradeStateObservation> ReadAsync(UpgradeSettings settings)
+    public static async ValueTask<UpgradeStateObservation> ReadAsync(
+        UpgradeSettings settings,
+        CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT
@@ -27,49 +29,15 @@ internal static class UpgradeStateObservationReader
             """;
 
         await using var connection = new SqlConnection(settings.ConnectionString);
-        await connection.OpenAsync();
+        await connection.OpenAsync(cancellationToken);
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@PendingStatus", (int)TinyOutboxMessageStatus.Pending);
         command.Parameters.AddWithValue("@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
         command.Parameters.AddWithValue("@ProcessedStatus", (int)TinyOutboxMessageStatus.Processed);
         command.Parameters.AddWithValue("@FailedStatus", (int)TinyOutboxMessageStatus.Failed);
-        await using var reader = await command.ExecuteReaderAsync();
-        await reader.ReadAsync();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        await reader.ReadAsync(cancellationToken);
 
-        return new UpgradeStateObservation(
-            reader.GetInt32(0),
-            reader.GetInt32(1),
-            reader.GetInt32(2),
-            reader.GetInt32(3),
-            reader.GetInt32(4),
-            reader.GetInt32(5),
-            reader.GetInt32(6),
-            reader.GetString(7),
-            reader.GetInt32(8),
-            reader.GetString(9),
-            reader.GetInt32(10),
-            reader.GetInt32(11),
-            reader.GetInt32(12),
-            reader.GetInt32(13),
-            reader.GetInt32(14),
-            reader.GetInt32(15));
+        return UpgradeStateObservationResultReader.Read(reader);
     }
 }
-
-internal sealed record UpgradeStateObservation(
-    int MessageCount,
-    int PendingCount,
-    int ProcessingCount,
-    int ReclaimableProcessingCount,
-    int ProcessedCount,
-    int FailedCount,
-    int FailedAttemptCount,
-    string FailedLastError,
-    int DistinctEventTypeCount,
-    string EventType,
-    int MigrationCount,
-    int EffectCount,
-    int DistinctEffectCount,
-    int PendingEffectCount,
-    int ProcessingEffectCount,
-    int FailedEffectCount);

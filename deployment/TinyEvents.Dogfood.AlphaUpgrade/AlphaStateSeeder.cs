@@ -1,20 +1,22 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using TinyEvents;
 using TinyEvents.Dogfood.AlphaUpgrade.Contracts;
-using TinyEvents.SqlServer.AdoNet;
 
 internal static class AlphaStateSeeder
 {
     private const string SeederWorkerId = "alpha-state-seeder";
 
-    public static async Task CreateAsync(UpgradeSettings settings)
+    public static async Task CreateAsync(
+        IUpgradeStorageProvider storage,
+        UpgradeSettings settings)
     {
-        await UpgradeDatabaseReset.ExecuteAsync(settings);
+        await storage.ResetAsync(settings, CancellationToken.None);
 
-        await using var services = CreateServices(settings);
+        await using var services = CreateServices(storage, settings);
         await services.MigrateTinyEventsAsync();
-        await UpgradeEvidenceSchema.CreateAsync(settings);
+        await storage.CreateEvidenceSchemaAsync(
+            settings,
+            CancellationToken.None);
 
         await PublishAsync(services, "failed");
         await MarkOnlyPendingMessageFailedAsync(services);
@@ -33,7 +35,7 @@ internal static class AlphaStateSeeder
         var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();
         await publisher.PublishAsync(new UpgradeProbeEvent(state));
 
-        var transaction = scope.ServiceProvider.GetRequiredService<UpgradeTransaction>();
+        var transaction = scope.ServiceProvider.GetRequiredService<IUpgradeTransaction>();
         await transaction.CommitAsync();
     }
 
@@ -74,27 +76,13 @@ internal static class AlphaStateSeeder
         return messages.Single();
     }
 
-    private static ServiceProvider CreateServices(UpgradeSettings settings)
+    private static ServiceProvider CreateServices(
+        IUpgradeStorageProvider storage,
+        UpgradeSettings settings)
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddScoped(_ => new UpgradeTransaction(settings.ConnectionString));
-        services.UseSqlServerAdoNetOutbox(options =>
-        {
-            options.UseCurrentTransaction(provider =>
-            {
-                var transaction = provider.GetRequiredService<UpgradeTransaction>();
-                return new TinyAdoNetTransactionContext(
-                    transaction.Connection,
-                    transaction.Transaction);
-            });
-            options.UseWorkerConnectionFactory(async (_, cancellationToken) =>
-            {
-                var connection = new SqlConnection(settings.ConnectionString);
-                await connection.OpenAsync(cancellationToken);
-                return connection;
-            });
-        });
+        storage.AddPublisherServices(services, settings);
 
         return services.BuildServiceProvider();
     }

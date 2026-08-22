@@ -1,11 +1,14 @@
 using Microsoft.Data.SqlClient;
 
-internal static class UpgradeDatabaseReset
+internal static class SqlServerUpgradeDatabaseReset
 {
-    public static async Task ExecuteAsync(UpgradeSettings settings)
+    public static async ValueTask ExecuteAsync(
+        UpgradeSettings settings,
+        CancellationToken cancellationToken)
     {
-        await using var connection = new SqlConnection(settings.MasterConnectionString);
-        await connection.OpenAsync();
+        await using var connection = new SqlConnection(
+            settings.AdministrationConnectionString);
+        await connection.OpenAsync(cancellationToken);
 
         var quotedDatabaseName = new SqlCommandBuilder().QuoteIdentifier(settings.DatabaseName);
         var sql = $"""
@@ -20,6 +23,6 @@ internal static class UpgradeDatabaseReset
 
         await using var command = new SqlCommand(sql, connection);
         command.Parameters.AddWithValue("@DatabaseName", settings.DatabaseName);
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 }

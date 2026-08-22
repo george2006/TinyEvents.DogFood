@@ -28,9 +28,9 @@ The unchanged scenario passed against SQL Server and PostgreSQL on 2026-08-21.
 
 Evidence is retained under `artifacts/schema/<run-id>/`.
 
-## Published Alpha Upgrade — Work in Progress
+## Published Alpha Upgrade
 
-TE-S02 is intentionally split into reviewable checkpoints. Run the completed SQL Server upgrade contract with:
+Run the complete SQL Server and PostgreSQL upgrade contract with:
 
 ```powershell
 .\deployment\Run-PublishedAlphaUpgrade.ps1
@@ -46,6 +46,6 @@ By default, the runner expects a clean TinyEvents `main` checkout beside this re
 - one exact durable event type and migration history row;
 - no consumer effects before the candidate starts.
 
-`TE-S02-B` then builds and packs the release train from clean `main`, restores the same host only from those local candidate packages, migrates the existing database, and runs the real outbox processor once. Acceptance requires the pending row and expired processing row to become processed with one effect each, while the terminally failed row, attempt count, and error remain unchanged. The migration history must still contain exactly one row.
+`TE-S02-B` then builds and packs the release train from clean `main`, restores the same host only from those local candidate packages, migrates the SQL Server database, and runs the real outbox processor once. `TE-S02-C` applies the unchanged contract to PostgreSQL. Acceptance requires the pending row and expired processing row to become processed with one effect each, while the terminally failed row, attempt count, and error remain unchanged. Each provider's migration history must still contain exactly one row.
 
-The runner stores `alpha-state.json`, `result.json`, and `manifest.json` under `artifacts/deployment/<run-id>/TE-S02/`. The result deliberately reports `TeS02Complete = false`: SQL Server is demonstrated, but TE-S02 remains pending until the unchanged contract passes against PostgreSQL in `TE-S02-C`.
+The runner stores alpha-state and result files per provider, plus the overall `result.json` and `manifest.json`, under `artifacts/deployment/<run-id>/TE-S02/`. It reports `TeS02Complete = true` only when both providers satisfy the complete upgrade contract in the same run.

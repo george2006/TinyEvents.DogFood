@@ -19,11 +19,16 @@ function Invoke-Native {
     }
 }
 
-function Wait-ForSqlServer {
+function Wait-ForContainerHealth {
+    param(
+        [string]$ContainerName,
+        [string]$DisplayName
+    )
+
     $deadline = (Get-Date).AddMinutes(2)
 
     while ((Get-Date) -lt $deadline) {
-        $health = docker inspect --format "{{.State.Health.Status}}" tinyevents-sqlserver 2>$null
+        $health = docker inspect --format "{{.State.Health.Status}}" $ContainerName 2>$null
 
         if ($LASTEXITCODE -eq 0 -and $health -eq "healthy") {
             return
@@ -32,7 +37,7 @@ function Wait-ForSqlServer {
         Start-Sleep -Seconds 2
     }
 
-    throw "SQL Server did not become healthy within two minutes."
+    throw "$DisplayName did not become healthy within two minutes."
 }
 
 function Get-GitCommit {
@@ -74,6 +79,78 @@ function Test-PackagesResolved {
     return $true
 }
 
+function Get-ProviderConfigurations {
+    param([string]$DatabaseSuffix)
+
+    return @(
+        [pscustomobject]@{
+            Name = "sqlserver"
+            Checkpoint = "TE-S02-B"
+            ContainerName = "tinyevents-sqlserver"
+            DisplayName = "SQL Server"
+            ConnectionVariable = "TINYEVENTS_DOGFOOD_UPGRADE_SQLSERVER"
+            ConnectionString = "Server=localhost,14333;Database=TinyEventsDogfoodUpgrade_${DatabaseSuffix}_sqlserver;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
+        },
+        [pscustomobject]@{
+            Name = "postgresql"
+            Checkpoint = "TE-S02-C"
+            ContainerName = "tinyevents-postgresql"
+            DisplayName = "PostgreSQL"
+            ConnectionVariable = "TINYEVENTS_DOGFOOD_UPGRADE_POSTGRESQL"
+            ConnectionString = "Host=localhost;Port=54323;Database=TinyEventsDogfoodUpgrade_${DatabaseSuffix}_postgresql;Username=postgres;Password=postgres;"
+        }
+    )
+}
+
+function Test-AlphaObservation {
+    param(
+        [object]$Observation,
+        [string]$ExpectedEventType,
+        [string]$ExpectedFailure
+    )
+
+    return (
+        $Observation.MessageCount -eq 3 -and
+        $Observation.PendingCount -eq 1 -and
+        $Observation.ProcessingCount -eq 1 -and
+        $Observation.ReclaimableProcessingCount -eq 1 -and
+        $Observation.ProcessedCount -eq 0 -and
+        $Observation.FailedCount -eq 1 -and
+        $Observation.FailedAttemptCount -eq 1 -and
+        $Observation.FailedLastError -eq $ExpectedFailure -and
+        $Observation.DistinctEventTypeCount -eq 1 -and
+        $Observation.EventType -eq $ExpectedEventType -and
+        $Observation.MigrationCount -eq 1 -and
+        $Observation.EffectCount -eq 0 -and
+        $Observation.DistinctEffectCount -eq 0)
+}
+
+function Test-CandidateObservation {
+    param(
+        [object]$Observation,
+        [string]$ExpectedEventType,
+        [string]$ExpectedFailure
+    )
+
+    return (
+        $Observation.MessageCount -eq 3 -and
+        $Observation.PendingCount -eq 0 -and
+        $Observation.ProcessingCount -eq 0 -and
+        $Observation.ReclaimableProcessingCount -eq 0 -and
+        $Observation.ProcessedCount -eq 2 -and
+        $Observation.FailedCount -eq 1 -and
+        $Observation.FailedAttemptCount -eq 1 -and
+        $Observation.FailedLastError -eq $ExpectedFailure -and
+        $Observation.DistinctEventTypeCount -eq 1 -and
+        $Observation.EventType -eq $ExpectedEventType -and
+        $Observation.MigrationCount -eq 1 -and
+        $Observation.EffectCount -eq 2 -and
+        $Observation.DistinctEffectCount -eq 2 -and
+        $Observation.PendingEffectCount -eq 1 -and
+        $Observation.ProcessingEffectCount -eq 1 -and
+        $Observation.FailedEffectCount -eq 0)
+}
+
 $dogfoodRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $tinyEventsInfrastructureRoot = Resolve-Path (Join-Path $dogfoodRoot "..\TinyEvents")
 
@@ -88,6 +165,7 @@ $composeFile = Join-Path $tinyEventsInfrastructureRoot "docker-compose.yml"
 $packageSmokeScript = Join-Path $CandidateRoot "samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1"
 $project = Join-Path $PSScriptRoot "TinyEvents.Dogfood.AlphaUpgrade\TinyEvents.Dogfood.AlphaUpgrade.csproj"
 $runId = Get-Date -Format "yyyyMMdd-HHmmss"
+$databaseSuffix = $runId.Replace('-', '')
 $startedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
 $scenarioDirectory = Join-Path $dogfoodRoot "artifacts\deployment\$runId\TE-S02"
 $alphaPackageCache = Join-Path $scenarioDirectory "alpha-package-cache"
@@ -95,27 +173,26 @@ $alphaIntermediateOutput = Join-Path $scenarioDirectory "alpha-obj\"
 $alphaBuildOutput = Join-Path $scenarioDirectory "alpha-bin\"
 $alphaNugetConfig = Join-Path $scenarioDirectory "NuGet.alpha.config"
 $alphaAssembly = Join-Path $alphaBuildOutput "TinyEvents.Dogfood.AlphaUpgrade.dll"
-$candidateVersion = "0.1.0-local.upgrade.$($runId.Replace('-', ''))"
+$candidateVersion = "0.1.0-local.upgrade.$databaseSuffix"
 $candidatePackages = Join-Path $CandidateRoot "artifacts\package-smoke\$candidateVersion\packages"
 $candidatePackageCache = Join-Path $scenarioDirectory "candidate-package-cache"
 $candidateIntermediateOutput = Join-Path $scenarioDirectory "candidate-obj\"
 $candidateBuildOutput = Join-Path $scenarioDirectory "candidate-bin\"
 $candidateNugetConfig = Join-Path $scenarioDirectory "NuGet.candidate.config"
 $candidateAssembly = Join-Path $candidateBuildOutput "TinyEvents.Dogfood.AlphaUpgrade.dll"
-$databaseName = "TinyEventsDogfoodUpgrade_$($runId.Replace('-', ''))"
 $seededFailure = "Seeded terminal failure from published alpha."
 $expectedEventType = "TinyEvents.Dogfood.AlphaUpgrade.Contracts.UpgradeProbeEvent"
+$providerConfigurations = Get-ProviderConfigurations $databaseSuffix
 $resolvedAlphaPackages = @(
     "TinyEvents/$AlphaVersion",
-    "TinyEvents.SqlServer.AdoNet/$AlphaVersion"
+    "TinyEvents.SqlServer.AdoNet/$AlphaVersion",
+    "TinyEvents.PostgreSql.AdoNet/$AlphaVersion"
 )
 $resolvedCandidatePackages = @(
     "TinyEvents/$candidateVersion",
-    "TinyEvents.SqlServer.AdoNet/$candidateVersion"
+    "TinyEvents.SqlServer.AdoNet/$candidateVersion",
+    "TinyEvents.PostgreSql.AdoNet/$candidateVersion"
 )
-
-$env:TINYEVENTS_DOGFOOD_UPGRADE_SQLSERVER =
-    "Server=localhost,14333;Database=$databaseName;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
 
 New-Item -ItemType Directory -Force -Path `
     $scenarioDirectory, `
@@ -132,8 +209,18 @@ New-Item -ItemType Directory -Force -Path `
 </configuration>
 "@ | Set-Content -LiteralPath $alphaNugetConfig -Encoding UTF8
 
-Invoke-Native "docker" @("compose", "-f", $composeFile, "up", "-d", "sqlserver")
-Wait-ForSqlServer
+Invoke-Native "docker" @(
+    "compose",
+    "-f",
+    $composeFile,
+    "up",
+    "-d",
+    "sqlserver",
+    "postgresql")
+
+foreach ($provider in $providerConfigurations) {
+    Wait-ForContainerHealth $provider.ContainerName $provider.DisplayName
+}
 
 $env:NUGET_PACKAGES = $alphaPackageCache
 Invoke-Native "dotnet" @(
@@ -154,49 +241,6 @@ Invoke-Native "dotnet" @(
     "/p:TinyEventsPackageVersion=$AlphaVersion",
     "/p:BaseIntermediateOutputPath=$alphaIntermediateOutput",
     "/p:OutputPath=$alphaBuildOutput")
-
-Invoke-Native "dotnet" @($alphaAssembly, "create-alpha-state")
-$alphaObservationJson = & dotnet $alphaAssembly inspect
-
-if ($LASTEXITCODE -ne 0) {
-    throw "Alpha state inspection failed."
-}
-
-$alphaObservation = $alphaObservationJson | ConvertFrom-Json
-$allAlphaPackagesResolved = Test-PackagesResolved `
-    $alphaPackageCache `
-    $resolvedAlphaPackages
-$alphaAcceptancePassed =
-    $allAlphaPackagesResolved -and
-    $alphaObservation.MessageCount -eq 3 -and
-    $alphaObservation.PendingCount -eq 1 -and
-    $alphaObservation.ProcessingCount -eq 1 -and
-    $alphaObservation.ReclaimableProcessingCount -eq 1 -and
-    $alphaObservation.ProcessedCount -eq 0 -and
-    $alphaObservation.FailedCount -eq 1 -and
-    $alphaObservation.FailedAttemptCount -eq 1 -and
-    $alphaObservation.FailedLastError -eq $seededFailure -and
-    $alphaObservation.DistinctEventTypeCount -eq 1 -and
-    $alphaObservation.EventType -eq $expectedEventType -and
-    $alphaObservation.MigrationCount -eq 1 -and
-    $alphaObservation.EffectCount -eq 0 -and
-    $alphaObservation.DistinctEffectCount -eq 0
-
-$alphaResult = [ordered]@{
-    Stage = "TE-S02-A"
-    Contract = "Published alpha creates representative in-flight state"
-    AlphaVersion = $AlphaVersion
-    PackageSource = "nuget.org"
-    ResolvedPackages = $resolvedAlphaPackages
-    Actual = $alphaObservation
-    AcceptancePassed = $alphaAcceptancePassed
-}
-$alphaResult | ConvertTo-Json -Depth 6 |
-    Set-Content -LiteralPath (Join-Path $scenarioDirectory "alpha-state.json")
-
-if (!$alphaAcceptancePassed) {
-    throw "Published alpha state violated TE-S02-A acceptance. Evidence: $scenarioDirectory"
-}
 
 & $packageSmokeScript -PackageVersion $candidateVersion
 
@@ -235,50 +279,107 @@ Invoke-Native "dotnet" @(
     "/p:BaseIntermediateOutputPath=$candidateIntermediateOutput",
     "/p:OutputPath=$candidateBuildOutput")
 
-Invoke-Native "dotnet" @($candidateAssembly, "migrate-and-drain")
-$candidateObservationJson = & dotnet $candidateAssembly inspect
-
-if ($LASTEXITCODE -ne 0) {
-    throw "Candidate state inspection failed."
-}
-
-$candidateObservation = $candidateObservationJson | ConvertFrom-Json
+$allAlphaPackagesResolved = Test-PackagesResolved `
+    $alphaPackageCache `
+    $resolvedAlphaPackages
 $allCandidatePackagesResolved = Test-PackagesResolved `
     $candidatePackageCache `
     $resolvedCandidatePackages
-$candidateAcceptancePassed =
-    $allCandidatePackagesResolved -and
-    $candidateObservation.MessageCount -eq 3 -and
-    $candidateObservation.PendingCount -eq 0 -and
-    $candidateObservation.ProcessingCount -eq 0 -and
-    $candidateObservation.ReclaimableProcessingCount -eq 0 -and
-    $candidateObservation.ProcessedCount -eq 2 -and
-    $candidateObservation.FailedCount -eq 1 -and
-    $candidateObservation.FailedAttemptCount -eq 1 -and
-    $candidateObservation.FailedLastError -eq $seededFailure -and
-    $candidateObservation.DistinctEventTypeCount -eq 1 -and
-    $candidateObservation.EventType -eq $expectedEventType -and
-    $candidateObservation.MigrationCount -eq 1 -and
-    $candidateObservation.EffectCount -eq 2 -and
-    $candidateObservation.DistinctEffectCount -eq 2 -and
-    $candidateObservation.PendingEffectCount -eq 1 -and
-    $candidateObservation.ProcessingEffectCount -eq 1 -and
-    $candidateObservation.FailedEffectCount -eq 0
+$providerResults = @()
 
+foreach ($provider in $providerConfigurations) {
+    $env:TINYEVENTS_DOGFOOD_UPGRADE_STORAGE = $provider.Name
+    [Environment]::SetEnvironmentVariable(
+        $provider.ConnectionVariable,
+        $provider.ConnectionString)
+
+    Invoke-Native "dotnet" @($alphaAssembly, "create-alpha-state")
+    $alphaObservationJson = & dotnet $alphaAssembly inspect
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "$($provider.DisplayName) alpha state inspection failed."
+    }
+
+    $alphaObservation = $alphaObservationJson | ConvertFrom-Json
+    $alphaAcceptancePassed =
+        $allAlphaPackagesResolved -and
+        (Test-AlphaObservation `
+            $alphaObservation `
+            $expectedEventType `
+            $seededFailure)
+    $alphaResult = [ordered]@{
+        Stage = "TE-S02-A"
+        Provider = $provider.Name
+        Contract = "Published alpha creates representative in-flight state"
+        AlphaVersion = $AlphaVersion
+        PackageSource = "nuget.org"
+        ResolvedPackages = $resolvedAlphaPackages
+        Actual = $alphaObservation
+        AcceptancePassed = $alphaAcceptancePassed
+    }
+    $alphaResult | ConvertTo-Json -Depth 6 |
+        Set-Content -LiteralPath (
+            Join-Path $scenarioDirectory "$($provider.Name)-alpha-state.json")
+
+    if (!$alphaAcceptancePassed) {
+        throw "Published alpha state violated $($provider.Checkpoint) acceptance for $($provider.DisplayName). Evidence: $scenarioDirectory"
+    }
+
+    Invoke-Native "dotnet" @($candidateAssembly, "migrate-and-drain")
+    $candidateObservationJson = & dotnet $candidateAssembly inspect
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "$($provider.DisplayName) candidate state inspection failed."
+    }
+
+    $candidateObservation = $candidateObservationJson | ConvertFrom-Json
+    $candidateAcceptancePassed =
+        $allCandidatePackagesResolved -and
+        (Test-CandidateObservation `
+            $candidateObservation `
+            $expectedEventType `
+            $seededFailure)
+    $providerResult = [pscustomobject][ordered]@{
+        Checkpoint = $provider.Checkpoint
+        Provider = $provider.Name
+        Contract = "Clean main candidate migrates and drains supported published-alpha state"
+        AlphaState = $alphaResult
+        CandidateState = $candidateObservation
+        AcceptancePassed = $candidateAcceptancePassed
+    }
+    $providerResults += $providerResult
+    $providerResult | ConvertTo-Json -Depth 8 |
+        Set-Content -LiteralPath (
+            Join-Path $scenarioDirectory "$($provider.Name)-result.json")
+
+    if (!$candidateAcceptancePassed) {
+        throw "Candidate violated $($provider.Checkpoint) acceptance for $($provider.DisplayName). Evidence: $scenarioDirectory"
+    }
+}
+
+$teS02Complete =
+    $providerResults.Count -eq $providerConfigurations.Count -and
+    @($providerResults | Where-Object { !$_.AcceptancePassed }).Count -eq 0
 $result = [ordered]@{
-    Scenario = "TE-S02-B"
-    Contract = "Clean main candidate migrates and drains supported published-alpha state"
+    Scenario = "TE-S02"
+    Contract = "Published alpha state remains supported across SQL Server and PostgreSQL upgrades"
     CandidateVersion = $candidateVersion
     CandidateGitCommit = Get-GitCommit $CandidateRoot
     PackageSource = $candidatePackages
     ResolvedPackages = $resolvedCandidatePackages
-    AlphaState = $alphaResult
-    Actual = $candidateObservation
-    AcceptancePassed = $candidateAcceptancePassed
-    SqlServerUpgradeComplete = $candidateAcceptancePassed
-    TeS02Complete = $false
+    ProviderResults = $providerResults
+    AcceptancePassed = $teS02Complete
+    SqlServerUpgradeComplete = @(
+        $providerResults |
+            Where-Object { $_.Provider -eq "sqlserver" -and $_.AcceptancePassed }
+    ).Count -eq 1
+    PostgreSqlUpgradeComplete = @(
+        $providerResults |
+            Where-Object { $_.Provider -eq "postgresql" -and $_.AcceptancePassed }
+    ).Count -eq 1
+    TeS02Complete = $teS02Complete
 }
-$result | ConvertTo-Json -Depth 8 |
+$result | ConvertTo-Json -Depth 10 |
     Set-Content -LiteralPath (Join-Path $scenarioDirectory "result.json")
 
 $manifest = [ordered]@{
@@ -292,16 +393,15 @@ $manifest = [ordered]@{
     AlphaVersion = $AlphaVersion
     CandidateVersion = $candidateVersion
     DotNetSdk = (dotnet --version)
-    DatabaseEngine = "SQL Server 2022 Docker"
+    DatabaseEngines = @("SQL Server 2022 Docker", "PostgreSQL 16 Docker")
     Result = $result
 }
-$manifest | ConvertTo-Json -Depth 10 |
+$manifest | ConvertTo-Json -Depth 12 |
     Set-Content -LiteralPath (Join-Path $scenarioDirectory "manifest.json")
 
-if (!$candidateAcceptancePassed) {
-    throw "Candidate violated TE-S02-B acceptance. Evidence: $scenarioDirectory"
+if (!$teS02Complete) {
+    throw "TE-S02 provider parity acceptance failed. Evidence: $scenarioDirectory"
 }
 
-Write-Host "TE-S02-B SQL Server upgrade acceptance completed."
-Write-Host "TE-S02 remains incomplete until the same contract passes against PostgreSQL."
+Write-Host "TE-S02 published-alpha upgrade acceptance completed for SQL Server and PostgreSQL."
 Write-Host "Evidence: $scenarioDirectory"

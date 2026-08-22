@@ -1,0 +1,17 @@
+internal sealed record UpgradeStateObservation(
+    int MessageCount,
+    int PendingCount,
+    int ProcessingCount,
+    int ReclaimableProcessingCount,
+    int ProcessedCount,
+    int FailedCount,
+    int FailedAttemptCount,
+    string FailedLastError,
+    int DistinctEventTypeCount,
+    string EventType,
+    int MigrationCount,
+    int EffectCount,
+    int DistinctEffectCount,
+    int PendingEffectCount,
+    int ProcessingEffectCount,
+    int FailedEffectCount);

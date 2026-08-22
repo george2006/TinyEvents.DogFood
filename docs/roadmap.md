@@ -13,10 +13,10 @@ See the [scenario catalog](scenario-catalog.md) for completed evidence and copya
 
 ## 2. Schema and Application Deployment
 
-- [ ] `TE-S02` — Create representative in-flight state with the published `0.1.0-alpha.3` packages, upgrade to the beta candidate, migrate, and process supported messages.
+- [x] `TE-S02` — Create representative in-flight state with the published `0.1.0-alpha.3` packages, upgrade to the beta candidate, migrate, and process supported messages.
   - [x] `TE-S02-A` — Restore only from nuget.org and create one pending, one reclaimable processing, and one failed message with published `0.1.0-alpha.3` packages.
   - [x] `TE-S02-B` — Pack the candidate from clean `main`, migrate the alpha database, drain supported work, and preserve the failed row.
-  - [ ] `TE-S02-C` — Run the unchanged upgrade contract against PostgreSQL.
+  - [x] `TE-S02-C` — Run the unchanged upgrade contract against PostgreSQL.
 - [ ] `TE-S03` — Terminate a migration process and prove a later process can safely resume.
 - [ ] `TE-S04` — Characterize missing, partially created, and checksum-conflicting schemas with actionable diagnostics.
 - [ ] `TE-S05` — Run old and new application versions concurrently while messages remain in flight.

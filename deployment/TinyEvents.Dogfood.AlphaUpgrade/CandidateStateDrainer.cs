@@ -1,13 +1,13 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using TinyEvents;
-using TinyEvents.SqlServer.AdoNet;
 
 internal static class CandidateStateDrainer
 {
-    public static async Task ExecuteAsync(UpgradeSettings settings)
+    public static async Task ExecuteAsync(
+        IUpgradeStorageProvider storage,
+        UpgradeSettings settings)
     {
-        await using var services = CreateServices(settings);
+        await using var services = CreateServices(storage, settings);
         await services.MigrateTinyEventsAsync();
 
         await using var scope = services.CreateAsyncScope();
@@ -15,20 +15,13 @@ internal static class CandidateStateDrainer
         await processor.ProcessPendingAsync();
     }
 
-    private static ServiceProvider CreateServices(UpgradeSettings settings)
+    private static ServiceProvider CreateServices(
+        IUpgradeStorageProvider storage,
+        UpgradeSettings settings)
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton(new UpgradeEffectRecorder(settings.ConnectionString));
-        services.UseSqlServerAdoNetOutbox(options =>
-        {
-            options.UseWorkerConnectionFactory(async (_, cancellationToken) =>
-            {
-                var connection = new SqlConnection(settings.ConnectionString);
-                await connection.OpenAsync(cancellationToken);
-                return connection;
-            });
-        });
+        storage.AddProcessorServices(services, settings);
         services.UseTinyEvents(options =>
         {
             options.BatchSize = 10;

@@ -457,7 +457,9 @@ TE-C08 publishes a registered event through the normal API, replaces only its du
 
 TE-S02-A restores the package-consuming upgrade host only from nuget.org and runs it against published `0.1.0-alpha.3`. The SQL Server acceptance run on 2026-08-22 created one pending message, one processing message with an expired lease, and one terminally failed message with one attempt. All three rows retained one exact event type, the schema contained one migration history row, and no candidate consumer effect existed.
 
-TE-S02-B packs the release train from clean `main`, restores the same package-only host from those candidate packages, migrates the alpha-created database, and invokes the real outbox processor. The SQL Server acceptance run on 2026-08-22 processed the pending and expired-processing rows with exactly two distinct effects. It preserved the terminally failed row, its single attempt, and its exact error, while migration history remained at one row. The candidate was commit `560d1d98724140bde31980bb1c357d3edf0bb8fa`. TE-S02 remains incomplete until the unchanged contract passes against PostgreSQL.
+TE-S02-B packs the release train from clean `main`, restores the same package-only host from those candidate packages, migrates the alpha-created database, and invokes the real outbox processor. The SQL Server acceptance run on 2026-08-22 processed the pending and expired-processing rows with exactly two distinct effects. It preserved the terminally failed row, its single attempt, and its exact error, while migration history remained at one row.
+
+TE-S02-C runs that unchanged package-only contract against PostgreSQL. The parity acceptance run on 2026-08-22 passed both providers together against candidate commit `560d1d98724140bde31980bb1c357d3edf0bb8fa`. Each provider processed two supported rows with two distinct effects, preserved the exact terminal failure, and retained one migration history row. `TE-S02` is complete.
 
 ### BETA-7 - Capacity, backlog, and retention
 
