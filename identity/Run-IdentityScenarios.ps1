@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("All", "TE-C01", "TE-C02", "TE-C03", "TE-C04", "TE-C05")]
+    [ValidateSet("All", "TE-C01", "TE-C02", "TE-C03", "TE-C04", "TE-C05", "TE-C06")]
     [string]$Scenario = "All"
 )
 
@@ -108,13 +108,15 @@ function Invoke-IdentityScenario {
 
     $matchesStatus = $observation.Status -eq $Definition.ExpectedStatus
     $matchesEffects = $observation.EffectCount -eq $Definition.ExpectedEffects
-    $passed = $matchesStatus -and $matchesEffects
+    $matchesObservedValue = $observation.ObservedValue -eq $Definition.ExpectedObservedValue
+    $passed = $matchesStatus -and $matchesEffects -and $matchesObservedValue
 
     $result = [ordered]@{
         Scenario = $Definition.Id
         Contract = $Definition.Contract
         ExpectedStatus = $Definition.ExpectedStatus
         ExpectedEffects = $Definition.ExpectedEffects
+        ExpectedObservedValue = $Definition.ExpectedObservedValue
         Actual = $observation
         AcceptancePassed = $passed
         ProductSupport = $Definition.ProductSupport
@@ -207,11 +209,12 @@ $artifactDirectory = Join-Path $dogfoodRoot "artifacts\identity\$runId"
 $env:TINYEVENTS_DOGFOOD_SQLSERVER = "Server=localhost,14333;Database=TinyEventsDogfoodIdentity;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;"
 
 $definitions = @(
-    [pscustomobject]@{ Id = "TE-C01"; EventKind = "normal"; Contract = "Shared top-level contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported" },
-    [pscustomobject]@{ Id = "TE-C02"; EventKind = "nested"; Contract = "Nested contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported" },
-    [pscustomobject]@{ Id = "TE-C03"; EventKind = $null; Contract = "Closed generic contract"; ExpectedStatus = "Rejected"; ExpectedEffects = 0; ProductSupport = "Rejected by design" },
-    [pscustomobject]@{ Id = "TE-C04"; EventKind = "renamed"; Contract = "Namespace rename with same type name"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported through explicit previous name" },
-    [pscustomobject]@{ Id = "TE-C05"; EventKind = "moved"; Contract = "Same full name moved between assemblies"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ProductSupport = "Supported" }
+    [pscustomobject]@{ Id = "TE-C01"; EventKind = "normal"; Contract = "Shared top-level contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = $null; ProductSupport = "Supported" },
+    [pscustomobject]@{ Id = "TE-C02"; EventKind = "nested"; Contract = "Nested contract"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = $null; ProductSupport = "Supported" },
+    [pscustomobject]@{ Id = "TE-C03"; EventKind = $null; Contract = "Closed generic contract"; ExpectedStatus = "Rejected"; ExpectedEffects = 0; ExpectedObservedValue = $null; ProductSupport = "Rejected by design" },
+    [pscustomobject]@{ Id = "TE-C04"; EventKind = "renamed"; Contract = "Namespace rename with same type name"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = $null; ProductSupport = "Supported through explicit previous name" },
+    [pscustomobject]@{ Id = "TE-C05"; EventKind = "moved"; Contract = "Same full name moved between assemblies"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = $null; ProductSupport = "Supported" },
+    [pscustomobject]@{ Id = "TE-C06"; EventKind = "additive"; Contract = "V1 payload consumed by V2 contract with optional member"; ExpectedStatus = "Processed"; ExpectedEffects = 1; ExpectedObservedValue = "not-provided"; ProductSupport = "Supported" }
 )
 
 if ($Scenario -ne "All") {

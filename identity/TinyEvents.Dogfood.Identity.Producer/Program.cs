@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using TinyEvents;
+using TinyEvents.Dogfood.Identity.Additive;
 using TinyEvents.Dogfood.Identity.Contracts;
 using TinyEvents.Dogfood.Identity.Moved;
 using TinyEvents.Dogfood.Identity.Nested;
@@ -74,6 +75,7 @@ internal static class IdentityProducer
             "nested" => publisher.PublishAsync(new EventContainer.NestedEvent(scenarioId)),
             "renamed" => publisher.PublishAsync(new RenamedEvent(scenarioId)),
             "moved" => publisher.PublishAsync(new MovedEvent(scenarioId)),
+            "additive" => publisher.PublishAsync(new AdditiveEvent(scenarioId)),
             _ => throw new ArgumentException($"Unknown event kind '{eventKind}'.", nameof(eventKind))
         };
     }
@@ -96,7 +98,8 @@ internal static class IdentityProducer
                 o.AttemptCount,
                 o.LastError,
                 (SELECT COUNT(*) FROM dbo.DogfoodEffects) AS EffectCount,
-                (SELECT TOP (1) ConsumerName FROM dbo.DogfoodEffects ORDER BY Id) AS ConsumerName
+                (SELECT TOP (1) ConsumerName FROM dbo.DogfoodEffects ORDER BY Id) AS ConsumerName,
+                (SELECT TOP (1) ObservedValue FROM dbo.DogfoodEffects ORDER BY Id) AS ObservedValue
             FROM dbo.TinyOutbox AS o
             ORDER BY o.CreatedAtUtc;
             """;
@@ -117,7 +120,8 @@ internal static class IdentityProducer
             reader.GetInt32(2),
             reader.IsDBNull(3) ? null : reader.GetString(3),
             reader.GetInt32(4),
-            reader.IsDBNull(5) ? null : reader.GetString(5));
+            reader.IsDBNull(5) ? null : reader.GetString(5),
+            reader.IsDBNull(6) ? null : reader.GetString(6));
     }
 
     private static ServiceProvider CreateServices(DogfoodSettings settings)

@@ -15,3 +15,10 @@ namespace TinyEvents.Dogfood.Identity.Moved
 {
     public sealed record MovedEvent(string ScenarioId);
 }
+
+namespace TinyEvents.Dogfood.Identity.Additive
+{
+    public sealed record AdditiveEvent(
+        string ScenarioId,
+        string? OptionalNote = null);
+}

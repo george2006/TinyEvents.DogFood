@@ -38,6 +38,7 @@ Evidence: `artifacts/identity/<run-id>/`
 | `TE-C03` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C03` | Compilation is rejected with the expected `TEV002` diagnostic for a closed generic event. The runner treats this expected rejection as success. |
 | `TE-C04` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C04` | A namespace rename processes an in-flight message through an explicit previous name. |
 | `TE-C05` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C05` | Moving a contract between assemblies preserves processing when its full type name remains unchanged. |
+| `TE-C06` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C06` | A V1 payload is consumed by the V2 contract, records one durable effect, and observes its absent optional member as `not-provided`. |
 
 See [Identity dogfood](../identity/README.md) for the identity contract and current characterization.
 

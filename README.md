@@ -22,7 +22,7 @@ The current laboratory demonstrates:
 
 | Area | Implemented contracts | SQL Server | PostgreSQL | Explore |
 | --- | --- | :---: | :---: | --- |
-| Identity and compatibility | `TE-C01`–`TE-C05` | ✅ | — | [Identity evidence](identity/README.md) |
+| Identity and compatibility | `TE-C01`–`TE-C06` | ✅ | — | [Identity evidence](identity/README.md) |
 | Transactional publishing | `TE-T01`–`TE-T05` | ✅ | ✅ | [Transaction commands](docs/scenario-catalog.md#transactional-publishing) |
 | Workers, claims, and retries | `TE-W01`–`TE-W13` | ✅ | `TE-W01` | [Worker commands](docs/scenario-catalog.md#workers-claims-retries-and-shutdown) |
 | Database failure and recovery | `TE-D01`–`TE-D06` | ✅ | ✅ | [Recovery commands](docs/scenario-catalog.md#database-failure-and-recovery) |

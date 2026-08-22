@@ -31,6 +31,7 @@ internal static class DogfoodDatabase
                 Id BIGINT IDENTITY(1, 1) NOT NULL PRIMARY KEY,
                 ScenarioId NVARCHAR(32) NOT NULL,
                 ConsumerName NVARCHAR(256) NOT NULL,
+                ObservedValue NVARCHAR(256) NULL,
                 RecordedAtUtc DATETIMEOFFSET NOT NULL
             );
             """;
