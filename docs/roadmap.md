@@ -85,6 +85,7 @@ The beta is ready only when:
 The following ideas remain documented but are not required for V1:
 
 - a durable worker registry, heartbeat, or lease-fencing token;
+- automatic renewal or progressive acquisition for batches whose cumulative processing time approaches `ClaimTimeout`;
 - batched completion updates without measured evidence that they are needed;
 - additional orchestration abstractions that do not close an observable scenario.
 

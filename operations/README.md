@@ -121,6 +121,8 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 
 `TE-W07` proves the V1 no-heartbeat boundary. When consumer duration exceeds `ClaimTimeout`, another worker may reclaim and complete the message while the first invocation is still running. The original worker later records a duplicate effect, detects that it lost the completion lease, emits a structured warning, and remains alive.
 
+The same boundary applies to the cumulative duration of a claimed batch. Workers process claimed messages sequentially, so `ClaimTimeout` must cover the worst-case time needed to consume and complete the entire configured `BatchSize`, not only one handler invocation. A 10,000-row storage-preparation run with four workers, `BatchSize = 50`, and the deliberately short five-second dogfood lease completed every message but recorded 45 duplicate effects after later rows in some batches expired. V1 keeps the explicit at-least-once contract: operators can increase `ClaimTimeout` or reduce `BatchSize`; heartbeat renewal and progressive claims remain post-V1 work.
+
 `TE-W08` uses normal host cancellation rather than terminating the process. Idle shutdown exits with code zero and changes no durable state. Cancellation during consumer execution also exits with code zero, leaves the claimed message recoverable without incrementing its failure count, and allows another worker to complete it once the lease expires.
 
 `TE-W09` fails the first consumer invocation deliberately, stops all workers during the durable retry delay, and starts a replacement before eligibility. SQL time proves the replacement does not invoke the consumer early and completes the second invocation after `NextAttemptAtUtc` with one final effect and no duplicate.
