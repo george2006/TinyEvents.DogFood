@@ -46,6 +46,30 @@ switch (args[0].ToLowerInvariant())
 
         return 0;
 
+    case "publish-with-content":
+        if (args.Length != 4 ||
+            !int.TryParse(args[2], out var contentCount) ||
+            contentCount <= 0 ||
+            !int.TryParse(args[3], out var contentCharacterCount) ||
+            contentCharacterCount < 0)
+        {
+            Console.Error.WriteLine(
+                "Expected publish-with-content <scenario> <positive-count> <non-negative-content-character-count>.");
+            return 1;
+        }
+
+        using (var host = DogfoodHost.Build(settings, "content-publisher"))
+        using (var scope = host.Services.CreateScope())
+        {
+            var publisher = scope.ServiceProvider.GetRequiredService<DogfoodPublisher>();
+            await publisher.PublishWithContentAsync(
+                args[1],
+                contentCount,
+                contentCharacterCount);
+        }
+
+        return 0;
+
     case "publish-with-timing":
         return await RunPublisherWithTimingAsync(args, settings);
 

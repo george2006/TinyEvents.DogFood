@@ -12,6 +12,33 @@ internal sealed class DogfoodPublisher(
         int count,
         CancellationToken cancellationToken = default)
     {
+        await PublishAsync(
+            scenarioId,
+            count,
+            content: string.Empty,
+            cancellationToken);
+    }
+
+    public async ValueTask PublishWithContentAsync(
+        string scenarioId,
+        int count,
+        int contentCharacterCount,
+        CancellationToken cancellationToken = default)
+    {
+        var content = new string('x', contentCharacterCount);
+        await PublishAsync(
+            scenarioId,
+            count,
+            content,
+            cancellationToken);
+    }
+
+    private async ValueTask PublishAsync(
+        string scenarioId,
+        int count,
+        string content,
+        CancellationToken cancellationToken)
+    {
         for (var index = 0; index < count; index++)
         {
             var operationId = Guid.NewGuid();
@@ -24,7 +51,7 @@ internal sealed class DogfoodPublisher(
             });
 
             await publisher.PublishAsync(
-                new OperationalEvent(operationId, scenarioId),
+                new OperationalEvent(operationId, scenarioId, content),
                 cancellationToken);
         }
 
