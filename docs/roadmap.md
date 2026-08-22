@@ -30,6 +30,9 @@ This phase is complete when a real application can upgrade without losing suppor
 - [x] `TE-L03` — Sustain successful, transient, permanent, and slow processing together while proving unrelated progress, exact retries, terminal outcomes, and bounded connection usage.
 - [x] `TE-L04` — Recover a controlled live backlog to no more than one second of incoming traffic while publishing continues, measuring recovery time and worker participation with identical durable assertions for SQL Server and PostgreSQL.
 - [ ] `TE-L05` — Measure bytes per pending, processing, processed, and failed row with representative payloads.
+  - [x] `TE-L05-A` — Measure empty, 1 KB, and 16 KB pending payload curves from isolated empty-database baselines against SQL Server and PostgreSQL.
+  - [ ] `TE-L05-B` — Measure processing, processed, and failed states through real worker behavior.
+  - [ ] `TE-L05-C` — Measure claim and completion behavior as retained terminal history grows.
 - [ ] `TE-L06` — Define processed and failed retention, cleanup batch size, and a documented storage budget from `TE-L05` evidence.
 - [ ] `TE-L07` — Run a soak test with repeated worker and database disruption.
 

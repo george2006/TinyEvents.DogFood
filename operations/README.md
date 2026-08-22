@@ -65,6 +65,13 @@ Recover a live backlog without stopping the publisher:
 .\operations\Run-BacklogRecoveryLoad.ps1 -StorageProvider PostgreSql
 ```
 
+Measure the completed pending-payload portion of the in-progress `TE-L05` storage contract:
+
+```powershell
+.\operations\Run-StorageMeasurements.ps1
+.\operations\Run-StorageMeasurements.ps1 -StorageProvider PostgreSql
+```
+
 Run one independently named scenario either through the suite selector or its own file:
 
 ```powershell

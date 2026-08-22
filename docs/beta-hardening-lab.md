@@ -277,6 +277,8 @@ Publish while workers are stopped, build a controlled backlog, start workers, an
 
 Measure claim and completion behavior with growing processed history. The initial checkpoints are 10,000, 100,000, and 1,000,000 rows, adjusted only when measured cost justifies it.
 
+**TE-L05-A executable:** `.\operations\Run-StorageMeasurements.ps1` measures isolated 10,000-row pending populations with empty, 1 KB, and 16 KB deterministic, compression-resistant ASCII content. Every variant subtracts its own freshly migrated empty-table baseline and reports payload, table, index, and total allocated bytes per row. SQL Server measured approximately 750 B, 4.28 KB, and 34.36 KB per row. PostgreSQL measured approximately 332 B, 1.47 KB, and 17.52 KB. These are local physical-storage observations, not retention defaults. Processing, processed, failed, and historical-performance evidence remain open.
+
 #### TE-L06 - Storage budget and retention decision
 
 Measure bytes per pending, processing, processed, and failed row for representative payloads. Use the evidence to define processed-message retention, failed-message retention, cleanup batch size, and a safe storage budget. Do not build cleanup before this decision.
