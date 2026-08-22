@@ -403,7 +403,7 @@ static async Task<int> RunWorkerWithFailuresAsync(
     string[] arguments,
     DogfoodSettings settings)
 {
-    var hasExpectedArgumentCount = arguments.Length == 4;
+    var hasExpectedArgumentCount = arguments.Length is 4 or 5;
     var hasWorkerId =
         arguments.Length >= 2 &&
         !string.IsNullOrWhiteSpace(arguments[1]);
@@ -412,17 +412,24 @@ static async Task<int> RunWorkerWithFailuresAsync(
         !string.IsNullOrWhiteSpace(arguments[2]);
     var rejectedAttemptCount = 0;
     var hasRejectedAttemptCount =
-        arguments.Length == 4 &&
+        arguments.Length >= 4 &&
         int.TryParse(arguments[3], out rejectedAttemptCount) &&
         rejectedAttemptCount > 0;
+    var batchSize = 50;
+    var hasBatchSize =
+        arguments.Length == 4 ||
+        (arguments.Length == 5 &&
+         int.TryParse(arguments[4], out batchSize) &&
+         batchSize > 0);
 
     if (!hasExpectedArgumentCount ||
         !hasWorkerId ||
         !hasTargetScenarioId ||
-        !hasRejectedAttemptCount)
+        !hasRejectedAttemptCount ||
+        !hasBatchSize)
     {
         Console.Error.WriteLine(
-            "Expected worker-with-failures <worker-id> <target-scenario-id> <positive-rejected-attempt-count>.");
+            "Expected worker-with-failures <worker-id> <target-scenario-id> <positive-rejected-attempt-count> [positive-batch-size].");
         return 1;
     }
 
@@ -432,7 +439,8 @@ static async Task<int> RunWorkerWithFailuresAsync(
         settings,
         arguments[1],
         ConsumerExecutionTiming.None,
-        failureRules);
+        failureRules,
+        batchSize);
     await host.RunAsync();
     return 0;
 }

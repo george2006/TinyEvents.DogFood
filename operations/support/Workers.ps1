@@ -31,7 +31,8 @@ function Start-FailingWorker {
         [string]$WorkerId,
         [string]$TargetScenarioId,
         [int]$RejectedAttemptCount,
-        [string]$ArtifactDirectory
+        [string]$ArtifactDirectory,
+        [int]$BatchSize = 50
     )
 
     $standardOutput = Join-Path $ArtifactDirectory "$WorkerId.stdout.log"
@@ -44,7 +45,8 @@ function Start-FailingWorker {
             "worker-with-failures",
             $WorkerId,
             $TargetScenarioId,
-            [string]$RejectedAttemptCount) `
+            [string]$RejectedAttemptCount,
+            [string]$BatchSize) `
         -RedirectStandardOutput $standardOutput `
         -RedirectStandardError $standardError `
         -WindowStyle Hidden `
