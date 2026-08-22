@@ -44,6 +44,13 @@ Run sustained publishing independently from workers:
 .\operations\Run-PublishingLoad.ps1 -StorageProvider PostgreSql
 ```
 
+Run worker scaling against a prebuilt backlog:
+
+```powershell
+.\operations\Run-WorkerDrainLoad.ps1
+.\operations\Run-WorkerDrainLoad.ps1 -StorageProvider PostgreSql
+```
+
 Run one independently named scenario either through the suite selector or its own file:
 
 ```powershell
@@ -79,6 +86,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-D05` | Mixed success, transient, permanent, and slow work reaches exact terminal outcomes across a database restart. |
 | `TE-D06` | Two workers recover after their bounded connection pools are exhausted while concurrent publishers build a backlog. |
 | `TE-L01` | Workers remain stopped while 200, 400, and 800 real publishing requests per second record committed throughput, latency, errors, and exact durable outbox growth. |
+| `TE-L02` | Publishers remain stopped while 1, 2, 4, and 8 workers drain identical 10,000-message backlogs and record throughput, speedup, efficiency, participation, and exact durable outcomes. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
 
@@ -116,7 +124,9 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 
 `TE-L01` runs unchanged against SQL Server and PostgreSQL. Every publishing request receives its own dependency-injection scope and database commit while no worker is running. Each rate starts from an empty database, records latency only for committed requests, and compares the command result with durable business and outbox row counts. Reaching 95% of a requested rate is reported separately from behavioral acceptance so machine capacity is not mistaken for a TinyEvents guarantee.
 
-The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, and `TE-L01` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, and isolated publishing load are proven without provider-specific scenario copies.
+`TE-L02` runs unchanged against SQL Server and PostgreSQL. Every worker-count variant starts from a separately created backlog while no publisher is active. Drain timing includes worker-process startup and at most one 100-millisecond observation interval. Throughput and scaling efficiency remain machine-local evidence; acceptance requires every worker to participate and every message to complete with one durable effect, no failed attempt, and no duplicate.
+
+The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, and `TE-L01` through `TE-L02` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, and prebuilt-backlog drain are proven without provider-specific scenario copies.
 
 Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
 

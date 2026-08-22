@@ -108,16 +108,18 @@ Evidence: `artifacts/database/<run-id>/<scenario-id>/`
 
 Provider: **SQL Server and PostgreSQL**
 
-Evidence: `artifacts/load/<run-id>/TE-L01/`
+Evidence: `artifacts/load/<run-id>/<scenario-id>/`
 
 | ID | Run | Expected evidence |
 | --- | --- | --- |
 | `TE-L01` | `.\operations\Run-PublishingLoad.ps1` | With workers stopped, 200, 400, and 800 requested commits per second each produce the exact expected number of business and pending outbox rows. The result retains committed throughput, target achievement, request errors, and committed-request p50/p95/p99 latency independently for every rate. |
+| `TE-L02` | `.\operations\Run-WorkerDrainLoad.ps1` | With publishers stopped, 1, 2, 4, and 8 worker processes drain independent 10,000-message backlogs. Every worker participates, all rows reach `Processed`, every message has one effect, and the result retains throughput, speedup, and scaling efficiency. |
 
 Run the same curve against PostgreSQL with:
 
 ```powershell
 .\operations\Run-PublishingLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-WorkerDrainLoad.ps1 -StorageProvider PostgreSql
 ```
 
 `TargetWasSustained` means the observed committed rate reached at least 95% of the requested rate. It is recorded evidence, not an acceptance gate or a product throughput guarantee. `AcceptancePassed` instead requires every request to commit and every durable count to match exactly.
@@ -154,6 +156,8 @@ The following commands reproduce all currently implemented evidence. Run Postgre
 .\operations\Run-DatabaseRecovery.ps1 -StorageProvider PostgreSql
 .\operations\Run-PublishingLoad.ps1
 .\operations\Run-PublishingLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-WorkerDrainLoad.ps1
+.\operations\Run-WorkerDrainLoad.ps1 -StorageProvider PostgreSql
 .\deployment\Run-SchemaScenarios.ps1
 .\deployment\Run-SchemaScenarios.ps1 -StorageProvider PostgreSql
 .\deployment\Run-PublishedAlphaUpgrade.ps1

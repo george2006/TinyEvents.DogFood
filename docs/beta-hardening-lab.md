@@ -475,6 +475,10 @@ Execute TE-L01 through TE-L07. Make the retention decision from measured storage
 
 TE-L01 issues one real application scope and database commit per request while workers remain stopped. On 2026-08-22, both providers committed all 14,000 attempted requests across independent 200, 400, and 800 requests-per-second runs, with exact business and pending-outbox counts and no failed commit. SQL Server sustained 200.02, 399.49, and 576.04 committed requests per second; PostgreSQL sustained 199.85, 399.81, and 799.59. These are local capacity observations, not product guarantees. The repeatable result retains target achievement and committed-request p50, p95, and p99 latency so later runs can be compared without mixing publisher and worker throughput.
 
+TE-L02 builds a fresh 10,000-message backlog before every worker-count variant, then measures drain with publishers stopped. On 2026-08-22, SQL Server processed 120.39, 246.15, 481.51, and 553.74 messages per second with 1, 2, 4, and 8 workers. PostgreSQL processed 235.04, 457.66, 716.49, and 1,121.03. All 80,000 messages across both providers reached `Processed`, every worker participated, and no failed attempt, lost effect, or duplicate effect was observed. SQL Server scaled almost linearly through four workers and then gained 15% at eight; PostgreSQL still gained 56% from four to eight. This provider contrast prevents the SQL Server knee from being misclassified as a universal TinyEvents coordination limit.
+
+The first canonical SQL Server run also exposed the dogfood observation query as a deadlock victim while it scanned the active outbox. The worker remained correct and all unfinished rows stayed recoverable. The laboratory now retries only SQL Server error 1205 for this read-only exact observation; it does not use dirty reads or change TinyEvents production behavior. The unchanged canonical scenario then passed.
+
 ### BETA-8 - Package and release gates
 
 Add clean package-consumer smoke, published-alpha upgrade, public API compatibility, package metadata, symbols, Source Link, documentation, and the complete dogfood acceptance command to release automation.
