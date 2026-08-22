@@ -1,27 +1,3 @@
-function Get-TEL05StorageObservation {
-    param([string]$Assembly)
-
-    $json = & dotnet $Assembly inspect-storage
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Storage observation command failed."
-    }
-
-    return $json | ConvertFrom-Json
-}
-
-function Save-TEL05StorageObservation {
-    param(
-        [pscustomobject]$Observation,
-        [string]$ArtifactDirectory,
-        [string]$Name
-    )
-
-    $Observation |
-        ConvertTo-Json -Depth 4 |
-        Set-Content (Join-Path $ArtifactDirectory "$Name.json")
-}
-
 function Invoke-TEL05PendingVariant {
     param(
         [string]$Assembly,
@@ -36,8 +12,8 @@ function Invoke-TEL05PendingVariant {
     New-Item -ItemType Directory -Force -Path $variantDirectory | Out-Null
 
     Invoke-LoggedProcess $Assembly @("reset") $variantDirectory "reset"
-    $empty = Get-TEL05StorageObservation $Assembly
-    Save-TEL05StorageObservation $empty $variantDirectory "empty"
+    $empty = Get-StorageObservation $Assembly
+    Save-StorageObservation $empty $variantDirectory "empty"
 
     Invoke-LoggedProcess `
         $Assembly `
@@ -48,8 +24,8 @@ function Invoke-TEL05PendingVariant {
             [string]$ContentCharacterCount) `
         $variantDirectory `
         "publish"
-    $populated = Get-TEL05StorageObservation $Assembly
-    Save-TEL05StorageObservation $populated $variantDirectory "populated"
+    $populated = Get-StorageObservation $Assembly
+    Save-StorageObservation $populated $variantDirectory "populated"
 
     $tableAllocatedBytes =
         $populated.TableAllocatedBytes -

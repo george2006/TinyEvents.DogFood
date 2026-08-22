@@ -14,6 +14,7 @@ Set-StrictMode -Version Latest
 
 . (Join-Path $PSScriptRoot "support\Process.ps1")
 . (Join-Path $PSScriptRoot "support\Database.ps1")
+. (Join-Path $PSScriptRoot "support\Observations.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-L05-storage-measurements.ps1")
 
 function Get-GitCommit {

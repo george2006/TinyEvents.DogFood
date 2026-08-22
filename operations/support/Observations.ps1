@@ -10,6 +10,18 @@ function Get-Observation {
     return $json | ConvertFrom-Json
 }
 
+function Get-StorageObservation {
+    param([string]$Assembly)
+
+    $json = & dotnet $Assembly inspect-storage
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Storage observation command failed."
+    }
+
+    return $json | ConvertFrom-Json
+}
+
 function Get-PublishingLoadResult {
     param([string]$OutputPath)
 
@@ -47,6 +59,18 @@ function Save-Observation {
     )
 
     $Observation | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $ArtifactDirectory "$Name.json")
+}
+
+function Save-StorageObservation {
+    param(
+        [pscustomobject]$Observation,
+        [string]$ArtifactDirectory,
+        [string]$Name
+    )
+
+    $Observation |
+        ConvertTo-Json -Depth 4 |
+        Set-Content (Join-Path $ArtifactDirectory "$Name.json")
 }
 
 function Wait-ForClaim {
