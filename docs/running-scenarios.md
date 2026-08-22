@@ -105,7 +105,8 @@ Direct scenario files use their runner's default provider. Use the owning runner
 | Prebuilt backlog drain | `operations/Run-WorkerDrainLoad.ps1` | SQL Server, PostgreSQL |
 | Sustained mixed load | `operations/Run-MixedLoad.ps1` | SQL Server, PostgreSQL |
 | Live backlog recovery | `operations/Run-BacklogRecoveryLoad.ps1` | SQL Server, PostgreSQL |
-| Storage measurement (`TE-L05` in progress) | `operations/Run-StorageMeasurements.ps1` | SQL Server, PostgreSQL |
+| Pending payload storage (`TE-L05-A`) | `operations/Run-StorageMeasurements.ps1` | SQL Server, PostgreSQL |
+| Outbox state storage (`TE-L05-B`) | `operations/Run-StorageStateMeasurements.ps1` | SQL Server, PostgreSQL |
 | Schema and deployment | `deployment/Run-SchemaScenarios.ps1` | SQL Server, PostgreSQL |
 | Published-alpha and rolling upgrades | `deployment/Run-RollingUpgrade.ps1` | SQL Server, PostgreSQL |
 

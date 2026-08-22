@@ -72,6 +72,15 @@ Measure the completed pending-payload portion of the in-progress `TE-L05` storag
 .\operations\Run-StorageMeasurements.ps1 -StorageProvider PostgreSql
 ```
 
+Measure pending, processing, processed, and failed outbox states created through real worker behavior:
+
+```powershell
+.\operations\Run-StorageStateMeasurements.ps1
+.\operations\Run-StorageStateMeasurements.ps1 -StorageProvider PostgreSql
+```
+
+The state runner creates an isolated empty-database baseline for every state. Its default 5,000-row population uses 1 KB of deterministic, compression-resistant content, four worker processes, and a batch of 10. Acceptance requires the exact requested state and effect counts before physical table and index allocation is reported.
+
 Run one independently named scenario either through the suite selector or its own file:
 
 ```powershell

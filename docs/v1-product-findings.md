@@ -4,6 +4,8 @@ This document is the source for public product documentation about demonstrated 
 
 These findings are not hidden test failures. Each one has executable evidence, an explicit operator response, and a documented product decision.
 
+This file is also the publication queue for the TinyEvents product page. Every accepted V1 limitation recorded here must be represented in public documentation before the release gate closes; findings are not considered closed merely because the engine will not change.
+
 ## At-Least-Once Delivery After a Durable Effect
 
 **Observed behavior:** A worker can persist a consumer effect and lose the opportunity to mark its outbox message processed. Once the claim expires, redelivery invokes the consumer again.
