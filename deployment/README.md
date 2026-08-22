@@ -23,6 +23,7 @@ Run one independently addressable scenario with `-Scenario <scenario-id>`.
 | `TE-S01` | Eight application processes migrate one fresh SQL Server or PostgreSQL database concurrently and produce one exact committed history. |
 | `TE-S03` | A migration process dies while blocked inside database DDL, then a replacement safely resumes from the durable atomic boundary. |
 | `TE-S04` | Missing and incompatible schemas produce the documented recovery or actionable rejection behavior. |
+| `TE-S05` | Published alpha and clean-main application processes concurrently drain one shared backlog without loss or duplicate effects. |
 
 TE-S01 first recreates the dogfood database without the TinyEvents schema. Eight independently hosted migrators then start together. Every process must complete successfully, while the final database contains the outbox and exactly one `001_CreateTinyOutbox` history row with its durable checksum and application timestamp.
 
@@ -57,6 +58,20 @@ Run the schema-compatibility scenario against either provider:
 `TE-S04` starts from three independently prepared durable states. A completely missing TinyEvents schema must migrate successfully. A current migration-history row whose physical outbox table is missing must fail without claiming the schema is current. A history row with a conflicting checksum must also fail. Both incompatible states must identify the problem and relevant migration or table in stderr.
 
 The scenario passed unchanged against SQL Server and PostgreSQL on 2026-08-22 using TinyEvents `main` commit `4612c24`.
+
+## Rolling Application Upgrade
+
+Run both published-alpha and rolling-upgrade evidence with a clean TinyEvents `main` checkout:
+
+```powershell
+.\deployment\Run-RollingUpgrade.ps1 -CandidateRoot ..\TinyEvents
+```
+
+`TE-S05` first runs TE-S02 to create package-only assemblies for published `0.1.0-alpha.3` and the clean-main candidate. It then creates a separate 100-message alpha backlog for each provider and starts one alpha process and one candidate process concurrently against the same database.
+
+Acceptance is decided from durable state: all 100 messages must be processed, both worker identities must appear, every message must have one distinct operation effect, no message may remain pending or processing, no failure may exist, and migration history must contain one row. Process stdout identifies execution details but is not acceptance authority.
+
+The unchanged contract passed against SQL Server and PostgreSQL on 2026-08-22 using candidate commit `4612c24`.
 
 ## Published Alpha Upgrade
 

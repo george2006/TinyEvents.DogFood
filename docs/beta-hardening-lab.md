@@ -465,6 +465,8 @@ TE-S03 uses a temporary SQL Server DDL trigger or PostgreSQL event trigger to bl
 
 TE-S04 prepares three durable schema states through provider-specific external setup. A completely absent schema migrates to one exact current history row. Current history without its physical outbox is rejected as inconsistent and names the missing table. A checksum-conflicting history row is rejected with its migration version and checksum diagnostic. The initial run exposed that both providers silently accepted the missing outbox; TinyEvents fix `5396617` closed that hole. SQL Server and PostgreSQL then passed the unchanged scenario from merged `main` commit `4612c24` on 2026-08-22.
 
+TE-S05 builds package-only application assemblies against published `0.1.0-alpha.3` and clean `main`, creates a separate 100-message alpha backlog, and starts both versions concurrently against one database. Durable effects retain operation and worker identity so acceptance proves both versions participated and every message produced one distinct effect. SQL Server and PostgreSQL each completed with 100 processed messages, 100 distinct operation effects, two worker identities, no remaining or failed work, and one migration row on 2026-08-22 using candidate commit `4612c24`.
+
 ### BETA-7 - Capacity, backlog, and retention
 
 Execute TE-L01 through TE-L07. Make the retention decision from measured storage and claim behavior.

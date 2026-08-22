@@ -26,7 +26,7 @@ The current laboratory demonstrates:
 | Transactional publishing | `TE-T01`–`TE-T05` | ✅ | ✅ | [Transaction commands](docs/scenario-catalog.md#transactional-publishing) |
 | Workers, claims, and retries | `TE-W01`–`TE-W13` | ✅ | `TE-W01` | [Worker commands](docs/scenario-catalog.md#workers-claims-retries-and-shutdown) |
 | Database failure and recovery | `TE-D01`–`TE-D06` | ✅ | ✅ | [Recovery commands](docs/scenario-catalog.md#database-failure-and-recovery) |
-| Schema and deployment | `TE-S01`–`TE-S04` | ✅ | ✅ | [Schema commands](docs/scenario-catalog.md#schema-and-deployment) |
+| Schema and deployment | `TE-S01`–`TE-S05` | ✅ | ✅ | [Schema commands](docs/scenario-catalog.md#schema-and-deployment) |
 
 Some contract IDs intentionally share stronger executable evidence instead of duplicating a scenario. The [scenario catalog](docs/scenario-catalog.md) identifies every shared proof explicitly.
 
