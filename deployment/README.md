@@ -27,3 +27,21 @@ TE-S01 first recreates the dogfood database without the TinyEvents schema. Eight
 The unchanged scenario passed against SQL Server and PostgreSQL on 2026-08-21.
 
 Evidence is retained under `artifacts/schema/<run-id>/`.
+
+## Published Alpha Upgrade — Work in Progress
+
+TE-S02 is intentionally split into reviewable checkpoints. Run its completed alpha-state checkpoint with:
+
+```powershell
+.\deployment\Run-PublishedAlphaUpgrade.ps1
+```
+
+`TE-S02-A` restores the package-consuming host from nuget.org with an isolated package cache, compiles it against published `0.1.0-alpha.3`, and uses the package's public publisher, store, and migration APIs to create:
+
+- one pending message;
+- one processing message whose lease is reclaimable;
+- one terminally failed message with one recorded attempt;
+- one exact durable event type and migration history row;
+- no consumer effects before the candidate starts.
+
+The runner stores `result.json` and `manifest.json` under `artifacts/deployment/<run-id>/TE-S02/`. The result deliberately reports `TeS02Complete = false`. TE-S02 remains pending until a locally packed candidate from clean `main` migrates and drains the supported alpha state, and the same contract passes against PostgreSQL.

@@ -455,6 +455,8 @@ TE-C07 publishes one producer-only event followed by one registered event throug
 
 TE-C08 publishes a registered event through the normal API, replaces only its durable payload with malformed JSON through an external dogfood fault, and then publishes another valid event. The SQL Server acceptance run on 2026-08-22 left the malformed event in `Failed`, retained the JSON error, emitted `EventRetriesExhausted`, and processed the valid event later in the same batch with exactly one durable effect. TinyEvents production code contains no malformed-message test hook.
 
+TE-S02-A restores the package-consuming upgrade host only from nuget.org and runs it against published `0.1.0-alpha.3`. The SQL Server acceptance run on 2026-08-22 created one pending message, one processing message with an expired lease, and one terminally failed message with one attempt. All three rows retained one exact event type, the schema contained one migration history row, and no candidate consumer effect existed. This proves only the alpha-side precondition; TE-S02 remains incomplete until the candidate migration and drain pass, followed by PostgreSQL parity.
+
 ### BETA-7 - Capacity, backlog, and retention
 
 Execute TE-L01 through TE-L07. Make the retention decision from measured storage and claim behavior.
