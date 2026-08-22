@@ -11,4 +11,5 @@ internal sealed record PublishingLoadResult(
     double CommittedP50LatencyMilliseconds,
     double CommittedP95LatencyMilliseconds,
     double CommittedP99LatencyMilliseconds,
-    IReadOnlyDictionary<string, int> ErrorTypes);
+    IReadOnlyDictionary<string, int> ErrorTypes,
+    IReadOnlyDictionary<string, string> RepresentativeErrors);

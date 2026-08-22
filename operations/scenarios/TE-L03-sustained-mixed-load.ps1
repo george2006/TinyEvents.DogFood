@@ -271,11 +271,17 @@ function Invoke-TEL03SustainedMixedLoad {
                 Get-PublishingLoadResult $outputPath
         }
 
+        $committedProcessedCount =
+            $publisherResults[$success.Name].CommittedRequests +
+            $publisherResults[$transient.Name].CommittedRequests +
+            $publisherResults[$slow.Name].CommittedRequests
+        $committedFailedCount =
+            $publisherResults[$permanent.Name].CommittedRequests
         $completed = Wait-ForTEL03Completion `
             $Assembly `
             $workers `
-            $expectedProcessedCount `
-            $permanent.ExpectedCount
+            $committedProcessedCount `
+            $committedFailedCount
         $execution.Stop()
         Save-Observation $completed $scenarioDirectory "completed"
     }

@@ -55,9 +55,11 @@ internal sealed class PublishingLoadRunner(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            var rootCause = exception.GetBaseException();
             return PublishingRequestResult.Failed(
                 request.Elapsed,
-                exception.GetType().FullName ?? exception.GetType().Name);
+                rootCause.GetType().FullName ?? rootCause.GetType().Name,
+                rootCause.Message);
         }
     }
 
@@ -78,6 +80,12 @@ internal sealed class PublishingLoadRunner(
             .Where(result => result.ErrorType is not null)
             .GroupBy(result => result.ErrorType!)
             .ToDictionary(group => group.Key, group => group.Count());
+        var representativeErrors = requestResults
+            .Where(result => result.ErrorType is not null)
+            .GroupBy(result => result.ErrorType!)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First().ErrorMessage!);
         var completionSeconds = Math.Max(completionDuration.TotalSeconds, 0.001);
 
         return new PublishingLoadResult(
@@ -91,7 +99,8 @@ internal sealed class PublishingLoadRunner(
             Percentile(committedLatencyMilliseconds, 0.50),
             Percentile(committedLatencyMilliseconds, 0.95),
             Percentile(committedLatencyMilliseconds, 0.99),
-            errorTypes);
+            errorTypes,
+            representativeErrors);
     }
 
     private static double Percentile(
@@ -111,18 +120,28 @@ internal sealed class PublishingLoadRunner(
     private sealed record PublishingRequestResult(
         bool WasCommitted,
         TimeSpan Duration,
-        string? ErrorType)
+        string? ErrorType,
+        string? ErrorMessage)
     {
         public static PublishingRequestResult Committed(TimeSpan duration)
         {
-            return new PublishingRequestResult(true, duration, ErrorType: null);
+            return new PublishingRequestResult(
+                true,
+                duration,
+                ErrorType: null,
+                ErrorMessage: null);
         }
 
         public static PublishingRequestResult Failed(
             TimeSpan duration,
-            string errorType)
+            string errorType,
+            string errorMessage)
         {
-            return new PublishingRequestResult(false, duration, errorType);
+            return new PublishingRequestResult(
+                false,
+                duration,
+                errorType,
+                errorMessage);
         }
     }
 }
