@@ -14,6 +14,7 @@ function Get-PublishingLoadResult {
     param([string]$OutputPath)
 
     $json = Get-Content -LiteralPath $OutputPath |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
         Select-Object -Last 1
 
     if ([string]::IsNullOrWhiteSpace($json)) {
