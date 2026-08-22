@@ -40,7 +40,7 @@ function Get-TEL03Mix {
         })
 }
 
-function Start-TEL03Publishers {
+function Start-TEL03Publisher {
     param(
         [string]$Assembly,
         [pscustomobject[]]$Mix,
@@ -48,25 +48,26 @@ function Start-TEL03Publishers {
         [string]$ArtifactDirectory
     )
 
-    return @(
-        foreach ($definition in $Mix) {
-            Start-LoggedDotNetProcess `
-                $Assembly `
-                @(
-                    "publish-load",
-                    $definition.ScenarioId,
-                    [string]$definition.RequestsPerSecond,
-                    [string]$DurationSeconds) `
-                $ArtifactDirectory `
-                "publisher-$($definition.Name)"
-        })
+    $arguments = @("publish-mixed-load", [string]$DurationSeconds)
+
+    foreach ($definition in $Mix) {
+        $arguments += @(
+            $definition.ScenarioId,
+            [string]$definition.RequestsPerSecond)
+    }
+
+    return Start-LoggedDotNetProcess `
+        $Assembly `
+        $arguments `
+        $ArtifactDirectory `
+        "publisher"
 }
 
 function Wait-ForTEL03MixedProgress {
     param(
         [string]$Assembly,
         [System.Diagnostics.Process[]]$Workers,
-        [pscustomobject[]]$Publishers,
+        [pscustomobject]$Publisher,
         [string]$SuccessScenarioId
     )
 
@@ -81,12 +82,9 @@ function Wait-ForTEL03MixedProgress {
             throw "Mixed-load worker $($exitedWorker.Id) exited before progress was observed."
         }
 
-        $failedPublisher = $Publishers |
-            Where-Object { $_.Process.HasExited -and $_.Process.ExitCode -ne 0 } |
-            Select-Object -First 1
-
-        if ($null -ne $failedPublisher) {
-            throw "Mixed-load publisher '$($failedPublisher.Name)' exited with code $($failedPublisher.Process.ExitCode)."
+        if ($Publisher.Process.HasExited -and
+            $Publisher.Process.ExitCode -ne 0) {
+            throw "Mixed-load publisher exited with code $($Publisher.Process.ExitCode)."
         }
 
         $observation = Get-Observation $Assembly
@@ -229,7 +227,7 @@ function Invoke-TEL03SustainedMixedLoad {
         $permanent.ScenarioId,
         "3")
     $workers = @()
-    $publishers = @()
+    $publisher = $null
     $execution = [System.Diagnostics.Stopwatch]::StartNew()
 
     try {
@@ -243,7 +241,7 @@ function Invoke-TEL03SustainedMixedLoad {
                     $failureRules `
                     $scenarioDirectory
             })
-        $publishers = Start-TEL03Publishers `
+        $publisher = Start-TEL03Publisher `
             $Assembly `
             $mix `
             $DurationSeconds `
@@ -252,23 +250,21 @@ function Invoke-TEL03SustainedMixedLoad {
         $progress = Wait-ForTEL03MixedProgress `
             $Assembly `
             $workers `
-            $publishers `
+            $publisher `
             $success.ScenarioId
         Save-Observation $progress $scenarioDirectory "mixed-progress"
 
-        foreach ($publisher in $publishers) {
-            Complete-LoggedProcess $publisher 120000
-        }
+        Complete-LoggedProcess $publisher 120000
 
         $publishingCompletedAt = $execution.Elapsed
         $publisherResults = [ordered]@{}
+        $publishingResults = Get-PublishingLoadResult `
+            (Join-Path $scenarioDirectory "publisher.stdout.log")
 
         foreach ($definition in $mix) {
-            $outputPath = Join-Path `
-                $scenarioDirectory `
-                "publisher-$($definition.Name).stdout.log"
-            $publisherResults[$definition.Name] =
-                Get-PublishingLoadResult $outputPath
+            $scenarioResult = $publishingResults |
+                Where-Object { $_.ScenarioId -eq $definition.ScenarioId }
+            $publisherResults[$definition.Name] = $scenarioResult.Load
         }
 
         $committedProcessedCount =
@@ -288,10 +284,9 @@ function Invoke-TEL03SustainedMixedLoad {
     finally {
         $execution.Stop()
 
-        foreach ($publisher in $publishers) {
-            if (-not $publisher.Process.HasExited) {
-                Stop-LoggedProcess $publisher | Out-Null
-            }
+        if ($null -ne $publisher -and
+            -not $publisher.Process.HasExited) {
+            Stop-LoggedProcess $publisher | Out-Null
         }
 
         foreach ($worker in $workers) {

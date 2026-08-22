@@ -12,7 +12,10 @@ param(
     [int]$WorkerCount = 4,
 
     [ValidateRange(1, 5000)]
-    [int]$SlowDelayMilliseconds = 100
+    [int]$SlowDelayMilliseconds = 100,
+
+    [ValidateRange(1, 50)]
+    [int]$ConnectionPoolSize = 16
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,6 +46,14 @@ $runId = Get-Date -Format "yyyyMMdd-HHmmss"
 $startedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
 $artifactDirectory = Join-Path $dogfoodRoot "artifacts\load\$runId"
 $database = New-DogfoodDatabase $StorageProvider $composeFile
+$connectionStringVariable = $database.ConnectionStringVariable
+$connectionString =
+    [Environment]::GetEnvironmentVariable($connectionStringVariable)
+$boundedConnectionString =
+    "$connectionString;$($database.PoolSizeSetting)=$ConnectionPoolSize;"
+[Environment]::SetEnvironmentVariable(
+    $connectionStringVariable,
+    $boundedConnectionString)
 
 New-Item -ItemType Directory -Force -Path $artifactDirectory | Out-Null
 Start-DogfoodDatabase $database
@@ -66,6 +77,7 @@ $manifest = [ordered]@{
     TinyEventsGitCommit = Get-GitCommit $tinyEventsRoot
     DotNetSdk = (dotnet --version)
     DatabaseEngine = $database.Description
+    MaximumConnectionPoolSizePerProcess = $ConnectionPoolSize
     Result = $result
 }
 

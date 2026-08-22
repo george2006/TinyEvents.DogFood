@@ -52,6 +52,9 @@ switch (args[0].ToLowerInvariant())
     case "publish-load":
         return await RunPublishingLoadAsync(args, settings);
 
+    case "publish-mixed-load":
+        return await RunMixedPublishingLoadAsync(args, settings);
+
     case "publish-then-rollback":
         if (args.Length != 3 ||
             !int.TryParse(args[2], out var rollbackCount) ||
@@ -260,6 +263,83 @@ static async Task<int> RunPublishingLoadAsync(
         durationSeconds);
     Console.WriteLine(JsonSerializer.Serialize(result));
     return 0;
+}
+
+static async Task<int> RunMixedPublishingLoadAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var durationSeconds = 0;
+    var durationIsValid =
+        arguments.Length >= 4 &&
+        arguments.Length % 2 == 0 &&
+        int.TryParse(arguments[1], out durationSeconds) &&
+        durationSeconds is > 0 and <= 60;
+    var definitionsAreValid = TryParsePublishingLoadDefinitions(
+        arguments,
+        out var definitions);
+
+    if (!durationIsValid || !definitionsAreValid)
+    {
+        Console.Error.WriteLine(
+            "Expected publish-mixed-load <duration-seconds:1-60> <scenario> <target-requests-per-second:1-10000> [...].");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(settings, "mixed-load-publisher");
+    var loadRunner = host.Services.GetRequiredService<PublishingLoadRunner>();
+    var results = await loadRunner.ExecuteMixedAsync(
+        definitions,
+        durationSeconds);
+    Console.WriteLine(JsonSerializer.Serialize(results));
+    return 0;
+}
+
+static bool TryParsePublishingLoadDefinitions(
+    string[] arguments,
+    out IReadOnlyList<PublishingLoadDefinition> definitions)
+{
+    var hasCompleteDefinitionPairs =
+        arguments.Length >= 4 &&
+        arguments.Length % 2 == 0;
+
+    if (!hasCompleteDefinitionPairs)
+    {
+        definitions = [];
+        return false;
+    }
+
+    var parsedDefinitions = new List<PublishingLoadDefinition>();
+
+    for (var index = 2; index < arguments.Length; index += 2)
+    {
+        var scenarioId = arguments[index];
+        var requestsPerSecond = 0;
+        var definitionIsValid =
+            !string.IsNullOrWhiteSpace(scenarioId) &&
+            int.TryParse(arguments[index + 1], out requestsPerSecond) &&
+            requestsPerSecond is > 0 and <= 10000;
+
+        if (!definitionIsValid)
+        {
+            definitions = [];
+            return false;
+        }
+
+        parsedDefinitions.Add(new PublishingLoadDefinition(
+            scenarioId,
+            requestsPerSecond));
+    }
+
+    var scenarioIdsAreUnique =
+        parsedDefinitions
+            .Select(definition => definition.ScenarioId)
+            .Distinct(StringComparer.Ordinal)
+            .Count() == parsedDefinitions.Count;
+    var totalRequestsPerSecond =
+        parsedDefinitions.Sum(definition => definition.RequestsPerSecond);
+    definitions = parsedDefinitions;
+    return scenarioIdsAreUnique && totalRequestsPerSecond <= 10000;
 }
 
 static async Task<int> RunWorkerAsync(

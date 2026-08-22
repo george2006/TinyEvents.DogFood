@@ -6,6 +6,23 @@ namespace TinyEvents.Dogfood.Operations;
 internal sealed class PublishingLoadRunner(
     IServiceScopeFactory scopeFactory)
 {
+    public async Task<IReadOnlyList<ScenarioPublishingLoadResult>> ExecuteMixedAsync(
+        IReadOnlyList<PublishingLoadDefinition> definitions,
+        int durationSeconds,
+        CancellationToken cancellationToken = default)
+    {
+        var scenarioTasks = definitions
+            .Select(async definition => new ScenarioPublishingLoadResult(
+                definition.ScenarioId,
+                await ExecuteAsync(
+                    definition.ScenarioId,
+                    definition.RequestsPerSecond,
+                    durationSeconds,
+                    cancellationToken)))
+            .ToArray();
+        return await Task.WhenAll(scenarioTasks);
+    }
+
     public async Task<PublishingLoadResult> ExecuteAsync(
         string scenarioId,
         int targetRequestsPerSecond,
