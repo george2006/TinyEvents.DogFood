@@ -16,6 +16,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "support\Database.ps1")
 . (Join-Path $PSScriptRoot "support\Workers.ps1")
 . (Join-Path $PSScriptRoot "support\Observations.ps1")
+. (Join-Path $PSScriptRoot "support\Assertions.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-L02-prebuilt-backlog-drain.ps1")
 
 function Get-GitCommit {

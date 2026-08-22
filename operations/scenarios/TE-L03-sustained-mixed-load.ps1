@@ -143,29 +143,6 @@ function Wait-ForTEL03Completion {
     throw "Mixed load did not settle within two minutes."
 }
 
-function Test-TEL03WorkerParticipation {
-    param(
-        [pscustomobject]$Observation,
-        [string[]]$WorkerIds
-    )
-
-    foreach ($workerId in $WorkerIds) {
-        $claims = $Observation.WorkerClaims.PSObject.Properties[$workerId]
-        $effects = $Observation.WorkerEffects.PSObject.Properties[$workerId]
-
-        if ($null -eq $claims -or
-            $null -eq $effects -or
-            $claims.Value -le 0 -or
-            $effects.Value -le 0) {
-            return $false
-        }
-    }
-
-    return (
-        @($Observation.WorkerClaims.PSObject.Properties).Count -eq $WorkerIds.Count -and
-        @($Observation.WorkerEffects.PSObject.Properties).Count -eq $WorkerIds.Count)
-}
-
 function Test-TEL03PublisherResults {
     param(
         [pscustomobject[]]$Mix,
@@ -295,7 +272,7 @@ function Invoke-TEL03SustainedMixedLoad {
     }
 
     $allPublishersCommitted = Test-TEL03PublisherResults $mix $publisherResults
-    $allWorkersParticipated = Test-TEL03WorkerParticipation $completed $workerIds
+    $allWorkersParticipated = Test-AllWorkersParticipated $completed $workerIds
     $successEffects = Get-ScenarioCount $completed.ScenarioEffects $success.ScenarioId
     $transientEffects = Get-ScenarioCount $completed.ScenarioEffects $transient.ScenarioId
     $permanentEffects = Get-ScenarioCount $completed.ScenarioEffects $permanent.ScenarioId

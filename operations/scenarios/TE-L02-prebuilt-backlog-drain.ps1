@@ -36,21 +36,20 @@ function Test-TEL02WorkerParticipation {
         [string[]]$WorkerIds
     )
 
+    if (!(Test-AllWorkersParticipated $Observation $WorkerIds)) {
+        return $false
+    }
+
     foreach ($workerId in $WorkerIds) {
         $claims = $Observation.WorkerClaims.PSObject.Properties[$workerId]
         $effects = $Observation.WorkerEffects.PSObject.Properties[$workerId]
 
-        if ($null -eq $claims -or
-            $null -eq $effects -or
-            $claims.Value -le 0 -or
-            $claims.Value -ne $effects.Value) {
+        if ($claims.Value -ne $effects.Value) {
             return $false
         }
     }
 
-    return (
-        @($Observation.WorkerClaims.PSObject.Properties).Count -eq $WorkerIds.Count -and
-        @($Observation.WorkerEffects.PSObject.Properties).Count -eq $WorkerIds.Count)
+    return $true
 }
 
 function Invoke-TEL02WorkerCount {
