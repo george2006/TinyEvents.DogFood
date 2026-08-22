@@ -1,1 +1,3 @@
-public sealed record UpgradeWorkerIdentity(string WorkerId);
+public sealed record UpgradeWorkerIdentity(
+    string WorkerId,
+    TimeSpan EffectDelay);

@@ -1,39 +1,48 @@
 using Microsoft.Extensions.DependencyInjection;
 using TinyEvents;
 
-internal static class CandidateStateDrainer
+internal static class RollingStateProcessor
 {
-    private const string WorkerId = "upgrade-candidate";
-
     public static async Task ExecuteAsync(
         IUpgradeStorageProvider storage,
-        UpgradeSettings settings)
+        UpgradeSettings settings,
+        string workerId,
+        int iterationCount,
+        TimeSpan effectDelay)
     {
-        await using var services = CreateServices(storage, settings);
+        await using var services = CreateServices(
+            storage,
+            settings,
+            workerId,
+            effectDelay);
         await services.MigrateTinyEventsAsync();
 
         await using var scope = services.CreateAsyncScope();
         var processor = scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>();
-        await processor.ProcessPendingAsync();
+
+        for (var iteration = 0; iteration < iterationCount; iteration++)
+        {
+            await processor.ProcessPendingAsync();
+        }
     }
 
     private static ServiceProvider CreateServices(
         IUpgradeStorageProvider storage,
-        UpgradeSettings settings)
+        UpgradeSettings settings,
+        string workerId,
+        TimeSpan effectDelay)
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton(new UpgradeWorkerIdentity(
-            WorkerId,
-            TimeSpan.Zero));
+        services.AddSingleton(new UpgradeWorkerIdentity(workerId, effectDelay));
         storage.AddProcessorServices(services, settings);
         services.UseTinyEvents(options =>
         {
-            options.BatchSize = 10;
+            options.BatchSize = 1;
             options.MaxAttempts = 1;
             options.ClaimTimeout = TimeSpan.FromSeconds(10);
             options.RetryDelay = TimeSpan.Zero;
-            options.WorkerId = WorkerId;
+            options.WorkerId = workerId;
         });
 
         return services.BuildServiceProvider();

@@ -6,11 +6,12 @@ public sealed class UpgradeProbeEventConsumer(
     UpgradeWorkerIdentity workerIdentity)
     : IEventConsumer<UpgradeProbeEvent>
 {
-    public ValueTask ConsumeAsync(
+    public async ValueTask ConsumeAsync(
         UpgradeProbeEvent @event,
         CancellationToken cancellationToken)
     {
-        return effects.RecordAsync(
+        await Task.Delay(workerIdentity.EffectDelay, cancellationToken);
+        await effects.RecordAsync(
             @event.OperationId,
             @event.State,
             workerIdentity.WorkerId,

@@ -12,7 +12,7 @@ internal static class UpgradeStateObservationResultReader
             reader.GetInt32(4),
             reader.GetInt32(5),
             reader.GetInt32(6),
-            reader.GetString(7),
+            reader.IsDBNull(7) ? null : reader.GetString(7),
             reader.GetInt32(8),
             reader.GetString(9),
             reader.GetInt32(10),

@@ -6,7 +6,7 @@ internal sealed record UpgradeStateObservation(
     int ProcessedCount,
     int FailedCount,
     int FailedAttemptCount,
-    string FailedLastError,
+    string? FailedLastError,
     int DistinctEventTypeCount,
     string EventType,
     int MigrationCount,
