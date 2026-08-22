@@ -100,6 +100,12 @@ switch (args[0].ToLowerInvariant())
         Console.WriteLine(JsonSerializer.Serialize(observation));
         return 0;
 
+    case "inspect-storage":
+        var storageObservation =
+            await DogfoodStorageObservationReader.ReadAsync(settings);
+        Console.WriteLine(JsonSerializer.Serialize(storageObservation));
+        return 0;
+
     case "inspect-migrations":
         var migrationObservation =
             await DogfoodMigrationObservationReader.ReadAsync(settings);
