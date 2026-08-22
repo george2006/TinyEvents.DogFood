@@ -114,15 +114,17 @@ Evidence: `artifacts/load/<run-id>/<scenario-id>/`
 | --- | --- | --- |
 | `TE-L01` | `.\operations\Run-PublishingLoad.ps1` | With workers stopped, 200, 400, and 800 requested commits per second each produce the exact expected number of business and pending outbox rows. The result retains committed throughput, target achievement, request errors, and committed-request p50/p95/p99 latency independently for every rate. |
 | `TE-L02` | `.\operations\Run-WorkerDrainLoad.ps1` | With publishers stopped, 1, 2, 4, and 8 worker processes drain independent 10,000-message backlogs. Every worker participates, all rows reach `Processed`, every message has one effect, and the result retains throughput, speedup, and scaling efficiency. |
+| `TE-L03` | `.\operations\Run-MixedLoad.ps1` | One publisher sustains 200 requests per second across successful, transient, permanent, and slow work while four worker processes share a bounded connection budget. Unrelated success progresses during retry pressure and every committed message reaches its exact terminal outcome. |
 
-Run the same curve against PostgreSQL with:
+Run the same scenarios against PostgreSQL with:
 
 ```powershell
 .\operations\Run-PublishingLoad.ps1 -StorageProvider PostgreSql
 .\operations\Run-WorkerDrainLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-MixedLoad.ps1 -StorageProvider PostgreSql
 ```
 
-`TargetWasSustained` means the observed committed rate reached at least 95% of the requested rate. It is recorded evidence, not an acceptance gate or a product throughput guarantee. `AcceptancePassed` instead requires every request to commit and every durable count to match exactly.
+For `TE-L01`, `TargetWasSustained` means the observed committed rate reached at least 95% of the requested rate. It is recorded evidence, not an acceptance gate or a product throughput guarantee. `AcceptancePassed` instead requires every request to commit and every durable count to match exactly.
 
 ## Schema and Deployment
 
@@ -158,6 +160,8 @@ The following commands reproduce all currently implemented evidence. Run Postgre
 .\operations\Run-PublishingLoad.ps1 -StorageProvider PostgreSql
 .\operations\Run-WorkerDrainLoad.ps1
 .\operations\Run-WorkerDrainLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-MixedLoad.ps1
+.\operations\Run-MixedLoad.ps1 -StorageProvider PostgreSql
 .\deployment\Run-SchemaScenarios.ps1
 .\deployment\Run-SchemaScenarios.ps1 -StorageProvider PostgreSql
 .\deployment\Run-PublishedAlphaUpgrade.ps1
