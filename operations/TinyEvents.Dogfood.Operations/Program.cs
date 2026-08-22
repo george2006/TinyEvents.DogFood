@@ -124,6 +124,12 @@ switch (args[0].ToLowerInvariant())
         Console.WriteLine(JsonSerializer.Serialize(observation));
         return 0;
 
+    case "has-outstanding-messages":
+        var hasOutstandingMessages =
+            await DogfoodOutstandingWorkReader.HasOutstandingMessagesAsync(settings);
+        Console.WriteLine(JsonSerializer.Serialize(hasOutstandingMessages));
+        return 0;
+
     case "inspect-storage":
         var storageObservation =
             await DogfoodStorageObservationReader.ReadAsync(settings);

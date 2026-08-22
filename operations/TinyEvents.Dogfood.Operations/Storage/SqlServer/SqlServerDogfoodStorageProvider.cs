@@ -50,6 +50,15 @@ internal sealed class SqlServerDogfoodStorageProvider : IDogfoodStorageProvider
             cancellationToken);
     }
 
+    public ValueTask<bool> HasOutstandingMessagesAsync(
+        DogfoodSettings settings,
+        CancellationToken cancellationToken)
+    {
+        return SqlServerDogfoodOutstandingWorkReader.HasOutstandingMessagesAsync(
+            settings,
+            cancellationToken);
+    }
+
     public ValueTask<MigrationObservation> ReadMigrationObservationAsync(
         DogfoodSettings settings,
         CancellationToken cancellationToken)
