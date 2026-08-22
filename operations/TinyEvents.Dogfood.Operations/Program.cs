@@ -49,6 +49,9 @@ switch (args[0].ToLowerInvariant())
     case "publish-with-timing":
         return await RunPublisherWithTimingAsync(args, settings);
 
+    case "publish-load":
+        return await RunPublishingLoadAsync(args, settings);
+
     case "publish-then-rollback":
         if (args.Length != 3 ||
             !int.TryParse(args[2], out var rollbackCount) ||
@@ -225,6 +228,37 @@ static async Task<int> RunPublisherWithTimingAsync(
     await transaction.CommitAsync();
     Console.WriteLine("Publisher commit completed.");
     await Task.Delay(afterCommitDelayMilliseconds);
+    return 0;
+}
+
+static async Task<int> RunPublishingLoadAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var targetRequestsPerSecond = 0;
+    var durationSeconds = 0;
+    var argumentsAreValid =
+        arguments.Length == 4 &&
+        !string.IsNullOrWhiteSpace(arguments[1]) &&
+        int.TryParse(arguments[2], out targetRequestsPerSecond) &&
+        targetRequestsPerSecond is > 0 and <= 10000 &&
+        int.TryParse(arguments[3], out durationSeconds) &&
+        durationSeconds is > 0 and <= 60;
+
+    if (!argumentsAreValid)
+    {
+        Console.Error.WriteLine(
+            "Expected publish-load <scenario> <target-requests-per-second:1-10000> <duration-seconds:1-60>.");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(settings, "load-publisher");
+    var loadRunner = host.Services.GetRequiredService<PublishingLoadRunner>();
+    var result = await loadRunner.ExecuteAsync(
+        arguments[1],
+        targetRequestsPerSecond,
+        durationSeconds);
+    Console.WriteLine(JsonSerializer.Serialize(result));
     return 0;
 }
 

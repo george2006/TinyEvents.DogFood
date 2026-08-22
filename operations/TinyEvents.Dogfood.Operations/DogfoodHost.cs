@@ -44,6 +44,7 @@ internal static class DogfoodHost
         builder.Services.AddSingleton(failureRules);
         builder.Services.AddSingleton<DogfoodConsumerFailurePlan>();
         builder.Services.AddScoped<DogfoodPublisher>();
+        builder.Services.AddSingleton<PublishingLoadRunner>();
         builder.Services.AddDogfoodStorage(settings);
         builder.Services.UseTinyEvents(options =>
         {
