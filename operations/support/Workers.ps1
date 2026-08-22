@@ -79,6 +79,34 @@ function Start-PlannedWorker {
         -PassThru
 }
 
+function Start-BatchWorker {
+    param(
+        [string]$Assembly,
+        [string]$WorkerId,
+        [int]$BatchSize,
+        [int]$BeforeEffectDelayMilliseconds,
+        [int]$AfterEffectDelayMilliseconds,
+        [string]$ArtifactDirectory
+    )
+
+    $standardOutput = Join-Path $ArtifactDirectory "$WorkerId.stdout.log"
+    $standardError = Join-Path $ArtifactDirectory "$WorkerId.stderr.log"
+
+    return Start-Process `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            $Assembly,
+            "worker-with-batch",
+            $WorkerId,
+            [string]$BatchSize,
+            [string]$BeforeEffectDelayMilliseconds,
+            [string]$AfterEffectDelayMilliseconds) `
+        -RedirectStandardOutput $standardOutput `
+        -RedirectStandardError $standardError `
+        -WindowStyle Hidden `
+        -PassThru
+}
+
 function Start-WorkerUnderPressure {
     param(
         [string]$Assembly,

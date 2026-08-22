@@ -185,6 +185,9 @@ switch (args[0].ToLowerInvariant())
     case "worker-with-plan":
         return await RunWorkerWithPlanAsync(args, settings);
 
+    case "worker-with-batch":
+        return await RunWorkerWithBatchAsync(args, settings);
+
     case "worker-under-pressure":
         return await RunWorkerUnderPressureAsync(args, settings);
 
@@ -474,6 +477,40 @@ static async Task<int> RunWorkerWithPlanAsync(
         arguments[1],
         consumerTiming,
         consumerFailureRules);
+    await host.RunAsync();
+    return 0;
+}
+
+static async Task<int> RunWorkerWithBatchAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var hasWorkerId =
+        arguments.Length == 5 &&
+        !string.IsNullOrWhiteSpace(arguments[1]);
+    var batchSize = 0;
+    var hasBatchSize =
+        arguments.Length == 5 &&
+        int.TryParse(arguments[2], out batchSize) &&
+        batchSize > 0;
+    var hasConsumerTiming = TryParseConsumerTiming(
+        arguments,
+        3,
+        out var consumerTiming);
+
+    if (!hasWorkerId || !hasBatchSize || !hasConsumerTiming)
+    {
+        Console.Error.WriteLine(
+            "Expected worker-with-batch <worker-id> <positive-batch-size> <before-effect-delay-ms> <after-effect-delay-ms>.");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(
+        settings,
+        arguments[1],
+        consumerTiming,
+        ConsumerFailureRules.None,
+        batchSize);
     await host.RunAsync();
     return 0;
 }

@@ -34,7 +34,8 @@ internal static class DogfoodHost
         DogfoodSettings settings,
         string workerId,
         ConsumerExecutionTiming consumerTiming,
-        ConsumerFailureRules failureRules)
+        ConsumerFailureRules failureRules,
+        int batchSize = 50)
     {
         var builder = Host.CreateApplicationBuilder();
 
@@ -54,7 +55,7 @@ internal static class DogfoodHost
         builder.Services.AddTinyEventsWorker(options =>
         {
             options.WorkerId = workerId;
-            options.BatchSize = 50;
+            options.BatchSize = batchSize;
             options.ClaimTimeout = TimeSpan.FromSeconds(5);
             options.PollingInterval = TimeSpan.FromMilliseconds(50);
         });
