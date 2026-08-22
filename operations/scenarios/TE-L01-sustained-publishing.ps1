@@ -1,16 +1,3 @@
-function Get-TEL01LoadResult {
-    param([string]$OutputPath)
-
-    $json = Get-Content -LiteralPath $OutputPath |
-        Select-Object -Last 1
-
-    if ([string]::IsNullOrWhiteSpace($json)) {
-        throw "Publishing load command produced no result."
-    }
-
-    return $json | ConvertFrom-Json
-}
-
 function Invoke-TEL01PublishingRate {
     param(
         [string]$Assembly,
@@ -39,7 +26,7 @@ function Invoke-TEL01PublishingRate {
         $variantDirectory `
         "publish-load"
 
-    $loadResult = Get-TEL01LoadResult `
+    $loadResult = Get-PublishingLoadResult `
         (Join-Path $variantDirectory "publish-load.stdout.log")
     $observation = Get-Observation $Assembly
     Save-Observation $observation $variantDirectory "after-publishing"

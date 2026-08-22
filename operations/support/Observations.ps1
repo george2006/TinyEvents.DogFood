@@ -10,6 +10,34 @@ function Get-Observation {
     return $json | ConvertFrom-Json
 }
 
+function Get-PublishingLoadResult {
+    param([string]$OutputPath)
+
+    $json = Get-Content -LiteralPath $OutputPath |
+        Select-Object -Last 1
+
+    if ([string]::IsNullOrWhiteSpace($json)) {
+        throw "Publishing load command produced no result."
+    }
+
+    return $json | ConvertFrom-Json
+}
+
+function Get-ScenarioCount {
+    param(
+        [pscustomobject]$Counts,
+        [string]$ScenarioId
+    )
+
+    $count = $Counts.PSObject.Properties[$ScenarioId]
+
+    if ($null -eq $count) {
+        return 0
+    }
+
+    return $count.Value
+}
+
 function Save-Observation {
     param(
         [pscustomobject]$Observation,
