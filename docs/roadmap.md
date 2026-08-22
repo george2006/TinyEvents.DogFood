@@ -65,7 +65,7 @@ The objective is equal product guarantees, not a duplicated script count.
 - [ ] Verify package metadata, license, symbols, and Source Link.
 - [ ] Provide one documented command that executes every mandatory acceptance suite.
 - [ ] Run the gate from a clean checkout and archive its manifests and results.
-- [ ] Publish the accepted at-least-once limitations and operator responsibilities.
+- [ ] Publish the accepted at-least-once limitations and operator responsibilities using [V1 product findings](v1-product-findings.md) as the reviewed source.
 - [ ] Complete a final principal-engineer review and make an explicit beta or no-beta decision.
 
 ## Beta Completion Boundary

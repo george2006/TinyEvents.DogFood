@@ -92,6 +92,7 @@ TE-T05               True
 - [Run the scenarios](docs/running-scenarios.md)
 - [Scenario catalog](docs/scenario-catalog.md)
 - [Beta hardening roadmap](docs/roadmap.md)
+- [V1 product findings and operational boundaries](docs/v1-product-findings.md)
 - [Identity and compatibility](identity/README.md)
 - [Transactions, workers, and database recovery](operations/README.md)
 - [Schema and deployment](deployment/README.md)
