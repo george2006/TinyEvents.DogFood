@@ -31,7 +31,8 @@ function Start-FailingWorker {
         [string]$WorkerId,
         [string]$TargetScenarioId,
         [int]$RejectedAttemptCount,
-        [string]$ArtifactDirectory
+        [string]$ArtifactDirectory,
+        [int]$BatchSize = 50
     )
 
     $standardOutput = Join-Path $ArtifactDirectory "$WorkerId.stdout.log"
@@ -44,7 +45,8 @@ function Start-FailingWorker {
             "worker-with-failures",
             $WorkerId,
             $TargetScenarioId,
-            [string]$RejectedAttemptCount) `
+            [string]$RejectedAttemptCount,
+            [string]$BatchSize) `
         -RedirectStandardOutput $standardOutput `
         -RedirectStandardError $standardError `
         -WindowStyle Hidden `
@@ -73,6 +75,34 @@ function Start-PlannedWorker {
     return Start-Process `
         -FilePath "dotnet" `
         -ArgumentList $arguments `
+        -RedirectStandardOutput $standardOutput `
+        -RedirectStandardError $standardError `
+        -WindowStyle Hidden `
+        -PassThru
+}
+
+function Start-BatchWorker {
+    param(
+        [string]$Assembly,
+        [string]$WorkerId,
+        [int]$BatchSize,
+        [int]$BeforeEffectDelayMilliseconds,
+        [int]$AfterEffectDelayMilliseconds,
+        [string]$ArtifactDirectory
+    )
+
+    $standardOutput = Join-Path $ArtifactDirectory "$WorkerId.stdout.log"
+    $standardError = Join-Path $ArtifactDirectory "$WorkerId.stderr.log"
+
+    return Start-Process `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            $Assembly,
+            "worker-with-batch",
+            $WorkerId,
+            [string]$BatchSize,
+            [string]$BeforeEffectDelayMilliseconds,
+            [string]$AfterEffectDelayMilliseconds) `
         -RedirectStandardOutput $standardOutput `
         -RedirectStandardError $standardError `
         -WindowStyle Hidden `

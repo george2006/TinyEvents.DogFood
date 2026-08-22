@@ -16,17 +16,20 @@ The current laboratory demonstrates:
 - honest at-least-once redelivery boundaries;
 - bounded retry and permanent-failure behavior;
 - concurrent migration safety;
-- equivalent destructive scenarios against SQL Server and PostgreSQL.
+- isolated publishing capacity with exact durable outbox growth;
+- equivalent destructive scenarios against SQL Server and PostgreSQL;
+- measured backlog recovery while publishing remains active.
 
 ## Evidence at a Glance
 
 | Area | Implemented contracts | SQL Server | PostgreSQL | Explore |
 | --- | --- | :---: | :---: | --- |
-| Identity and compatibility | `TE-C01`–`TE-C05` | ✅ | — | [Identity evidence](identity/README.md) |
+| Identity and compatibility | `TE-C01`–`TE-C08` | ✅ | — | [Identity evidence](identity/README.md) |
 | Transactional publishing | `TE-T01`–`TE-T05` | ✅ | ✅ | [Transaction commands](docs/scenario-catalog.md#transactional-publishing) |
 | Workers, claims, and retries | `TE-W01`–`TE-W13` | ✅ | `TE-W01` | [Worker commands](docs/scenario-catalog.md#workers-claims-retries-and-shutdown) |
 | Database failure and recovery | `TE-D01`–`TE-D06` | ✅ | ✅ | [Recovery commands](docs/scenario-catalog.md#database-failure-and-recovery) |
-| Concurrent schema migration | `TE-S01` | ✅ | ✅ | [Schema command](docs/scenario-catalog.md#schema-and-deployment) |
+| Schema and deployment | `TE-S01`–`TE-S05` | ✅ | ✅ | [Schema commands](docs/scenario-catalog.md#schema-and-deployment) |
+| Load and storage | `TE-L01`–`TE-L04` | ✅ | ✅ | [Load commands](docs/scenario-catalog.md#load-backlog-and-storage) |
 
 Some contract IDs intentionally share stronger executable evidence instead of duplicating a scenario. The [scenario catalog](docs/scenario-catalog.md) identifies every shared proof explicitly.
 
@@ -89,6 +92,7 @@ TE-T05               True
 - [Run the scenarios](docs/running-scenarios.md)
 - [Scenario catalog](docs/scenario-catalog.md)
 - [Beta hardening roadmap](docs/roadmap.md)
+- [V1 product findings and operational boundaries](docs/v1-product-findings.md)
 - [Identity and compatibility](identity/README.md)
 - [Transactions, workers, and database recovery](operations/README.md)
 - [Schema and deployment](deployment/README.md)

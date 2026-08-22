@@ -38,6 +38,9 @@ Evidence: `artifacts/identity/<run-id>/`
 | `TE-C03` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C03` | Compilation is rejected with the expected `TEV002` diagnostic for a closed generic event. The runner treats this expected rejection as success. |
 | `TE-C04` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C04` | A namespace rename processes an in-flight message through an explicit previous name. |
 | `TE-C05` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C05` | Moving a contract between assemblies preserves processing when its full type name remains unchanged. |
+| `TE-C06` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C06` | A V1 payload is consumed by the V2 contract, records one durable effect, and observes its absent optional member as `not-provided`. |
+| `TE-C07` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C07` | An event type absent from the worker reaches `Failed` with one attempt and an actionable error. A valid event later in the same batch reaches `Processed` and records one durable effect. |
+| `TE-C08` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C08` | Malformed JSON for a registered event reaches `Failed` with one attempt and durable JSON error evidence. A valid event later in the same batch reaches `Processed` and records one durable effect. |
 
 See [Identity dogfood](../identity/README.md) for the identity contract and current characterization.
 
@@ -101,15 +104,43 @@ Evidence: `artifacts/database/<run-id>/<scenario-id>/`
 | `TE-D05` | `.\operations\Run-DatabaseRecovery.ps1 -Scenario TE-D05` | Success, transient, permanent, and slow messages reach exact terminal outcomes across a database restart. |
 | `TE-D06` | `.\operations\Run-DatabaseRecovery.ps1 -Scenario TE-D06` | Two workers survive exhausting their own two-connection pools while four publishers create 100 messages, then recover and drain without loss. |
 
+## Load, Backlog, and Storage
+
+Provider: **SQL Server and PostgreSQL**
+
+Evidence: `artifacts/load/<run-id>/<scenario-id>/`
+
+| ID | Run | Expected evidence |
+| --- | --- | --- |
+| `TE-L01` | `.\operations\Run-PublishingLoad.ps1` | With workers stopped, 200, 400, and 800 requested commits per second each produce the exact expected number of business and pending outbox rows. The result retains committed throughput, target achievement, request errors, and committed-request p50/p95/p99 latency independently for every rate. |
+| `TE-L02` | `.\operations\Run-WorkerDrainLoad.ps1` | With publishers stopped, 1, 2, 4, and 8 worker processes drain independent 10,000-message backlogs. Every worker participates, all rows reach `Processed`, every message has one effect, and the result retains throughput, speedup, and scaling efficiency. |
+| `TE-L03` | `.\operations\Run-MixedLoad.ps1` | One publisher sustains 200 requests per second across successful, transient, permanent, and slow work while four worker processes share a bounded connection budget. Unrelated success progresses during retry pressure and every committed message reaches its exact terminal outcome. |
+| `TE-L04` | `.\operations\Run-BacklogRecoveryLoad.ps1` | One publisher first creates at least 1,000 pending messages at 200 requests per second. Four workers then reduce outstanding work to no more than one second of incoming traffic while that publisher remains active. All 4,000 messages subsequently complete once with every worker participating. |
+
+Run the same scenarios against PostgreSQL with:
+
+```powershell
+.\operations\Run-PublishingLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-WorkerDrainLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-MixedLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-BacklogRecoveryLoad.ps1 -StorageProvider PostgreSql
+```
+
+For `TE-L01`, `TargetWasSustained` means the observed committed rate reached at least 95% of the requested rate. It is recorded evidence, not an acceptance gate or a product throughput guarantee. `AcceptancePassed` instead requires every request to commit and every durable count to match exactly.
+
 ## Schema and Deployment
 
 Provider: **SQL Server and PostgreSQL**
 
-Evidence: `artifacts/schema/<run-id>/TE-S01/`
+Evidence: `artifacts/schema/<run-id>/<scenario-id>/` and `artifacts/deployment/<run-id>/TE-S02/`
 
 | ID | Run | Expected evidence |
 | --- | --- | --- |
 | `TE-S01` | `.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S01` | Eight application processes migrate one fresh database concurrently. One applies `001_CreateTinyOutbox`, seven observe the current schema, and durable history contains one row. |
+| `TE-S02` | `.\deployment\Run-PublishedAlphaUpgrade.ps1` | Published `0.1.0-alpha.3` packages create pending, reclaimable-processing, and failed state. Clean-main candidate packages migrate SQL Server and PostgreSQL, process supported work exactly once in the lab, preserve the terminal failure, and retain one migration row per provider. |
+| `TE-S03` | `.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S03` | A database-controlled DDL interruption proves the migrator owns its provider lock before the application process is terminated. The database releases the abandoned lock, retains only a resumable atomic state, and a later process completes one exact migration. |
+| `TE-S04` | `.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S04` | A missing schema is created. Current migration history without its physical outbox and a conflicting migration checksum are both rejected with actionable diagnostics. |
+| `TE-S05` | `.\deployment\Run-RollingUpgrade.ps1 -CandidateRoot <clean-main-path>` | Published alpha and clean-main application processes concurrently drain one shared backlog. Both versions participate while every message produces one distinct durable effect. |
 
 See [Schema and deployment dogfood](../deployment/README.md) for the migration scenario details.
 
@@ -127,8 +158,17 @@ The following commands reproduce all currently implemented evidence. Run Postgre
 .\operations\Run-WorkerRecovery.ps1
 .\operations\Run-DatabaseRecovery.ps1
 .\operations\Run-DatabaseRecovery.ps1 -StorageProvider PostgreSql
+.\operations\Run-PublishingLoad.ps1
+.\operations\Run-PublishingLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-WorkerDrainLoad.ps1
+.\operations\Run-WorkerDrainLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-MixedLoad.ps1
+.\operations\Run-MixedLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-BacklogRecoveryLoad.ps1
+.\operations\Run-BacklogRecoveryLoad.ps1 -StorageProvider PostgreSql
 .\deployment\Run-SchemaScenarios.ps1
 .\deployment\Run-SchemaScenarios.ps1 -StorageProvider PostgreSql
+.\deployment\Run-PublishedAlphaUpgrade.ps1
 ```
 
 These commands are intentionally separate. A future release gate may coordinate them, but the individual runners remain the source of truth for setup, failure injection, assertions, and evidence.

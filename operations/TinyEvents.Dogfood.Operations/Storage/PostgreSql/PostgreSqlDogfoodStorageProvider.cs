@@ -58,4 +58,13 @@ internal sealed class PostgreSqlDogfoodStorageProvider : IDogfoodStorageProvider
             settings,
             cancellationToken);
     }
+
+    public ValueTask<StorageObservation> ReadStorageObservationAsync(
+        DogfoodSettings settings,
+        CancellationToken cancellationToken)
+    {
+        return PostgreSqlDogfoodStorageObservationReader.ReadAsync(
+            settings,
+            cancellationToken);
+    }
 }

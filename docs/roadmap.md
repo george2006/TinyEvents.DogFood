@@ -2,40 +2,37 @@
 
 This roadmap lists the evidence still required before TinyEvents can be considered beta-ready. It does not repeat completed work.
 
-Current as of August 21, 2026:
+Current as of August 22, 2026:
 
-- 30 named behavioral contracts are documented;
-- transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
+- 41 named behavioral contracts have executable evidence;
+- contract compatibility, invalid-message isolation, transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
 - SQL Server and PostgreSQL pass the complete database-recovery suite;
 - the final package and retention gates remain open.
 
 See the [scenario catalog](scenario-catalog.md) for completed evidence and copyable commands.
 
-## 1. Contract Compatibility and Invalid Messages
-
-- [ ] `TE-C06` — Process a message after an additive payload change.
-- [ ] `TE-C07` — Reach the documented terminal state for an unknown event type.
-- [ ] `TE-C08` — Reach the documented terminal state for malformed JSON or an incompatible payload.
-- [ ] Prove that unknown or malformed messages do not stop later valid messages from being processed.
-
-This phase is complete when deployments can evolve supported contracts and poison messages have an explicit, repeatable outcome.
-
 ## 2. Schema and Application Deployment
 
-- [ ] `TE-S02` — Create representative in-flight state with the published `0.1.0-alpha.3` packages, upgrade to the beta candidate, migrate, and process supported messages.
-- [ ] `TE-S03` — Terminate a migration process and prove a later process can safely resume.
-- [ ] `TE-S04` — Characterize missing, partially created, and checksum-conflicting schemas with actionable diagnostics.
-- [ ] `TE-S05` — Run old and new application versions concurrently while messages remain in flight.
+- [x] `TE-S02` — Create representative in-flight state with the published `0.1.0-alpha.3` packages, upgrade to the beta candidate, migrate, and process supported messages.
+  - [x] `TE-S02-A` — Restore only from nuget.org and create one pending, one reclaimable processing, and one failed message with published `0.1.0-alpha.3` packages.
+  - [x] `TE-S02-B` — Pack the candidate from clean `main`, migrate the alpha database, drain supported work, and preserve the failed row.
+  - [x] `TE-S02-C` — Run the unchanged upgrade contract against PostgreSQL.
+- [x] `TE-S03` — Terminate a migration process and prove a later process can safely resume.
+- [x] `TE-S04` — Characterize missing, partially created, and checksum-conflicting schemas with actionable diagnostics.
+- [x] `TE-S05` — Run old and new application versions concurrently while messages remain in flight.
 
 This phase is complete when a real application can upgrade without losing supported work or silently accepting an incompatible schema.
 
 ## 3. Load, Backlog, and Storage
 
-- [ ] `TE-L01` — Measure sustained publishing at explicit target rates.
-- [ ] `TE-L02` — Separate publisher throughput, prebuilt-backlog drain rate, and database pressure. `TE-W02` already provides the first end-to-end scaling curve.
-- [ ] `TE-L03` — Sustain mixed successful, transient, permanent, and slow processing. `TE-D05` already proves the recovery semantics on a bounded workload.
-- [ ] `TE-L04` — Build and drain a large backlog while measuring recovery time and fairness.
+- [x] `TE-L01` — Measure sustained publishing at 200, 400, and 800 committed requests per second, independently from consumer throughput, with identical durable assertions for SQL Server and PostgreSQL.
+- [x] `TE-L02` — Measure a prebuilt 10,000-message backlog with 1, 2, 4, and 8 worker processes independently from publisher throughput, with identical durable assertions for SQL Server and PostgreSQL.
+- [x] `TE-L03` — Sustain successful, transient, permanent, and slow processing together while proving unrelated progress, exact retries, terminal outcomes, and bounded connection usage.
+- [x] `TE-L04` — Recover a controlled live backlog to no more than one second of incoming traffic while publishing continues, measuring recovery time and worker participation with identical durable assertions for SQL Server and PostgreSQL.
 - [ ] `TE-L05` — Measure bytes per pending, processing, processed, and failed row with representative payloads.
+  - [x] `TE-L05-A` — Measure empty, 1 KB, and 16 KB pending payload curves from isolated empty-database baselines against SQL Server and PostgreSQL.
+  - [x] `TE-L05-B` — Measure processing, processed, and failed states through real worker behavior.
+  - [ ] `TE-L05-C` — Measure claim and completion behavior as retained terminal history grows.
 - [ ] `TE-L06` — Define processed and failed retention, cleanup batch size, and a documented storage budget from `TE-L05` evidence.
 - [ ] `TE-L07` — Run a soak test with repeated worker and database disruption.
 
@@ -68,7 +65,7 @@ The objective is equal product guarantees, not a duplicated script count.
 - [ ] Verify package metadata, license, symbols, and Source Link.
 - [ ] Provide one documented command that executes every mandatory acceptance suite.
 - [ ] Run the gate from a clean checkout and archive its manifests and results.
-- [ ] Publish the accepted at-least-once limitations and operator responsibilities.
+- [ ] Publish the accepted at-least-once limitations and operator responsibilities using [V1 product findings](v1-product-findings.md) as the reviewed source.
 - [ ] Complete a final principal-engineer review and make an explicit beta or no-beta decision.
 
 ## Beta Completion Boundary
@@ -88,6 +85,7 @@ The beta is ready only when:
 The following ideas remain documented but are not required for V1:
 
 - a durable worker registry, heartbeat, or lease-fencing token;
+- automatic renewal or progressive acquisition for batches whose cumulative processing time approaches `ClaimTimeout`;
 - batched completion updates without measured evidence that they are needed;
 - additional orchestration abstractions that do not close an observable scenario.
 

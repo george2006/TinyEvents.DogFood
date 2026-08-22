@@ -19,6 +19,25 @@ function Invoke-LoggedProcess {
         [string]$Name
     )
 
+    $exitCode = Invoke-LoggedProcessForExitCode `
+        $Assembly `
+        $Arguments `
+        $ArtifactDirectory `
+        $Name
+
+    if ($exitCode -ne 0) {
+        throw "Operational command '$Name' failed with exit code $exitCode."
+    }
+}
+
+function Invoke-LoggedProcessForExitCode {
+    param(
+        [string]$Assembly,
+        [string[]]$Arguments,
+        [string]$ArtifactDirectory,
+        [string]$Name
+    )
+
     $standardOutput = Join-Path $ArtifactDirectory "$Name.stdout.log"
     $standardError = Join-Path $ArtifactDirectory "$Name.stderr.log"
     $process = Start-Process `
@@ -30,9 +49,7 @@ function Invoke-LoggedProcess {
         -Wait `
         -PassThru
 
-    if ($process.ExitCode -ne 0) {
-        throw "Operational command '$Name' failed with exit code $($process.ExitCode)."
-    }
+    return $process.ExitCode
 }
 
 function Start-LoggedDotNetProcess {
@@ -84,14 +101,34 @@ function Complete-LoggedProcess {
         throw "Process '$($ProcessHandle.Name)' did not finish within $TimeoutMilliseconds milliseconds."
     }
 
+    Save-LoggedProcessOutput $ProcessHandle
+
+    if ($process.ExitCode -ne 0) {
+        throw "Process '$($ProcessHandle.Name)' failed with exit code $($process.ExitCode)."
+    }
+}
+
+function Stop-LoggedProcess {
+    param([pscustomobject]$ProcessHandle)
+
+    $process = $ProcessHandle.Process
+
+    if (!$process.HasExited) {
+        Stop-Process -Id $process.Id
+    }
+
+    Save-LoggedProcessOutput $ProcessHandle
+    return $process.ExitCode
+}
+
+function Save-LoggedProcessOutput {
+    param([pscustomobject]$ProcessHandle)
+
+    $process = $ProcessHandle.Process
     $process.WaitForExit()
     $process.Refresh()
     $standardOutput = $ProcessHandle.OutputTask.GetAwaiter().GetResult()
     $standardError = $ProcessHandle.ErrorTask.GetAwaiter().GetResult()
     $standardOutput | Set-Content $ProcessHandle.OutputPath
     $standardError | Set-Content $ProcessHandle.ErrorPath
-
-    if ($process.ExitCode -ne 0) {
-        throw "Process '$($ProcessHandle.Name)' failed with exit code $($process.ExitCode)."
-    }
 }

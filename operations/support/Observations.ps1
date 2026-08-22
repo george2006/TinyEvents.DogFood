@@ -10,6 +10,47 @@ function Get-Observation {
     return $json | ConvertFrom-Json
 }
 
+function Get-StorageObservation {
+    param([string]$Assembly)
+
+    $json = & dotnet $Assembly inspect-storage
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Storage observation command failed."
+    }
+
+    return $json | ConvertFrom-Json
+}
+
+function Get-PublishingLoadResult {
+    param([string]$OutputPath)
+
+    $json = Get-Content -LiteralPath $OutputPath |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Last 1
+
+    if ([string]::IsNullOrWhiteSpace($json)) {
+        throw "Publishing load command produced no result."
+    }
+
+    return $json | ConvertFrom-Json
+}
+
+function Get-ScenarioCount {
+    param(
+        [pscustomobject]$Counts,
+        [string]$ScenarioId
+    )
+
+    $count = $Counts.PSObject.Properties[$ScenarioId]
+
+    if ($null -eq $count) {
+        return 0
+    }
+
+    return $count.Value
+}
+
 function Save-Observation {
     param(
         [pscustomobject]$Observation,
@@ -18,6 +59,18 @@ function Save-Observation {
     )
 
     $Observation | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $ArtifactDirectory "$Name.json")
+}
+
+function Save-StorageObservation {
+    param(
+        [pscustomobject]$Observation,
+        [string]$ArtifactDirectory,
+        [string]$Name
+    )
+
+    $Observation |
+        ConvertTo-Json -Depth 4 |
+        Set-Content (Join-Path $ArtifactDirectory "$Name.json")
 }
 
 function Wait-ForClaim {

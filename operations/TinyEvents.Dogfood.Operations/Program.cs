@@ -8,7 +8,7 @@ using TinyEvents.SqlServer.EntityFrameworkCore;
 
 if (args.Length == 0)
 {
-    Console.Error.WriteLine("Expected prepare, migrate, reset, publish, publish-with-timing, publish-then-rollback, publish-multi-consumer, inspect, inspect-migrations, worker, worker-with-failures, worker-with-plan, worker-under-pressure, or worker-for.");
+    WriteUsage();
     return 1;
 }
 
@@ -46,8 +46,38 @@ switch (args[0].ToLowerInvariant())
 
         return 0;
 
+    case "publish-with-content":
+        if (args.Length != 4 ||
+            !int.TryParse(args[2], out var contentCount) ||
+            contentCount <= 0 ||
+            !int.TryParse(args[3], out var contentCharacterCount) ||
+            contentCharacterCount < 0)
+        {
+            Console.Error.WriteLine(
+                "Expected publish-with-content <scenario> <positive-count> <non-negative-content-character-count>.");
+            return 1;
+        }
+
+        using (var host = DogfoodHost.Build(settings, "content-publisher"))
+        using (var scope = host.Services.CreateScope())
+        {
+            var publisher = scope.ServiceProvider.GetRequiredService<DogfoodPublisher>();
+            await publisher.PublishWithContentAsync(
+                args[1],
+                contentCount,
+                contentCharacterCount);
+        }
+
+        return 0;
+
     case "publish-with-timing":
         return await RunPublisherWithTimingAsync(args, settings);
+
+    case "publish-load":
+        return await RunPublishingLoadAsync(args, settings);
+
+    case "publish-mixed-load":
+        return await RunMixedPublishingLoadAsync(args, settings);
 
     case "publish-then-rollback":
         if (args.Length != 3 ||
@@ -94,10 +124,56 @@ switch (args[0].ToLowerInvariant())
         Console.WriteLine(JsonSerializer.Serialize(observation));
         return 0;
 
+    case "inspect-storage":
+        var storageObservation =
+            await DogfoodStorageObservationReader.ReadAsync(settings);
+        Console.WriteLine(JsonSerializer.Serialize(storageObservation));
+        return 0;
+
     case "inspect-migrations":
         var migrationObservation =
             await DogfoodMigrationObservationReader.ReadAsync(settings);
         Console.WriteLine(JsonSerializer.Serialize(migrationObservation));
+        return 0;
+
+    case "install-migration-interruption":
+        await GetMigrationInterruption(settings).InstallAsync(
+            settings,
+            CancellationToken.None);
+        return 0;
+
+    case "inspect-migration-interruption":
+        var interruptionObservation =
+            await GetMigrationInterruption(settings).ReadAsync(
+                settings,
+                CancellationToken.None);
+        Console.WriteLine(JsonSerializer.Serialize(interruptionObservation));
+        return 0;
+
+    case "remove-migration-interruption":
+        await GetMigrationInterruption(settings).RemoveAsync(
+            settings,
+            CancellationToken.None);
+        return 0;
+
+    case "remove-outbox-table":
+        await GetMigrationSchemaManipulator(settings).RemoveOutboxTableAsync(
+            settings,
+            CancellationToken.None);
+        return 0;
+
+    case "replace-migration-checksum":
+        if (args.Length != 2 || args[1].Length != 64)
+        {
+            Console.Error.WriteLine(
+                "Expected replace-migration-checksum <64-character-checksum>.");
+            return 1;
+        }
+
+        await GetMigrationSchemaManipulator(settings).ReplaceMigrationChecksumAsync(
+            settings,
+            args[1],
+            CancellationToken.None);
         return 0;
 
     case "worker":
@@ -109,6 +185,9 @@ switch (args[0].ToLowerInvariant())
     case "worker-with-plan":
         return await RunWorkerWithPlanAsync(args, settings);
 
+    case "worker-with-batch":
+        return await RunWorkerWithBatchAsync(args, settings);
+
     case "worker-under-pressure":
         return await RunWorkerUnderPressureAsync(args, settings);
 
@@ -117,7 +196,26 @@ switch (args[0].ToLowerInvariant())
 
     default:
         Console.Error.WriteLine($"Unknown command '{args[0]}'.");
+        WriteUsage();
         return 1;
+}
+
+static IMigrationInterruption GetMigrationInterruption(
+    DogfoodSettings settings)
+{
+    return MigrationInterruptionSelector.Select(settings.StorageProvider);
+}
+
+static IMigrationSchemaManipulator GetMigrationSchemaManipulator(
+    DogfoodSettings settings)
+{
+    return MigrationSchemaManipulatorSelector.Select(settings.StorageProvider);
+}
+
+static void WriteUsage()
+{
+    Console.Error.WriteLine(
+        "Expected a supported operational or deployment dogfood command. See the repository scenario runners for reproducible usage.");
 }
 
 static async ValueTask MigrateAsync(DogfoodSettings settings)
@@ -169,6 +267,114 @@ static async Task<int> RunPublisherWithTimingAsync(
     return 0;
 }
 
+static async Task<int> RunPublishingLoadAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var targetRequestsPerSecond = 0;
+    var durationSeconds = 0;
+    var argumentsAreValid =
+        arguments.Length == 4 &&
+        !string.IsNullOrWhiteSpace(arguments[1]) &&
+        int.TryParse(arguments[2], out targetRequestsPerSecond) &&
+        targetRequestsPerSecond is > 0 and <= 10000 &&
+        int.TryParse(arguments[3], out durationSeconds) &&
+        durationSeconds is > 0 and <= 60;
+
+    if (!argumentsAreValid)
+    {
+        Console.Error.WriteLine(
+            "Expected publish-load <scenario> <target-requests-per-second:1-10000> <duration-seconds:1-60>.");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(settings, "load-publisher");
+    var loadRunner = host.Services.GetRequiredService<PublishingLoadRunner>();
+    var result = await loadRunner.ExecuteAsync(
+        arguments[1],
+        targetRequestsPerSecond,
+        durationSeconds);
+    Console.WriteLine(JsonSerializer.Serialize(result));
+    return 0;
+}
+
+static async Task<int> RunMixedPublishingLoadAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var durationSeconds = 0;
+    var durationIsValid =
+        arguments.Length >= 4 &&
+        arguments.Length % 2 == 0 &&
+        int.TryParse(arguments[1], out durationSeconds) &&
+        durationSeconds is > 0 and <= 60;
+    var definitionsAreValid = TryParsePublishingLoadDefinitions(
+        arguments,
+        out var definitions);
+
+    if (!durationIsValid || !definitionsAreValid)
+    {
+        Console.Error.WriteLine(
+            "Expected publish-mixed-load <duration-seconds:1-60> <scenario> <target-requests-per-second:1-10000> [...].");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(settings, "mixed-load-publisher");
+    var loadRunner = host.Services.GetRequiredService<PublishingLoadRunner>();
+    var results = await loadRunner.ExecuteMixedAsync(
+        definitions,
+        durationSeconds);
+    Console.WriteLine(JsonSerializer.Serialize(results));
+    return 0;
+}
+
+static bool TryParsePublishingLoadDefinitions(
+    string[] arguments,
+    out IReadOnlyList<PublishingLoadDefinition> definitions)
+{
+    var hasCompleteDefinitionPairs =
+        arguments.Length >= 4 &&
+        arguments.Length % 2 == 0;
+
+    if (!hasCompleteDefinitionPairs)
+    {
+        definitions = [];
+        return false;
+    }
+
+    var parsedDefinitions = new List<PublishingLoadDefinition>();
+
+    for (var index = 2; index < arguments.Length; index += 2)
+    {
+        var scenarioId = arguments[index];
+        var requestsPerSecond = 0;
+        var definitionIsValid =
+            !string.IsNullOrWhiteSpace(scenarioId) &&
+            int.TryParse(arguments[index + 1], out requestsPerSecond) &&
+            requestsPerSecond is > 0 and <= 10000;
+
+        if (!definitionIsValid)
+        {
+            definitions = [];
+            return false;
+        }
+
+        parsedDefinitions.Add(new PublishingLoadDefinition(
+            scenarioId,
+            requestsPerSecond));
+    }
+
+    var scenarioIdsAreUnique =
+        parsedDefinitions
+            .Select(definition => definition.ScenarioId)
+            .Distinct(StringComparer.Ordinal)
+            .Count() == parsedDefinitions.Count;
+    var totalRequestsPerSecond =
+        parsedDefinitions.Sum(definition => definition.RequestsPerSecond);
+    definitions = parsedDefinitions;
+    return scenarioIdsAreUnique && totalRequestsPerSecond <= 10000;
+}
+
 static async Task<int> RunWorkerAsync(
     string[] arguments,
     DogfoodSettings settings)
@@ -197,7 +403,7 @@ static async Task<int> RunWorkerWithFailuresAsync(
     string[] arguments,
     DogfoodSettings settings)
 {
-    var hasExpectedArgumentCount = arguments.Length == 4;
+    var hasExpectedArgumentCount = arguments.Length is 4 or 5;
     var hasWorkerId =
         arguments.Length >= 2 &&
         !string.IsNullOrWhiteSpace(arguments[1]);
@@ -206,17 +412,24 @@ static async Task<int> RunWorkerWithFailuresAsync(
         !string.IsNullOrWhiteSpace(arguments[2]);
     var rejectedAttemptCount = 0;
     var hasRejectedAttemptCount =
-        arguments.Length == 4 &&
+        arguments.Length >= 4 &&
         int.TryParse(arguments[3], out rejectedAttemptCount) &&
         rejectedAttemptCount > 0;
+    var batchSize = 50;
+    var hasBatchSize =
+        arguments.Length == 4 ||
+        (arguments.Length == 5 &&
+         int.TryParse(arguments[4], out batchSize) &&
+         batchSize > 0);
 
     if (!hasExpectedArgumentCount ||
         !hasWorkerId ||
         !hasTargetScenarioId ||
-        !hasRejectedAttemptCount)
+        !hasRejectedAttemptCount ||
+        !hasBatchSize)
     {
         Console.Error.WriteLine(
-            "Expected worker-with-failures <worker-id> <target-scenario-id> <positive-rejected-attempt-count>.");
+            "Expected worker-with-failures <worker-id> <target-scenario-id> <positive-rejected-attempt-count> [positive-batch-size].");
         return 1;
     }
 
@@ -226,7 +439,8 @@ static async Task<int> RunWorkerWithFailuresAsync(
         settings,
         arguments[1],
         ConsumerExecutionTiming.None,
-        failureRules);
+        failureRules,
+        batchSize);
     await host.RunAsync();
     return 0;
 }
@@ -271,6 +485,40 @@ static async Task<int> RunWorkerWithPlanAsync(
         arguments[1],
         consumerTiming,
         consumerFailureRules);
+    await host.RunAsync();
+    return 0;
+}
+
+static async Task<int> RunWorkerWithBatchAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var hasWorkerId =
+        arguments.Length == 5 &&
+        !string.IsNullOrWhiteSpace(arguments[1]);
+    var batchSize = 0;
+    var hasBatchSize =
+        arguments.Length == 5 &&
+        int.TryParse(arguments[2], out batchSize) &&
+        batchSize > 0;
+    var hasConsumerTiming = TryParseConsumerTiming(
+        arguments,
+        3,
+        out var consumerTiming);
+
+    if (!hasWorkerId || !hasBatchSize || !hasConsumerTiming)
+    {
+        Console.Error.WriteLine(
+            "Expected worker-with-batch <worker-id> <positive-batch-size> <before-effect-delay-ms> <after-effect-delay-ms>.");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(
+        settings,
+        arguments[1],
+        consumerTiming,
+        ConsumerFailureRules.None,
+        batchSize);
     await host.RunAsync();
     return 0;
 }

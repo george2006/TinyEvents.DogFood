@@ -64,12 +64,15 @@ TinyEvents keeps two distinct identities:
 
 These responsibilities remain separate.
 
-The current publisher and source generator share the same canonical runtime event-name contract. The completed `TE-C01` through `TE-C05` scenarios demonstrate that:
+The current publisher and source generator share the same canonical runtime event-name contract. The completed `TE-C01` through `TE-C08` scenarios demonstrate that:
 
 - top-level and nested non-generic event contracts process successfully;
 - closed generic event contracts are rejected at build time with `TEV002`;
 - moving a contract between assemblies works when its full type name remains unchanged;
 - namespace or event-type renames require an explicit previous-name mapping for in-flight messages.
+- adding an optional contract member preserves the meaning of a previously persisted payload.
+- an event type absent from the worker exhausts its configured retries without blocking later valid work.
+- malformed JSON exhausts its configured retries without blocking later valid work.
 
 Applications declare a renamed durable contract through `AcceptPreviousEventName<TEvent>(previousEventName)`. TinyEvents then resolves the current generated dispatcher, deserializes the old payload into the current event type, and invokes the current consumers. The complete product contract and deployment guidance live in [Event Contracts and Durable Names](https://github.com/george2006/TinyEvents/blob/main/docs/event-contracts.md).
 
@@ -254,6 +257,8 @@ Run old and new worker binaries concurrently against the same compatible schema 
 
 Drive 200, 400, and 800 committed publishing requests per second. Measure publisher latency, committed events per second, errors, and outbox growth independently from consumer throughput.
 
+**Executable:** `.\operations\Run-PublishingLoad.ps1` runs this curve with workers stopped against SQL Server or PostgreSQL. Behavioral acceptance requires exact durable counts and zero failed commits. Whether the local machine sustained at least 95% of each requested rate remains separate, visible capacity evidence.
+
 #### TE-L02 - Worker scaling
 
 Drain identical backlogs with 1, 2, 4, and 8 worker processes. Measure claim rate, processed events per second, database pressure, scaling efficiency, and duplicate effects.
@@ -266,9 +271,15 @@ Run a stable mix of success, transient failure, permanent failure, and slow even
 
 Publish while workers are stopped, build a controlled backlog, start workers, and measure recovery time without changing the publishing rate.
 
+**Executable:** `.\operations\Run-BacklogRecoveryLoad.ps1` builds at least 1,000 pending messages at 200 requests per second, starts four workers, and requires outstanding work to fall to no more than one second of incoming traffic while the publisher remains active. The one-second boundary measures removal of accumulated debt without relying on a polling query to observe a transient empty queue.
+
 #### TE-L05 - Large historical outbox
 
 Measure claim and completion behavior with growing processed history. The initial checkpoints are 10,000, 100,000, and 1,000,000 rows, adjusted only when measured cost justifies it.
+
+**TE-L05-A executable:** `.\operations\Run-StorageMeasurements.ps1` measures isolated 10,000-row pending populations with empty, 1 KB, and 16 KB deterministic, compression-resistant ASCII content. Every variant subtracts its own freshly migrated empty-table baseline and reports payload, table, index, and total allocated bytes per row. SQL Server measured approximately 750 B, 4.28 KB, and 34.36 KB per row. PostgreSQL measured approximately 332 B, 1.47 KB, and 17.52 KB. These are local physical-storage observations, not retention defaults.
+
+**TE-L05-B executable:** `.\operations\Run-StorageStateMeasurements.ps1` creates independent 5,000-row pending, actively claimed, processed, and terminally failed populations with 1 KB of the same representative content. Processing, completion, and all three rejected attempts for failed rows run through real worker processes. SQL Server measured approximately 4.29 KB, 4.42 KB, 4.52 KB, and 4.57 KB total allocated bytes per row respectively. PostgreSQL measured approximately 1.48 KB, 2.93 KB, 1.95 KB, and 2.34 KB. A batch of 10 completed both provider runs with exact state and effect counts under the deliberately short five-second dogfood claim. Historical-performance evidence remains open in `TE-L05-C`; these measurements do not yet choose retention defaults.
 
 #### TE-L06 - Storage budget and retention decision
 
@@ -358,6 +369,8 @@ TE-W04 also satisfies TE-W06 without a duplicate executable scenario: it starts 
 
 TE-W07 ran a ten-second consumer under a five-second claim with a competing worker. SQL evidence showed the competitor completed after the original lease expired while the slow invocation was still active. The slow invocation then persisted a second effect, detected its lost completion lease through `TinyOutboxLeaseLostException`, emitted the expected structured warning, and remained alive. This is an accepted V1 limitation of claims without heartbeat renewal.
 
+The first 10,000-row TE-L05-B SQL Server preparation exposed the same boundary at batch level without any individually configured slow consumer. Four workers used `BatchSize = 50` and the deliberately short five-second dogfood claim. Processing the claimed rows sequentially allowed later rows in some batches to expire before their turn. All 10,000 messages reached `Processed`, but durable evidence contained 10,045 consumer effects and therefore 45 expected at-least-once duplicates. V1 does not add heartbeat renewal or progressive claims. Operators must size `ClaimTimeout` for the worst-case duration of the complete claimed batch, including consumer work and completion persistence, or reduce `BatchSize`. The accepted TE-L05-B runs used a batch of 10 under the same five-second lease and completed 5,000 rows on each provider with exact state and effect counts, demonstrating that mitigation for this workload without promoting 10 to a product default.
+
 TE-W08 exercised normal host cancellation while idle and during a delayed consumer. Both worker processes reported graceful shutdown and exited with code zero. Idle shutdown changed no durable state. Active cancellation left the message claimed and recoverable, recorded neither a consumer effect nor a failed attempt, and a replacement worker completed it once the SQL lease expired.
 
 TE-W09 rejected the first consumer invocation, persisted `AttemptCount = 1` and `NextAttemptAtUtc`, and stopped all worker capacity during the retry delay. A replacement process started before eligibility without invoking the consumer. It completed the second invocation only after the SQL retry boundary, producing one durable effect and no duplicate. Retry state therefore survives process loss and remains database-authoritative.
@@ -446,9 +459,39 @@ TE-D06 also satisfies TE-T04 without a duplicate executable scenario. Four concu
 
 TE-T05 writes business state and its outbox message inside an open transaction, then terminates the publisher process on each side of the commit boundary. Saved but uncommitted work disappears, a commit survives immediate process termination, and a normally acknowledged commit remains durable. The unchanged scenario passed against SQL Server and PostgreSQL on 2026-08-21.
 
+TE-C06 publishes the V1 contract, then starts a V2 worker whose same durable event type adds one optional member. The SQL Server acceptance run on 2026-08-22 reached `Processed`, recorded exactly one durable effect, and observed the absent V2 member as `not-provided`. This demonstrates the supported additive evolution path without changing TinyEvents production code.
+
+TE-C07 publishes one producer-only event followed by one registered event through the normal publisher API. With one configured maximum attempt, the SQL Server acceptance run on 2026-08-22 left the unknown event in `Failed`, retained the exact missing-dispatcher error, emitted `EventRetriesExhausted`, and processed the valid event later in the same batch with exactly one durable effect. This demonstrates that one unknown contract does not stop valid work behind it.
+
+TE-C08 publishes a registered event through the normal API, replaces only its durable payload with malformed JSON through an external dogfood fault, and then publishes another valid event. The SQL Server acceptance run on 2026-08-22 left the malformed event in `Failed`, retained the JSON error, emitted `EventRetriesExhausted`, and processed the valid event later in the same batch with exactly one durable effect. TinyEvents production code contains no malformed-message test hook.
+
+TE-S02-A restores the package-consuming upgrade host only from nuget.org and runs it against published `0.1.0-alpha.3`. The SQL Server acceptance run on 2026-08-22 created one pending message, one processing message with an expired lease, and one terminally failed message with one attempt. All three rows retained one exact event type, the schema contained one migration history row, and no candidate consumer effect existed.
+
+TE-S02-B packs the release train from clean `main`, restores the same package-only host from those candidate packages, migrates the alpha-created database, and invokes the real outbox processor. The SQL Server acceptance run on 2026-08-22 processed the pending and expired-processing rows with exactly two distinct effects. It preserved the terminally failed row, its single attempt, and its exact error, while migration history remained at one row.
+
+TE-S02-C runs that unchanged package-only contract against PostgreSQL. The parity acceptance run on 2026-08-22 passed both providers together against candidate commit `560d1d98724140bde31980bb1c357d3edf0bb8fa`. Each provider processed two supported rows with two distinct effects, preserved the exact terminal failure, and retained one migration history row. `TE-S02` is complete.
+
+TE-S03 uses a temporary SQL Server DDL trigger or PostgreSQL event trigger to block the real migrator after it owns the provider migration lock. The runner observes that boundary from the database, terminates the application process, waits for the abandoned lock to disappear, removes the fault, and starts a replacement process. Acceptance allows any atomic resumable boundary after process death: no migration infrastructure, empty history infrastructure, or a completely committed migration. Mixed outbox/history state is rejected. Both providers passed on 2026-08-22 and recovered to one exact `001_CreateTinyOutbox` history row.
+
+TE-S04 prepares three durable schema states through provider-specific external setup. A completely absent schema migrates to one exact current history row. Current history without its physical outbox is rejected as inconsistent and names the missing table. A checksum-conflicting history row is rejected with its migration version and checksum diagnostic. The initial run exposed that both providers silently accepted the missing outbox; TinyEvents fix `5396617` closed that hole. SQL Server and PostgreSQL then passed the unchanged scenario from merged `main` commit `4612c24` on 2026-08-22.
+
+TE-S05 builds package-only application assemblies against published `0.1.0-alpha.3` and clean `main`, creates a separate 100-message alpha backlog, and starts both versions concurrently against one database. Durable effects retain operation and worker identity so acceptance proves both versions participated and every message produced one distinct effect. SQL Server and PostgreSQL each completed with 100 processed messages, 100 distinct operation effects, two worker identities, no remaining or failed work, and one migration row on 2026-08-22 using candidate commit `4612c24`.
+
 ### BETA-7 - Capacity, backlog, and retention
 
 Execute TE-L01 through TE-L07. Make the retention decision from measured storage and claim behavior.
+
+TE-L01 issues one real application scope and database commit per request while workers remain stopped. On 2026-08-22, both providers committed all 14,000 attempted requests across independent 200, 400, and 800 requests-per-second runs, with exact business and pending-outbox counts and no failed commit. SQL Server sustained 200.02, 399.49, and 576.04 committed requests per second; PostgreSQL sustained 199.85, 399.81, and 799.59. These are local capacity observations, not product guarantees. The repeatable result retains target achievement and committed-request p50, p95, and p99 latency so later runs can be compared without mixing publisher and worker throughput.
+
+TE-L02 builds a fresh 10,000-message backlog before every worker-count variant, then measures drain with publishers stopped. On 2026-08-22, SQL Server processed 120.39, 246.15, 481.51, and 553.74 messages per second with 1, 2, 4, and 8 workers. PostgreSQL processed 235.04, 457.66, 716.49, and 1,121.03. All 80,000 messages across both providers reached `Processed`, every worker participated, and no failed attempt, lost effect, or duplicate effect was observed. SQL Server scaled almost linearly through four workers and then gained 15% at eight; PostgreSQL still gained 56% from four to eight. This provider contrast prevents the SQL Server knee from being misclassified as a universal TinyEvents coordination limit.
+
+The first canonical SQL Server run also exposed the dogfood observation query as a deadlock victim while it scanned the active outbox. The worker remained correct and all unfinished rows stayed recoverable. The laboratory now retries only SQL Server error 1205 for this read-only exact observation; it does not use dirty reads or change TinyEvents production behavior. The unchanged canonical scenario then passed.
+
+TE-L03 uses one application publisher to sustain a 2,000-message mix at a combined target of 200 requests per second: 80% successful, 10% transient, 5% permanent, and 5% delayed after their durable effect. Four worker processes run concurrently. Both providers committed all 2,000 messages, processed 1,900, deliberately exhausted 100, recorded exactly 700 failed attempts and 900 failure-plan invocations, produced 1,900 effects, and produced no duplicate. An intermediate durable observation proved successful work advanced while retries remained active. SQL Server settled 6.28 seconds after publishing completed; PostgreSQL settled in 6.23 seconds. The two configured three-second retry boundaries account for that expected tail.
+
+The first PostgreSQL topology used four publisher processes solely to create four traffic classes. Their independent default pools exhausted the container's 100-connection limit and produced `53300: too many clients already`. TinyEvents correctly settled every accepted message, while the enhanced publisher evidence retained the rejected commits and root cause. The accepted scenario now uses one publisher process with four concurrent traffic definitions and limits every publisher and worker pool to 16 connections. This leaves explicit capacity for observation and administration without increasing the database limit or retrying rejected connections. The same bounded topology passes unchanged against SQL Server.
+
+TE-L04 starts one publisher at 200 requests per second with workers stopped, observes at least 1,000 pending messages, and then starts four worker processes without stopping or slowing that publisher. SQL Server reduced 1,009 outstanding messages to no more than one second of incoming traffic in 5.10 seconds; PostgreSQL reduced 1,057 in 3.17 seconds. Both publishers committed all 4,000 operations, every worker participated, every message completed once, and neither provider recorded a failed attempt or duplicate effect. Recovery is deliberately defined by the bounded live backlog rather than requiring a 100-millisecond polling observation to coincide with a transient empty queue.
 
 ### BETA-8 - Package and release gates
 

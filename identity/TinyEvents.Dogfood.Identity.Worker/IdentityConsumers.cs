@@ -1,3 +1,4 @@
+using TinyEvents.Dogfood.Identity.Additive;
 using TinyEvents.Dogfood.Identity.Contracts;
 using TinyEvents.Dogfood.Identity.Moved;
 using TinyEvents.Dogfood.Identity.Nested;
@@ -34,5 +35,21 @@ public sealed class MovedEventConsumer(DogfoodEffectRecorder effects) : IEventCo
     public ValueTask ConsumeAsync(MovedEvent @event, CancellationToken cancellationToken)
     {
         return effects.RecordAsync(@event.ScenarioId, nameof(MovedEventConsumer), cancellationToken);
+    }
+}
+
+public sealed class AdditiveEventConsumer(DogfoodEffectRecorder effects) : IEventConsumer<AdditiveEvent>
+{
+    private const string MissingOptionalNote = "not-provided";
+
+    public ValueTask ConsumeAsync(AdditiveEvent @event, CancellationToken cancellationToken)
+    {
+        var observedOptionalNote = @event.OptionalNote ?? MissingOptionalNote;
+
+        return effects.RecordAsync(
+            @event.ScenarioId,
+            nameof(AdditiveEventConsumer),
+            cancellationToken,
+            observedOptionalNote);
     }
 }

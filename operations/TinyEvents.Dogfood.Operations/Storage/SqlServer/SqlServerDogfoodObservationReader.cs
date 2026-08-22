@@ -5,7 +5,37 @@ namespace TinyEvents.Dogfood.Operations;
 
 internal static class SqlServerDogfoodObservationReader
 {
+    private const int DeadlockVictimErrorNumber = 1205;
+    private const int MaximumAttempts = 3;
+
     public static async ValueTask<ScenarioObservation> ReadAsync(
+        DogfoodSettings settings,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; attempt <= MaximumAttempts; attempt++)
+        {
+            try
+            {
+                return await ReadOnceAsync(settings, cancellationToken);
+            }
+            catch (SqlException exception) when (ShouldRetry(exception, attempt))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken);
+            }
+        }
+
+        throw new InvalidOperationException("The SQL Server observation retry loop ended unexpectedly.");
+    }
+
+    private static bool ShouldRetry(SqlException exception, int attempt)
+    {
+        var observationWasDeadlockVictim =
+            exception.Number == DeadlockVictimErrorNumber;
+        var anotherAttemptIsAvailable = attempt < MaximumAttempts;
+        return observationWasDeadlockVictim && anotherAttemptIsAvailable;
+    }
+
+    private static async ValueTask<ScenarioObservation> ReadOnceAsync(
         DogfoodSettings settings,
         CancellationToken cancellationToken)
     {

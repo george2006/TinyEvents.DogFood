@@ -1,18 +1,3 @@
-function Get-TED05ScenarioCount {
-    param(
-        [pscustomobject]$Counts,
-        [string]$ScenarioId
-    )
-
-    $count = $Counts.PSObject.Properties[$ScenarioId]
-
-    if ($null -eq $count) {
-        return 0
-    }
-
-    return $count.Value
-}
-
 function Wait-ForTED05OutagePoint {
     param(
         [string]$Assembly,
@@ -29,7 +14,7 @@ function Wait-ForTED05OutagePoint {
         }
 
         $observation = Get-Observation -Assembly $Assembly
-        $slowEffects = Get-TED05ScenarioCount $observation.ScenarioEffects $SlowScenarioId
+        $slowEffects = Get-ScenarioCount $observation.ScenarioEffects $SlowScenarioId
 
         if ($observation.ProcessingMessages -gt 0 -and
             $observation.ProcessedMessages -eq 0 -and
@@ -148,12 +133,12 @@ function Invoke-TED05DatabaseRestartUnderMixedLoad {
     }
 
     $failureCounts = Get-WorkerFailureLogCounts $workerLog
-    $slowEffects = Get-TED05ScenarioCount $completed.ScenarioEffects $slowScenarioId
-    $successEffects = Get-TED05ScenarioCount $completed.ScenarioEffects $successScenarioId
-    $transientEffects = Get-TED05ScenarioCount $completed.ScenarioEffects $transientScenarioId
-    $permanentEffects = Get-TED05ScenarioCount $completed.ScenarioEffects $permanentScenarioId
-    $transientAttempts = Get-TED05ScenarioCount $completed.ScenarioAttempts $transientScenarioId
-    $permanentAttempts = Get-TED05ScenarioCount $completed.ScenarioAttempts $permanentScenarioId
+    $slowEffects = Get-ScenarioCount $completed.ScenarioEffects $slowScenarioId
+    $successEffects = Get-ScenarioCount $completed.ScenarioEffects $successScenarioId
+    $transientEffects = Get-ScenarioCount $completed.ScenarioEffects $transientScenarioId
+    $permanentEffects = Get-ScenarioCount $completed.ScenarioEffects $permanentScenarioId
+    $transientAttempts = Get-ScenarioCount $completed.ScenarioAttempts $transientScenarioId
+    $permanentAttempts = Get-ScenarioCount $completed.ScenarioAttempts $permanentScenarioId
     $processEffects = $completed.ProcessEffects.PSObject.Properties[[string]$worker.Id]
     $sameProcessRecordedEveryEffect =
         @($completed.ProcessEffects.PSObject.Properties).Count -eq 1 -and
