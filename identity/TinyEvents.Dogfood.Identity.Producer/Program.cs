@@ -18,7 +18,7 @@ internal static class IdentityProducer
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("Expected reset, publish <event-kind> <scenario-id>, or inspect.");
+            WriteUsage();
             return 2;
         }
 
@@ -32,13 +32,22 @@ internal static class IdentityProducer
             case "publish" when args.Length == 3:
                 await PublishAsync(settings, args[1], args[2]);
                 return 0;
+            case "corrupt-only-payload" when args.Length == 1:
+                await DogfoodOutboxFaultInjector.CorruptOnlyPayloadAsync(settings);
+                return 0;
             case "inspect":
                 await InspectAsync(settings);
                 return 0;
             default:
-                Console.Error.WriteLine("Expected reset, publish <event-kind> <scenario-id>, or inspect.");
+                WriteUsage();
                 return 2;
         }
+    }
+
+    private static void WriteUsage()
+    {
+        Console.Error.WriteLine(
+            "Expected reset, publish <event-kind> <scenario-id>, corrupt-only-payload, or inspect.");
     }
 
     private static async Task ResetAsync(DogfoodSettings settings)

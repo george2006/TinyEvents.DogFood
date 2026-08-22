@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("All", "TE-C01", "TE-C02", "TE-C03", "TE-C04", "TE-C05", "TE-C06", "TE-C07")]
+    [ValidateSet("All", "TE-C01", "TE-C02", "TE-C03", "TE-C04", "TE-C05", "TE-C06", "TE-C07", "TE-C08")]
     [string]$Scenario = "All"
 )
 
@@ -91,6 +91,10 @@ function Invoke-IdentityScenario {
         $Definition.EventKind,
         $Definition.Id)
 
+    if ($Definition.CorruptPayload) {
+        Invoke-Native "dotnet" @($ProducerAssembly, "corrupt-only-payload")
+    }
+
     if ($null -ne $Definition.FollowUpEventKind) {
         Invoke-Native "dotnet" @(
             $ProducerAssembly,
@@ -128,7 +132,20 @@ function Invoke-IdentityScenario {
 
     $matchesStatus = $observation.Status -eq $Definition.ExpectedStatus
     $matchesAttemptCount = $observation.AttemptCount -eq $Definition.ExpectedAttemptCount
-    $matchesLastError = $observation.LastError -eq $Definition.ExpectedLastError
+    $matchesExactLastError = $observation.LastError -eq $Definition.ExpectedLastError
+    $expectsLastErrorFragment = $null -ne $Definition.ExpectedLastErrorContains
+    $matchesLastErrorFragment =
+        $null -ne $observation.LastError -and
+        $expectsLastErrorFragment -and
+        $observation.LastError.IndexOf(
+            $Definition.ExpectedLastErrorContains,
+            [StringComparison]::Ordinal) -ge 0
+    $matchesLastError = if ($expectsLastErrorFragment) {
+        $matchesLastErrorFragment
+    }
+    else {
+        $matchesExactLastError
+    }
     $matchesEffects = $observation.EffectCount -eq $Definition.ExpectedEffects
     $matchesObservedValue = $observation.ObservedValue -eq $Definition.ExpectedObservedValue
     $matchesMessageCount = $observation.MessageCount -eq $Definition.ExpectedMessageCount
@@ -152,6 +169,7 @@ function Invoke-IdentityScenario {
         ExpectedStatus = $Definition.ExpectedStatus
         ExpectedAttemptCount = $Definition.ExpectedAttemptCount
         ExpectedLastError = $Definition.ExpectedLastError
+        ExpectedLastErrorContains = $Definition.ExpectedLastErrorContains
         ExpectedEffects = $Definition.ExpectedEffects
         ExpectedObservedValue = $Definition.ExpectedObservedValue
         ExpectedMessageCount = $Definition.ExpectedMessageCount
@@ -255,10 +273,12 @@ $definitions = @(
         Id = "TE-C01"
         EventKind = "normal"
         FollowUpEventKind = $null
+        CorruptPayload = $false
         Contract = "Shared top-level contract"
         ExpectedStatus = "Processed"
         ExpectedAttemptCount = 0
         ExpectedLastError = $null
+        ExpectedLastErrorContains = $null
         ExpectedEffects = 1
         ExpectedObservedValue = $null
         ExpectedMessageCount = 1
@@ -270,10 +290,12 @@ $definitions = @(
         Id = "TE-C02"
         EventKind = "nested"
         FollowUpEventKind = $null
+        CorruptPayload = $false
         Contract = "Nested contract"
         ExpectedStatus = "Processed"
         ExpectedAttemptCount = 0
         ExpectedLastError = $null
+        ExpectedLastErrorContains = $null
         ExpectedEffects = 1
         ExpectedObservedValue = $null
         ExpectedMessageCount = 1
@@ -285,10 +307,12 @@ $definitions = @(
         Id = "TE-C03"
         EventKind = $null
         FollowUpEventKind = $null
+        CorruptPayload = $false
         Contract = "Closed generic contract"
         ExpectedStatus = "Rejected"
         ExpectedAttemptCount = 0
         ExpectedLastError = $null
+        ExpectedLastErrorContains = $null
         ExpectedEffects = 0
         ExpectedObservedValue = $null
         ExpectedMessageCount = 0
@@ -300,10 +324,12 @@ $definitions = @(
         Id = "TE-C04"
         EventKind = "renamed"
         FollowUpEventKind = $null
+        CorruptPayload = $false
         Contract = "Namespace rename with same type name"
         ExpectedStatus = "Processed"
         ExpectedAttemptCount = 0
         ExpectedLastError = $null
+        ExpectedLastErrorContains = $null
         ExpectedEffects = 1
         ExpectedObservedValue = $null
         ExpectedMessageCount = 1
@@ -315,10 +341,12 @@ $definitions = @(
         Id = "TE-C05"
         EventKind = "moved"
         FollowUpEventKind = $null
+        CorruptPayload = $false
         Contract = "Same full name moved between assemblies"
         ExpectedStatus = "Processed"
         ExpectedAttemptCount = 0
         ExpectedLastError = $null
+        ExpectedLastErrorContains = $null
         ExpectedEffects = 1
         ExpectedObservedValue = $null
         ExpectedMessageCount = 1
@@ -330,10 +358,12 @@ $definitions = @(
         Id = "TE-C06"
         EventKind = "additive"
         FollowUpEventKind = $null
+        CorruptPayload = $false
         Contract = "V1 payload consumed by V2 contract with optional member"
         ExpectedStatus = "Processed"
         ExpectedAttemptCount = 0
         ExpectedLastError = $null
+        ExpectedLastErrorContains = $null
         ExpectedEffects = 1
         ExpectedObservedValue = "not-provided"
         ExpectedMessageCount = 1
@@ -345,10 +375,29 @@ $definitions = @(
         Id = "TE-C07"
         EventKind = "unknown"
         FollowUpEventKind = "normal"
+        CorruptPayload = $false
         Contract = "Unknown event reaches failed state without blocking later valid work"
         ExpectedStatus = "Failed"
         ExpectedAttemptCount = 1
         ExpectedLastError = $unknownEventError
+        ExpectedLastErrorContains = $null
+        ExpectedEffects = 1
+        ExpectedObservedValue = $null
+        ExpectedMessageCount = 2
+        ExpectedProcessedMessages = 1
+        ExpectedFailedMessages = 1
+        ProductSupport = "Failed by design"
+    },
+    [pscustomobject]@{
+        Id = "TE-C08"
+        EventKind = "normal"
+        FollowUpEventKind = "nested"
+        CorruptPayload = $true
+        Contract = "Malformed payload reaches failed state without blocking later valid work"
+        ExpectedStatus = "Failed"
+        ExpectedAttemptCount = 1
+        ExpectedLastError = $null
+        ExpectedLastErrorContains = "invalid JSON"
         ExpectedEffects = 1
         ExpectedObservedValue = $null
         ExpectedMessageCount = 2
