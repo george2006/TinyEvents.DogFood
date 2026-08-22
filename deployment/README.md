@@ -16,11 +16,13 @@ Select PostgreSQL without changing the scenario or its acceptance rules:
 .\deployment\Run-SchemaScenarios.ps1 -StorageProvider PostgreSql
 ```
 
-Run one independently addressable scenario with `-Scenario TE-S01`.
+Run one independently addressable scenario with `-Scenario <scenario-id>`.
 
 | Scenario | Behavior |
 |---|---|
 | `TE-S01` | Eight application processes migrate one fresh SQL Server or PostgreSQL database concurrently and produce one exact committed history. |
+| `TE-S03` | A migration process dies while blocked inside database DDL, then a replacement safely resumes from the durable atomic boundary. |
+| `TE-S04` | Missing and incompatible schemas produce the documented recovery or actionable rejection behavior. |
 
 TE-S01 first recreates the dogfood database without the TinyEvents schema. Eight independently hosted migrators then start together. Every process must complete successfully, while the final database contains the outbox and exactly one `001_CreateTinyOutbox` history row with its durable checksum and application timestamp.
 
@@ -42,6 +44,19 @@ Run the process-death scenario against either provider:
 The scenario waits for the database to release the abandoned session lock before inspecting durable state. The interrupted transaction may leave no schema, an empty migration-history table, or a completely committed migration; all are safe atomic boundaries. An outbox without its matching history entry, or a history entry without its outbox, fails acceptance. After removing the external interruption, a second process must finish with one exact `001_CreateTinyOutbox` history row.
 
 The DDL trigger/event trigger belongs only to the dogfood fault injector. It is removed in a `finally` block and is not part of TinyEvents production code.
+
+## Missing or Incompatible Schema
+
+Run the schema-compatibility scenario against either provider:
+
+```powershell
+.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S04
+.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S04 -StorageProvider PostgreSql
+```
+
+`TE-S04` starts from three independently prepared durable states. A completely missing TinyEvents schema must migrate successfully. A current migration-history row whose physical outbox table is missing must fail without claiming the schema is current. A history row with a conflicting checksum must also fail. Both incompatible states must identify the problem and relevant migration or table in stderr.
+
+The scenario passed unchanged against SQL Server and PostgreSQL on 2026-08-22 using TinyEvents `main` commit `4612c24`.
 
 ## Published Alpha Upgrade
 

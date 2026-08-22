@@ -108,13 +108,14 @@ Evidence: `artifacts/database/<run-id>/<scenario-id>/`
 
 Provider: **SQL Server and PostgreSQL**
 
-Evidence: `artifacts/schema/<run-id>/TE-S01/` and `artifacts/deployment/<run-id>/TE-S02/`
+Evidence: `artifacts/schema/<run-id>/<scenario-id>/` and `artifacts/deployment/<run-id>/TE-S02/`
 
 | ID | Run | Expected evidence |
 | --- | --- | --- |
 | `TE-S01` | `.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S01` | Eight application processes migrate one fresh database concurrently. One applies `001_CreateTinyOutbox`, seven observe the current schema, and durable history contains one row. |
 | `TE-S02` | `.\deployment\Run-PublishedAlphaUpgrade.ps1` | Published `0.1.0-alpha.3` packages create pending, reclaimable-processing, and failed state. Clean-main candidate packages migrate SQL Server and PostgreSQL, process supported work exactly once in the lab, preserve the terminal failure, and retain one migration row per provider. |
 | `TE-S03` | `.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S03` | A database-controlled DDL interruption proves the migrator owns its provider lock before the application process is terminated. The database releases the abandoned lock, retains only a resumable atomic state, and a later process completes one exact migration. |
+| `TE-S04` | `.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S04` | A missing schema is created. Current migration history without its physical outbox and a conflicting migration checksum are both rejected with actionable diagnostics. |
 
 See [Schema and deployment dogfood](../deployment/README.md) for the migration scenario details.
 

@@ -463,6 +463,8 @@ TE-S02-C runs that unchanged package-only contract against PostgreSQL. The parit
 
 TE-S03 uses a temporary SQL Server DDL trigger or PostgreSQL event trigger to block the real migrator after it owns the provider migration lock. The runner observes that boundary from the database, terminates the application process, waits for the abandoned lock to disappear, removes the fault, and starts a replacement process. Acceptance allows any atomic resumable boundary after process death: no migration infrastructure, empty history infrastructure, or a completely committed migration. Mixed outbox/history state is rejected. Both providers passed on 2026-08-22 and recovered to one exact `001_CreateTinyOutbox` history row.
 
+TE-S04 prepares three durable schema states through provider-specific external setup. A completely absent schema migrates to one exact current history row. Current history without its physical outbox is rejected as inconsistent and names the missing table. A checksum-conflicting history row is rejected with its migration version and checksum diagnostic. The initial run exposed that both providers silently accepted the missing outbox; TinyEvents fix `5396617` closed that hole. SQL Server and PostgreSQL then passed the unchanged scenario from merged `main` commit `4612c24` on 2026-08-22.
+
 ### BETA-7 - Capacity, backlog, and retention
 
 Execute TE-L01 through TE-L07. Make the retention decision from measured storage and claim behavior.

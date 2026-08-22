@@ -4,7 +4,7 @@ This roadmap lists the evidence still required before TinyEvents can be consider
 
 Current as of August 22, 2026:
 
-- 33 named behavioral contracts have executable evidence;
+- 36 named behavioral contracts have executable evidence;
 - contract compatibility, invalid-message isolation, transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
 - SQL Server and PostgreSQL pass the complete database-recovery suite;
 - the final package and retention gates remain open.
@@ -18,7 +18,7 @@ See the [scenario catalog](scenario-catalog.md) for completed evidence and copya
   - [x] `TE-S02-B` — Pack the candidate from clean `main`, migrate the alpha database, drain supported work, and preserve the failed row.
   - [x] `TE-S02-C` — Run the unchanged upgrade contract against PostgreSQL.
 - [x] `TE-S03` — Terminate a migration process and prove a later process can safely resume.
-- [ ] `TE-S04` — Characterize missing, partially created, and checksum-conflicting schemas with actionable diagnostics.
+- [x] `TE-S04` — Characterize missing, partially created, and checksum-conflicting schemas with actionable diagnostics.
 - [ ] `TE-S05` — Run old and new application versions concurrently while messages remain in flight.
 
 This phase is complete when a real application can upgrade without losing supported work or silently accepting an incompatible schema.

@@ -101,7 +101,7 @@ Direct scenario files use their runner's default provider. Use the owning runner
 | Competing workers | `operations/Run-WorkerScaling.ps1` | SQL Server |
 | Claims, death, retries, and shutdown | `operations/Run-WorkerRecovery.ps1` | SQL Server |
 | Database failure and recovery | `operations/Run-DatabaseRecovery.ps1` | SQL Server, PostgreSQL |
-| Concurrent schema migration | `deployment/Run-SchemaScenarios.ps1` | SQL Server, PostgreSQL |
+| Schema and deployment | `deployment/Run-SchemaScenarios.ps1` | SQL Server, PostgreSQL |
 
 Provider support in this table describes executable evidence, not an unsupported TinyEvents product path. A scenario is enabled for a second provider only after the same behavioral assertions pass unchanged.
 
