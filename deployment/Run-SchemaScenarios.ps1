@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("all", "TE-S01", "TE-S03")]
+    [ValidateSet("all", "TE-S01", "TE-S03", "TE-S04")]
     [string]$Scenario = "all",
 
     [ValidateSet("SqlServer", "PostgreSql")]
@@ -16,6 +16,7 @@ $operationsDirectory = Join-Path $dogfoodRoot "operations"
 . (Join-Path $operationsDirectory "support\Database.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-S01-concurrent-application-migrations.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-S03-interrupted-migration.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-S04-incompatible-schema.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -40,6 +41,11 @@ $scenarioRunners = [ordered]@{
     }
     "TE-S03" = {
         Invoke-TES03InterruptedMigration `
+            $assembly `
+            $artifactDirectory
+    }
+    "TE-S04" = {
+        Invoke-TES04IncompatibleSchema `
             $assembly `
             $artifactDirectory
     }

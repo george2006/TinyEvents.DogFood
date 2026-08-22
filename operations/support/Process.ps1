@@ -19,6 +19,25 @@ function Invoke-LoggedProcess {
         [string]$Name
     )
 
+    $exitCode = Invoke-LoggedProcessForExitCode `
+        $Assembly `
+        $Arguments `
+        $ArtifactDirectory `
+        $Name
+
+    if ($exitCode -ne 0) {
+        throw "Operational command '$Name' failed with exit code $exitCode."
+    }
+}
+
+function Invoke-LoggedProcessForExitCode {
+    param(
+        [string]$Assembly,
+        [string[]]$Arguments,
+        [string]$ArtifactDirectory,
+        [string]$Name
+    )
+
     $standardOutput = Join-Path $ArtifactDirectory "$Name.stdout.log"
     $standardError = Join-Path $ArtifactDirectory "$Name.stderr.log"
     $process = Start-Process `
@@ -30,9 +49,7 @@ function Invoke-LoggedProcess {
         -Wait `
         -PassThru
 
-    if ($process.ExitCode -ne 0) {
-        throw "Operational command '$Name' failed with exit code $($process.ExitCode)."
-    }
+    return $process.ExitCode
 }
 
 function Start-LoggedDotNetProcess {

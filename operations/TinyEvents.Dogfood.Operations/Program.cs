@@ -120,6 +120,26 @@ switch (args[0].ToLowerInvariant())
             CancellationToken.None);
         return 0;
 
+    case "remove-outbox-table":
+        await GetMigrationSchemaManipulator(settings).RemoveOutboxTableAsync(
+            settings,
+            CancellationToken.None);
+        return 0;
+
+    case "replace-migration-checksum":
+        if (args.Length != 2 || args[1].Length != 64)
+        {
+            Console.Error.WriteLine(
+                "Expected replace-migration-checksum <64-character-checksum>.");
+            return 1;
+        }
+
+        await GetMigrationSchemaManipulator(settings).ReplaceMigrationChecksumAsync(
+            settings,
+            args[1],
+            CancellationToken.None);
+        return 0;
+
     case "worker":
         return await RunWorkerAsync(args, settings);
 
@@ -145,6 +165,12 @@ static IMigrationInterruption GetMigrationInterruption(
     DogfoodSettings settings)
 {
     return MigrationInterruptionSelector.Select(settings.StorageProvider);
+}
+
+static IMigrationSchemaManipulator GetMigrationSchemaManipulator(
+    DogfoodSettings settings)
+{
+    return MigrationSchemaManipulatorSelector.Select(settings.StorageProvider);
 }
 
 static void WriteUsage()
