@@ -25,12 +25,31 @@ internal sealed class DogfoodPublisher(
         int contentCharacterCount,
         CancellationToken cancellationToken = default)
     {
-        var content = new string('x', contentCharacterCount);
+        var content = CreateRepresentativeContent(contentCharacterCount);
         await PublishAsync(
             scenarioId,
             count,
             content,
             cancellationToken);
+    }
+
+    private static string CreateRepresentativeContent(int characterCount)
+    {
+        const string characters =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+            "abcdefghijklmnopqrstuvwxyz" +
+            "0123456789";
+        const int deterministicSeed = 173;
+
+        var random = new Random(deterministicSeed);
+        var content = new char[characterCount];
+
+        for (var index = 0; index < content.Length; index++)
+        {
+            content[index] = characters[random.Next(characters.Length)];
+        }
+
+        return new string(content);
     }
 
     private async ValueTask PublishAsync(
