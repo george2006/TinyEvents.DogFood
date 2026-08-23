@@ -132,3 +132,17 @@ function Save-LoggedProcessOutput {
     $standardOutput | Set-Content $ProcessHandle.OutputPath
     $standardError | Set-Content $ProcessHandle.ErrorPath
 }
+
+function Read-LoggedJsonResult {
+    param([string]$OutputPath)
+
+    $json = Get-Content -LiteralPath $OutputPath |
+        Where-Object { $_.StartsWith("{") } |
+        Select-Object -Last 1
+
+    if ([string]::IsNullOrWhiteSpace($json)) {
+        throw "Command did not emit a JSON result: $OutputPath"
+    }
+
+    return $json | ConvertFrom-Json
+}

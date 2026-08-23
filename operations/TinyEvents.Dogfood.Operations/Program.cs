@@ -154,6 +154,12 @@ switch (args[0].ToLowerInvariant())
 
         return 0;
 
+    case "prepare-cleanup-population":
+        return await PrepareCleanupPopulationAsync(args, settings);
+
+    case "cleanup-once":
+        return await RunCleanupOnceAsync(args, settings);
+
     case "install-migration-interruption":
         await GetMigrationInterruption(settings).InstallAsync(
             settings,
@@ -240,6 +246,79 @@ static async ValueTask MigrateAsync(DogfoodSettings settings)
 {
     using var host = DogfoodHost.Build(settings, "migration");
     await host.Services.MigrateTinyEventsAsync();
+}
+
+static async Task<int> PrepareCleanupPopulationAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var messageCount = 0;
+    var cutoffUtc = default(DateTimeOffset);
+    var argumentsAreValid =
+        arguments.Length == 3 &&
+        int.TryParse(arguments[1], out messageCount) &&
+        messageCount > 0 &&
+        DateTimeOffset.TryParse(arguments[2], out cutoffUtc);
+
+    if (!argumentsAreValid)
+    {
+        Console.Error.WriteLine(
+            "Expected prepare-cleanup-population <positive-message-count> <cutoff-utc>.");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(settings, "cleanup-population");
+    using var scope = host.Services.CreateScope();
+    var fixture = scope.ServiceProvider
+        .GetRequiredService<DogfoodCleanupPopulationFixture>();
+    var result = await fixture.PrepareAsync(messageCount, cutoffUtc);
+    Console.WriteLine(JsonSerializer.Serialize(result));
+    return 0;
+}
+
+static async Task<int> RunCleanupOnceAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var batchSize = 0;
+    var cutoffUtc = default(DateTimeOffset);
+    var startAtUtc = default(DateTimeOffset);
+    var argumentsAreValid =
+        arguments.Length == 4 &&
+        DateTimeOffset.TryParse(arguments[1], out cutoffUtc) &&
+        int.TryParse(arguments[2], out batchSize) &&
+        batchSize > 0 &&
+        DateTimeOffset.TryParse(arguments[3], out startAtUtc);
+
+    if (!argumentsAreValid)
+    {
+        Console.Error.WriteLine(
+            "Expected cleanup-once <cutoff-utc> <positive-batch-size> <start-at-utc>.");
+        return 1;
+    }
+
+    using var host = DogfoodHost.Build(
+        settings,
+        $"cleanup-{Environment.ProcessId}");
+    using var scope = host.Services.CreateScope();
+    var command = scope.ServiceProvider
+        .GetRequiredService<DogfoodCleanupBatchCommand>();
+
+    await WaitUntilAsync(startAtUtc);
+
+    var result = await command.ExecuteAsync(cutoffUtc, batchSize);
+    Console.WriteLine(JsonSerializer.Serialize(result));
+    return 0;
+}
+
+static async ValueTask WaitUntilAsync(DateTimeOffset startAtUtc)
+{
+    var delay = startAtUtc - DateTimeOffset.UtcNow;
+
+    if (delay > TimeSpan.Zero)
+    {
+        await Task.Delay(delay);
+    }
 }
 
 static async Task<int> RunPublisherWithTimingAsync(

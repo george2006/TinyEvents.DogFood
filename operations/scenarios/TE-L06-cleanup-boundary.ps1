@@ -1,17 +1,3 @@
-function Read-TEL06CleanupBoundaryOutput {
-    param([string]$OutputPath)
-
-    $json = Get-Content $OutputPath |
-        Where-Object { $_.StartsWith("{") } |
-        Select-Object -Last 1
-
-    if ([string]::IsNullOrWhiteSpace($json)) {
-        throw "Cleanup boundary command did not emit its JSON result."
-    }
-
-    return $json | ConvertFrom-Json
-}
-
 function Invoke-TEL06CleanupBoundary {
     param(
         [string]$Assembly,
@@ -28,7 +14,7 @@ function Invoke-TEL06CleanupBoundary {
         $scenarioDirectory `
         "cleanup-boundary"
 
-    $commandResult = Read-TEL06CleanupBoundaryOutput `
+    $commandResult = Read-LoggedJsonResult `
         (Join-Path $scenarioDirectory "cleanup-boundary.stdout.log")
     $after = $commandResult.AfterCleanup
     $cutoffUtc = [DateTimeOffset]$commandResult.CutoffUtc

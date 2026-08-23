@@ -8,7 +8,9 @@ Set-StrictMode -Version Latest
 
 . (Join-Path $PSScriptRoot "support\Process.ps1")
 . (Join-Path $PSScriptRoot "support\Database.ps1")
+. (Join-Path $PSScriptRoot "support\Observations.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-L06-cleanup-boundary.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-L06-concurrent-cleanup.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -34,7 +36,10 @@ New-Item -ItemType Directory -Force -Path $artifactDirectory | Out-Null
 Start-DogfoodDatabase $database
 Invoke-Native "dotnet" @("build", $project, "-c", "Release")
 
-$result = Invoke-TEL06CleanupBoundary $assembly $artifactDirectory
+$results = @(
+    Invoke-TEL06CleanupBoundary $assembly $artifactDirectory
+    Invoke-TEL06ConcurrentCleanup $assembly $artifactDirectory
+)
 
 $manifest = [ordered]@{
     RunId = $runId
@@ -46,16 +51,16 @@ $manifest = [ordered]@{
     TinyEventsGitCommit = Get-GitCommit $tinyEventsRoot
     DotNetSdk = (dotnet --version)
     DatabaseEngine = $database.Description
-    Result = $result
+    Results = $results
 }
 
 $manifest |
     ConvertTo-Json -Depth 10 |
     Set-Content (Join-Path $artifactDirectory "manifest.json")
-$result | Format-Table Scenario, DeletedCount, AcceptancePassed
+$results | Format-Table Scenario, AcceptancePassed
 
-if (!$result.AcceptancePassed) {
-    throw "Cleanup boundary acceptance failed. Evidence: $artifactDirectory"
+if (@($results | Where-Object { !$_.AcceptancePassed }).Count -gt 0) {
+    throw "Cleanup acceptance failed. Evidence: $artifactDirectory"
 }
 
-Write-Host "Cleanup boundary acceptance completed. Evidence: $artifactDirectory"
+Write-Host "Cleanup acceptance completed. Evidence: $artifactDirectory"
