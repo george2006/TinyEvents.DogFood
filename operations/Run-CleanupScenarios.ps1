@@ -11,6 +11,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "support\Observations.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-L06-cleanup-boundary.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-L06-concurrent-cleanup.ps1")
+. (Join-Path $PSScriptRoot "scenarios\TE-L06-cleanup-process-recovery.ps1")
 
 function Get-GitCommit {
     param([string]$Repository)
@@ -39,6 +40,7 @@ Invoke-Native "dotnet" @("build", $project, "-c", "Release")
 $results = @(
     Invoke-TEL06CleanupBoundary $assembly $artifactDirectory
     Invoke-TEL06ConcurrentCleanup $assembly $artifactDirectory
+    Invoke-TEL06CleanupProcessRecovery $assembly $artifactDirectory
 )
 
 $manifest = [ordered]@{
