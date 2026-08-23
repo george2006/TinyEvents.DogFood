@@ -142,6 +142,18 @@ switch (args[0].ToLowerInvariant())
         Console.WriteLine(JsonSerializer.Serialize(migrationObservation));
         return 0;
 
+    case "run-cleanup-boundary":
+        using (var host = DogfoodHost.Build(settings, "cleanup-boundary"))
+        using (var scope = host.Services.CreateScope())
+        {
+            var scenario = scope.ServiceProvider
+                .GetRequiredService<DogfoodCleanupBoundaryScenario>();
+            var result = await scenario.ExecuteAsync();
+            Console.WriteLine(JsonSerializer.Serialize(result));
+        }
+
+        return 0;
+
     case "install-migration-interruption":
         await GetMigrationInterruption(settings).InstallAsync(
             settings,

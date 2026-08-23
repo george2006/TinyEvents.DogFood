@@ -16,6 +16,9 @@ Current as of August 23, 2026:
 - `TE-L05-A`, `TE-L05-B`, and `TE-L05-C` provide repeatable storage and
   retained-history evidence against both providers;
 - cleanup defaults and runtime behavior have not yet passed dogfood acceptance;
+- the `TE-L06-A` reproducible runner passes against SQL Server and PostgreSQL
+  with one exact deletion; final evidence must be repeated after commit so its
+  manifest identifies a clean, reproducible Dogfood revision;
 - the beta is not ready until cleanup, soak, provider, package, and final audit
   gates close.
 
@@ -46,7 +49,7 @@ No pull request is created or merged without explicit review approval.
 | --- | --- | --- | --- |
 | `DOC-1` | Dogfood | Complete | Align documentation with merged cleanup and record this execution checkpoint. |
 | `FIX-1` | TinyEvents | Complete | Preserve enabled-cleanup startup validation while allowing disabled cleanup with custom providers. |
-| `TE-L06-A` | Dogfood | Next | Prove cutoff exclusivity and preservation of pending, processing, failed, and boundary rows through both real providers. |
+| `TE-L06-A` | Dogfood | Clean rerun pending | Repeat both providers from the committed revision and document the accepted evidence. |
 | `TE-L06-B` | Dogfood | Pending | Prove bounded deletion and safe progress with concurrent cleanup processes. |
 | `TE-L06-C` | Dogfood | Pending | Prove cleanup resumes after process termination and database interruption. |
 | `TE-L06-D` | Dogfood | Pending | Run cleanup during active publishing and processing at 200, 400, and 800 messages per second and measure interference. |

@@ -45,6 +45,8 @@ internal static class DogfoodHost
         builder.Services.AddSingleton(failureRules);
         builder.Services.AddSingleton<DogfoodConsumerFailurePlan>();
         builder.Services.AddScoped<DogfoodPublisher>();
+        builder.Services.AddScoped<DogfoodCleanupBoundaryFixture>();
+        builder.Services.AddScoped<DogfoodCleanupBoundaryScenario>();
         builder.Services.AddSingleton<PublishingLoadRunner>();
         builder.Services.AddDogfoodStorage(settings);
         builder.Services.UseTinyEvents(options =>
