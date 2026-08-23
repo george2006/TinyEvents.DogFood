@@ -111,6 +111,8 @@ $manifest |
     AcknowledgedCommittedRequests = $result.AcknowledgedCommittedRequests
     DurableCommittedRequests = $result.DurableCommittedRequests
     AmbiguousCommitCount = $result.AmbiguousCommitCount
+    InterruptedFailureRecordingCount =
+        $result.InterruptedFailureRecordingCount
     FailedRequests = @(
         $result.PublisherResults.Values |
             ForEach-Object { $_.FailedRequests } |

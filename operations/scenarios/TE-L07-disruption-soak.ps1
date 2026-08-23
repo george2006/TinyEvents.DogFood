@@ -663,9 +663,15 @@ function Invoke-TEL07DisruptionSoak {
         $durableTransient +
         $durableSlow
     $expectedFailed = $durablePermanent
-    $expectedFailedAttempts =
+    $expectedFailureRecordsWithoutInterruption =
         ($durableTransient * 2) +
         ($durablePermanent * 3)
+    $interruptedFailureRecordingCount =
+        $expectedFailureRecordsWithoutInterruption -
+        $completed.FailedAttempts
+    $interruptedFailureRecordingIsBounded =
+        $interruptedFailureRecordingCount -ge 0 -and
+        $interruptedFailureRecordingCount -le $workerDeaths.Count
     $minimumConsumerAttempts =
         ($durableTransient * 3) +
         ($durablePermanent * 3)
@@ -706,7 +712,7 @@ function Invoke-TEL07DisruptionSoak {
         $completed.ProcessingMessages -eq 0 -and
         $completed.ProcessedMessages -eq $expectedProcessed -and
         $completed.FailedMessages -eq $expectedFailed -and
-        $completed.FailedAttempts -eq $expectedFailedAttempts -and
+        $interruptedFailureRecordingIsBounded -and
         $completed.ConsumerAttempts -ge $minimumConsumerAttempts -and
         $distinctEffects -eq $expectedProcessed -and
         $transientAttempts -ge
@@ -743,6 +749,12 @@ function Invoke-TEL07DisruptionSoak {
         DurableCommittedRequests = $durableCommittedTotal
         AmbiguousCommitCount = $ambiguousCommitCount
         DurablePublishingBoundsHold = $durablePublishingBoundsHold
+        ExpectedFailureRecordsWithoutInterruption =
+            $expectedFailureRecordsWithoutInterruption
+        InterruptedFailureRecordingCount =
+            $interruptedFailureRecordingCount
+        InterruptedFailureRecordingIsBounded =
+            $interruptedFailureRecordingIsBounded
         WorkerDeaths = $workerDeaths
         ReplacementWorkersParticipated = $replacementWorkersParticipated
         DatabaseOutages = $databaseOutages
