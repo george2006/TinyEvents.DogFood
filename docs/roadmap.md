@@ -43,7 +43,7 @@ This phase is complete when a real application can upgrade without losing suppor
   - [x] `TE-L06-C2` — Prove one cleanup process survives database interruption and resumes after database recovery.
   - [x] `TE-L06-D` — Compare active publishing and processing with cleanup disabled and with the candidate policy enabled at 200, 400, and 800 requests per second.
   - [x] `TE-L06-E` — Accept retention, batch, and interval defaults from measured interference and publish the storage budget.
-- [ ] `TE-L07` — Run the bounded 120-second mixed-load soak with two claimed-worker deaths, two database outages, active cleanup, resource sampling, and exact durable reconciliation against SQL Server and PostgreSQL.
+- [x] `TE-L07` — Run the bounded 120-second mixed-load soak with two claimed-worker deaths, two database outages, active cleanup, resource sampling, and exact durable reconciliation against SQL Server and PostgreSQL.
 
 Existing evidence is reused where it proves the same behavior. A partial result is not marked complete until the missing measurement is executable and repeatable.
 

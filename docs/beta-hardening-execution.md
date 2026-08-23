@@ -12,8 +12,8 @@ Current as of August 23, 2026:
   SQL Server and PostgreSQL, including ADO.NET and EF Core providers;
 - Dogfood `main` at `c0db57f` contains the complete `TE-L05` and `TE-L06`
   scenarios, decisions, and measured evidence;
-- Dogfood branch `hardening/disruption-soak` is the clean starting point for
-  the bounded soak gate;
+- Dogfood branch `hardening/disruption-soak` contains the completed bounded
+  soak gate and awaits integration;
 - the cleanup capability is not present in the latest published NuGet packages;
 - TinyEvents documentation commit `936794c` accepts the one-hour retention,
   1,000-row batch, and one-second interval, publishes their measured storage
@@ -87,7 +87,7 @@ No pull request is created or merged without explicit review approval.
 | `DOC-2B` | TinyEvents | Complete | Mark cleanup defaults as candidates and complete next-release and migration references without changing alpha.3 release notes. |
 | `TE-L06-D` | Dogfood | Complete | Compare the same active workload with cleanup disabled and with the candidate policy enabled at 200, 400, and 800 messages per second. |
 | `TE-L06-E` | Both | Complete | Accept retention, batch, and interval defaults and publish the measured storage budget. |
-| `TE-L07` | Dogfood | Next | Run a timed soak with repeated worker and database disruption. |
+| `TE-L07` | Dogfood | Complete | Reconcile a timed mixed-load soak through repeated worker death, database outage, and active cleanup against both providers. |
 | `PROVIDER-1` | Both | Pending | Close only provider guarantees not already demonstrated by shared evidence. |
 | `PACKAGE-1` | Both | Pending | Pack the candidate and run supported consumers without project references. |
 | `BETA-GATE` | Both | Pending | Run the clean-checkout gate, review public limitations, and make the explicit beta/no-beta decision. |
@@ -212,9 +212,11 @@ claimed work and starts a distinctly named replacement after each death. It
 also stops and restores the real database twice for five seconds. A maximum
 pool of 16 connections per process and a one-second connection timeout keep
 outage pressure bounded. Failed publishing requests during an intentional
-database outage are observable application failures, not acknowledged outbox
-work. Acceptance derives every durable count from the requests that actually
-committed.
+database outage are observable application failures, but a connection can
+also fail after the database committed and before the publisher received
+acknowledgement. Acceptance retains acknowledged and failed request results
+while deriving durable per-scenario counts independently from business
+storage.
 
 The runner samples process working set and private memory, active database
 connections, physical outbox storage, and durable backlog during the run.
@@ -237,12 +239,43 @@ acceptance instead requires:
 SQL Server and PostgreSQL run the same scenario and assertions. A shorter run
 may be used while developing the runner, but it cannot close TE-L07.
 
+## TE-L07 Result
+
+`Run-DisruptionSoak.ps1` passed the contract configuration against SQL Server
+under `artifacts/soak/20260823-210500` and PostgreSQL under
+`artifacts/soak/20260823-210753`. Both runs used Dogfood commit `a816be2`,
+TinyEvents commit `936794c`, four workers, 50,000 expired rows, two claimed
+worker deaths with replacements, and two real five-second database outages.
+
+SQL Server acknowledged 17,530 publishes and contained 17,533 durable current
+operations after recovery. The three additional rows are explicit ambiguous
+commits: the database committed before the interrupted connection could return
+an acknowledgement. PostgreSQL acknowledged and durably contained 21,873.
+The final SQL Server state contained 16,657 processed and 876 deliberately
+failed messages; PostgreSQL contained 20,780 processed and 1,093 deliberately
+failed messages. Neither retained pending or processing work.
+
+Each provider recorded three duplicate effects across the deliberate worker
+death boundaries while retaining one distinct effect for every processed
+operation. Each also observed one consumer failure that was durable in the
+dogfood side-effect record but whose later outbox failure update was
+interrupted by process death. The gap is explicitly bounded to at most one
+active consumer execution per terminated process; it is not misreported as
+lost work.
+
+Both replacement workers participated, every seeded expired row was removed,
+cleanup progressed across disruption, surviving processes recovered after
+both database outages, and final durable reconciliation passed. Peak observed
+database connections were 29 for each provider. The largest individual .NET
+process working set sampled was 141,393,920 bytes on SQL Server and 144,773,120
+bytes on PostgreSQL. Final outbox allocations were 33,595,392 and 24,625,152
+bytes respectively. These resource measurements describe this machine and
+workload; they are not product ceilings.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
-repository branches and working trees, and continue `TE-L07` on Dogfood branch
-`hardening/disruption-soak`. Implement the contract above by reusing the
-existing process, worker, database, observation, publishing-load, and cleanup
-mechanisms. Do not add a soak framework, modify a dirty checkout, repeat
-completed evidence without a reason, or advance to a pull request before
-reviewing the complete branch diff.
+repository branches and working trees, and review Dogfood branch
+`hardening/disruption-soak` for integration. TE-L07 is complete. Continue with
+`PROVIDER-1` only after the branch is integrated; do not rerun completed
+evidence without a concrete reason or add a new hardening framework.
