@@ -105,6 +105,15 @@ Prove the processed-retention boundary and concurrent bounded progress through t
 
 `TE-L06-C2` stops the real database after partial cleanup. It requires the same background-service process to report cleanup-specific failures, remain alive, report recovery after the database returns, delete another batch after that recovery, and complete the exact durable remainder. This closes recovery behavior but does not yet measure interference with active publishers and consumers.
 
+Compare active load with cleanup disabled and with the candidate policy enabled:
+
+```powershell
+.\operations\Run-CleanupUnderLoad.ps1
+.\operations\Run-CleanupUnderLoad.ps1 -StorageProvider PostgreSql
+```
+
+`TE-L06-D` runs isolated baseline and candidate variants at 200, 400, and 800 requests per second. Each variant starts with 50,000 eligible rows and uses four workers with a maximum connection pool of 16 per process. The runner records commit latency, settlement, cleanup progress, worker participation, and exact durable outcomes under `artifacts/cleanup-load/<run-id>/`. This is a heavy local acceptance gate, not a quick CI smoke test.
+
 Run one independently named scenario either through the suite selector or its own file:
 
 ```powershell
@@ -143,6 +152,7 @@ The runner starts the sibling TinyEvents SQL Server container, builds a backlog 
 | `TE-L02` | Publishers remain stopped while 1, 2, 4, and 8 workers drain identical 10,000-message backlogs and record throughput, speedup, efficiency, participation, and exact durable outcomes. |
 | `TE-L03` | One publisher and four workers sustain a known success, transient, permanent, and slow mix while proving unrelated progress, exact retry pressure, terminal outcomes, and bounded connections. |
 | `TE-L04` | Four workers reduce a 1,000-message accumulated backlog to no more than one second of incoming traffic while the 200-request-per-second publisher remains active. |
+| `TE-L06-D` | Cleanup-disabled and candidate-policy variants process the same active load while measuring publisher latency, settlement, cleanup progress, and exact durable outcomes. |
 
 `TE-W02` reports end-to-end capacity from the start of publication until the final effect is observed. It is not an isolated worker-drain benchmark. Dedicated load scenarios will separate publishing rate, prebuilt-backlog drain rate, and database pressure.
 
@@ -188,8 +198,8 @@ The same boundary applies to the cumulative duration of a claimed batch. Workers
 
 `TE-L04` runs unchanged against SQL Server and PostgreSQL. One process publishes 4,000 operations at 200 requests per second. Workers remain stopped until at least 1,000 messages are pending, then four independent workers must process at least that initial backlog and reduce outstanding work to no more than one second of current input while the publisher is still running. Final acceptance requires all 4,000 messages to complete once, every worker to participate, and no failed attempt or duplicate effect. Recovery timing includes worker startup and up to one 100-millisecond observation interval.
 
-The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, `TE-L01` through `TE-L05`, and `TE-L06-A` through `TE-L06-C2` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, prebuilt-backlog drain, sustained mixed load, live backlog recovery, retained-history measurement, cleanup-boundary behavior, concurrent cleanup progress, process-death recovery, and database-outage recovery are proven without provider-specific scenario copies.
+The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, `TE-L01` through `TE-L05`, and `TE-L06-A` through `TE-L06-D` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, prebuilt-backlog drain, sustained mixed load, live backlog recovery, retained-history measurement, cleanup-boundary behavior, concurrent cleanup progress, process-death recovery, database-outage recovery, and cleanup under active load are proven without provider-specific scenario copies.
 
-Processed outbox rows are intentionally retained by the existing scenarios unless a cleanup scenario explicitly invokes deletion. `TE-L05` measured payload curves, physical cost by status, and active drain behavior through 100,000 retained rows. `TE-L06-A` proves the cleanup eligibility boundary, `TE-L06-B` proves bounded concurrent storage coordination, and `TE-L06-C1/C2` prove recovery. The remaining `TE-L06` slices must validate interference and the candidate retention and storage-budget decisions before beta acceptance.
+Processed outbox rows are intentionally retained by the existing scenarios unless a cleanup scenario explicitly invokes deletion. `TE-L05` measured payload curves, physical cost by status, and active drain behavior through 100,000 retained rows. `TE-L06-A` proves the cleanup eligibility boundary, `TE-L06-B` proves bounded concurrent storage coordination, `TE-L06-C1/C2` prove recovery, and `TE-L06-D` measures active-load interference. `TE-L06-E` must now accept or change the candidate retention and storage-budget policy before beta acceptance.
 
 The operational executable also exposes `reset`, `publish`, `inspect`, `worker`, and dogfood-only `worker-for` commands for later destructive scenarios. It references the sibling TinyEvents source projects until hardened packages are published.

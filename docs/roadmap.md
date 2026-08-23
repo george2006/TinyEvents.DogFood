@@ -40,7 +40,7 @@ This phase is complete when a real application can upgrade without losing suppor
   - [x] `TE-L06-B` — Prove bounded batches and exact durable convergence while four independent cleanup processes compete against SQL Server and PostgreSQL.
   - [x] `TE-L06-C1` — Prove a replacement cleanup process resumes from the durable remainder after the original process is terminated during partial progress.
   - [x] `TE-L06-C2` — Prove one cleanup process survives database interruption and resumes after database recovery.
-  - [ ] `TE-L06-D` — Compare active publishing and processing with cleanup disabled and with the candidate policy enabled at 200, 400, and 800 requests per second.
+  - [x] `TE-L06-D` — Compare active publishing and processing with cleanup disabled and with the candidate policy enabled at 200, 400, and 800 requests per second.
   - [ ] `TE-L06-E` — Accept or change retention, batch, and interval defaults from measured interference and publish the storage budget.
 - [ ] `TE-L07` — Run a soak test with repeated worker and database disruption.
 
