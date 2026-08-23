@@ -8,10 +8,12 @@ order of work so a new session can resume without reconstructing decisions.
 
 Current as of August 23, 2026:
 
-- TinyEvents `main` at `04389d8` contains bounded processed-message cleanup for
+- TinyEvents `main` at `52e6889` contains bounded processed-message cleanup for
   SQL Server and PostgreSQL, including ADO.NET and EF Core providers;
-- Dogfood branch `hardening/retained-history` contains the `TE-L05-C`,
-  `TE-L06-A`, and `TE-L06-B` scenarios and their measured evidence, but has
+- Dogfood `main` at `da2423c` contains the `TE-L05-C`, `TE-L06-A`, and
+  `TE-L06-B` scenarios and their measured evidence;
+- Dogfood branch `hardening/cleanup-recovery` contains the committed
+  `TE-L06-C1` process-death and `TE-L06-C2` database-outage scenarios and has
   not been merged into Dogfood `main`;
 - the cleanup capability is not present in the latest published NuGet packages;
 - `TE-L05-A`, `TE-L05-B`, and `TE-L05-C` provide repeatable storage and
@@ -25,6 +27,14 @@ Current as of August 23, 2026:
   revision `6078b56` and TinyEvents revision `35d3156`. Four independent
   processes delete 401 eligible rows in three bounded, overlapping waves with
   exact agreement between reported deletions and durable row decreases;
+- `TE-L06-C1` passes against SQL Server and PostgreSQL from committed Dogfood
+  revision `940f395` and TinyEvents `main` revision `52e6889`. Cleanup stops
+  with a durable remainder after abrupt process termination, and a replacement
+  process completes that remainder without deleting business rows;
+- `TE-L06-C2` passes against SQL Server and PostgreSQL from committed Dogfood
+  revision `7113f60` and TinyEvents `main` revision `52e6889`. The same cleanup
+  process reports failure, survives the database outage, reports recovery,
+  deletes another batch, and completes the durable remainder;
 - the beta is not ready until cleanup, soak, provider, package, and final audit
   gates close.
 
@@ -57,8 +67,9 @@ No pull request is created or merged without explicit review approval.
 | `FIX-1` | TinyEvents | Complete | Preserve enabled-cleanup startup validation while allowing disabled cleanup with custom providers. |
 | `TE-L06-A` | Dogfood | Complete | Prove the exclusive cutoff and preservation rules through the real cleanup store against both providers. |
 | `TE-L06-B` | Dogfood | Complete | Prove bounded deletion and exact durable progress with concurrent cleanup processes against both providers. |
-| `TE-L06-C` | Dogfood | Next | Prove cleanup resumes after process termination and database interruption. |
-| `TE-L06-D` | Dogfood | Pending | Run cleanup during active publishing and processing at 200, 400, and 800 messages per second and measure interference. |
+| `TE-L06-C1` | Dogfood | Complete | Prove a replacement process resumes cleanup after abrupt process termination. |
+| `TE-L06-C2` | Dogfood | Complete | Prove the same cleanup process resumes after database interruption. |
+| `TE-L06-D` | Dogfood | Next | Run cleanup during active publishing and processing at 200, 400, and 800 messages per second and measure interference. |
 | `TE-L06-E` | Dogfood | Pending | Accept or change retention, batch, and interval defaults and publish the measured storage budget. |
 | `TE-L07` | Dogfood | Pending | Run a timed soak with repeated worker and database disruption. |
 | `PROVIDER-1` | Both | Pending | Close only provider guarantees not already demonstrated by shared evidence. |

@@ -176,6 +176,35 @@ function Start-TimedWorker {
     }
 }
 
+function Start-CleanupWorker {
+    param(
+        [string]$Assembly,
+        [string]$WorkerId,
+        [int]$ProcessedRetentionSeconds,
+        [int]$BatchSize,
+        [int]$IntervalMilliseconds,
+        [string]$ArtifactDirectory,
+        [string]$EvidenceName = $WorkerId
+    )
+
+    $standardOutput = Join-Path $ArtifactDirectory "$EvidenceName.stdout.log"
+    $standardError = Join-Path $ArtifactDirectory "$EvidenceName.stderr.log"
+
+    return Start-Process `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            $Assembly,
+            "cleanup-worker",
+            $WorkerId,
+            [string]$ProcessedRetentionSeconds,
+            [string]$BatchSize,
+            [string]$IntervalMilliseconds) `
+        -RedirectStandardOutput $standardOutput `
+        -RedirectStandardError $standardError `
+        -WindowStyle Hidden `
+        -PassThru
+}
+
 function Stop-Worker {
     param([System.Diagnostics.Process]$Worker)
 

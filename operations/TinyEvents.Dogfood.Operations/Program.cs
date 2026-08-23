@@ -160,6 +160,9 @@ switch (args[0].ToLowerInvariant())
     case "cleanup-once":
         return await RunCleanupOnceAsync(args, settings);
 
+    case "cleanup-worker":
+        return await RunCleanupWorkerAsync(args, settings);
+
     case "install-migration-interruption":
         await GetMigrationInterruption(settings).InstallAsync(
             settings,
@@ -319,6 +322,42 @@ static async ValueTask WaitUntilAsync(DateTimeOffset startAtUtc)
     {
         await Task.Delay(delay);
     }
+}
+
+static async Task<int> RunCleanupWorkerAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var processedRetentionSeconds = 0;
+    var batchSize = 0;
+    var intervalMilliseconds = 0;
+    var argumentsAreValid =
+        arguments.Length == 5 &&
+        !string.IsNullOrWhiteSpace(arguments[1]) &&
+        int.TryParse(arguments[2], out processedRetentionSeconds) &&
+        processedRetentionSeconds > 0 &&
+        int.TryParse(arguments[3], out batchSize) &&
+        batchSize > 0 &&
+        int.TryParse(arguments[4], out intervalMilliseconds) &&
+        intervalMilliseconds > 0;
+
+    if (!argumentsAreValid)
+    {
+        Console.Error.WriteLine(
+            "Expected cleanup-worker <worker-id> <positive-retention-seconds> <positive-batch-size> <positive-interval-ms>.");
+        return 1;
+    }
+
+    var cleanupSettings = new DogfoodCleanupProcessSettings(
+        TimeSpan.FromSeconds(processedRetentionSeconds),
+        batchSize,
+        TimeSpan.FromMilliseconds(intervalMilliseconds));
+    using var host = DogfoodHost.BuildCleanupProcess(
+        settings,
+        arguments[1],
+        cleanupSettings);
+    await host.RunAsync();
+    return 0;
 }
 
 static async Task<int> RunPublisherWithTimingAsync(

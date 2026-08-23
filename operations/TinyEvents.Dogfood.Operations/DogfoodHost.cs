@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using TinyEvents;
 using TinyEvents.Worker;
 
@@ -30,14 +31,36 @@ internal static class DogfoodHost
             ConsumerFailureRules.None);
     }
 
+    public static IHost BuildCleanupProcess(
+        DogfoodSettings settings,
+        string workerId,
+        DogfoodCleanupProcessSettings cleanupSettings)
+    {
+        return Build(
+            settings,
+            workerId,
+            ConsumerExecutionTiming.None,
+            ConsumerFailureRules.None,
+            batchSize: 50,
+            cleanupSettings: cleanupSettings);
+    }
+
     public static IHost Build(
         DogfoodSettings settings,
         string workerId,
         ConsumerExecutionTiming consumerTiming,
         ConsumerFailureRules failureRules,
-        int batchSize = 50)
+        int batchSize = 50,
+        DogfoodCleanupProcessSettings? cleanupSettings = null)
     {
         var builder = Host.CreateApplicationBuilder();
+
+        if (cleanupSettings is not null)
+        {
+            builder.Logging.AddFilter(
+                "TinyEvents.Worker.TinyEventsCleanupBackgroundService",
+                LogLevel.Debug);
+        }
 
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(new WorkerIdentity(workerId));
@@ -62,6 +85,14 @@ internal static class DogfoodHost
             options.BatchSize = batchSize;
             options.ClaimTimeout = TimeSpan.FromSeconds(5);
             options.PollingInterval = TimeSpan.FromMilliseconds(50);
+
+            if (cleanupSettings is not null)
+            {
+                options.CleanupEnabled = true;
+                options.ProcessedRetention = cleanupSettings.ProcessedRetention;
+                options.CleanupBatchSize = cleanupSettings.BatchSize;
+                options.CleanupInterval = cleanupSettings.Interval;
+            }
         });
 
         return builder.Build();
