@@ -46,6 +46,9 @@ internal static class PostgreSqlDogfoodObservationReader
             FROM "DogfoodEffects"
             GROUP BY "ProcessId" ORDER BY "ProcessId";
 
+            SELECT "ScenarioId", COUNT(*) FROM "DogfoodBusinessOperations"
+            GROUP BY "ScenarioId" ORDER BY "ScenarioId";
+
             SELECT "ScenarioId", COUNT(*) FROM "DogfoodEffects"
             GROUP BY "ScenarioId" ORDER BY "ScenarioId";
 

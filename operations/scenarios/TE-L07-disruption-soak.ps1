@@ -433,6 +433,30 @@ function Test-TEL07PublisherAccounting {
     return $true
 }
 
+function Test-TEL07DurablePublishingBounds {
+    param(
+        [pscustomobject[]]$Mix,
+        [System.Collections.IDictionary]$PublisherResults,
+        [pscustomobject]$ScenarioOperations
+    )
+
+    foreach ($definition in $Mix) {
+        $publisherResult = $PublisherResults[$definition.Name]
+        $durableOperations = Get-ScenarioCount `
+            $ScenarioOperations `
+            $definition.ScenarioId
+        $durableCountIsPossible =
+            $durableOperations -ge $publisherResult.CommittedRequests -and
+            $durableOperations -le $publisherResult.AttemptedRequests
+
+        if (!$durableCountIsPossible) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
 function Test-TEL07ReplacementParticipation {
     param(
         [pscustomobject]$Observation,
@@ -606,22 +630,45 @@ function Invoke-TEL07DisruptionSoak {
     $transientPublisher = $publisherResults[$transient.Name]
     $permanentPublisher = $publisherResults[$permanent.Name]
     $slowPublisher = $publisherResults[$slow.Name]
-    $committedTotal =
+    $acknowledgedCommittedTotal =
         $successPublisher.CommittedRequests +
         $transientPublisher.CommittedRequests +
         $permanentPublisher.CommittedRequests +
         $slowPublisher.CommittedRequests
+    $durableSuccess = Get-ScenarioCount `
+        $completed.ScenarioOperations `
+        $success.ScenarioId
+    $durableTransient = Get-ScenarioCount `
+        $completed.ScenarioOperations `
+        $transient.ScenarioId
+    $durablePermanent = Get-ScenarioCount `
+        $completed.ScenarioOperations `
+        $permanent.ScenarioId
+    $durableSlow = Get-ScenarioCount `
+        $completed.ScenarioOperations `
+        $slow.ScenarioId
+    $durableCommittedTotal =
+        $durableSuccess +
+        $durableTransient +
+        $durablePermanent +
+        $durableSlow
+    $ambiguousCommitCount =
+        $durableCommittedTotal - $acknowledgedCommittedTotal
+    $durablePublishingBoundsHold = Test-TEL07DurablePublishingBounds `
+        $mix `
+        $publisherResults `
+        $completed.ScenarioOperations
     $expectedProcessed =
-        $successPublisher.CommittedRequests +
-        $transientPublisher.CommittedRequests +
-        $slowPublisher.CommittedRequests
-    $expectedFailed = $permanentPublisher.CommittedRequests
+        $durableSuccess +
+        $durableTransient +
+        $durableSlow
+    $expectedFailed = $durablePermanent
     $expectedFailedAttempts =
-        ($transientPublisher.CommittedRequests * 2) +
-        ($permanentPublisher.CommittedRequests * 3)
+        ($durableTransient * 2) +
+        ($durablePermanent * 3)
     $minimumConsumerAttempts =
-        ($transientPublisher.CommittedRequests * 3) +
-        ($permanentPublisher.CommittedRequests * 3)
+        ($durableTransient * 3) +
+        ($durablePermanent * 3)
     $distinctEffects = $completed.Effects - $completed.DuplicateEffects
     $transientAttempts = Get-ScenarioCount `
         $completed.ScenarioAttempts `
@@ -651,9 +698,10 @@ function Invoke-TEL07DisruptionSoak {
         $completed.BusinessOperations - $completed.OutboxMessages -eq
             $EligibleHistoryCount
     $durableResultsAreExact =
+        $durablePublishingBoundsHold -and
         $completed.BusinessOperations -eq
-            ($EligibleHistoryCount + $committedTotal) -and
-        $completed.OutboxMessages -eq $committedTotal -and
+            ($EligibleHistoryCount + $durableCommittedTotal) -and
+        $completed.OutboxMessages -eq $durableCommittedTotal -and
         $completed.PendingMessages -eq 0 -and
         $completed.ProcessingMessages -eq 0 -and
         $completed.ProcessedMessages -eq $expectedProcessed -and
@@ -662,9 +710,9 @@ function Invoke-TEL07DisruptionSoak {
         $completed.ConsumerAttempts -ge $minimumConsumerAttempts -and
         $distinctEffects -eq $expectedProcessed -and
         $transientAttempts -ge
-            ($transientPublisher.CommittedRequests * 3) -and
+            ($durableTransient * 3) -and
         $permanentAttempts -ge
-            ($permanentPublisher.CommittedRequests * 3) -and
+            ($durablePermanent * 3) -and
         (Get-ScenarioCount `
             $completed.ScenarioEffects `
             $permanent.ScenarioId) -eq 0 -and
@@ -691,6 +739,10 @@ function Invoke-TEL07DisruptionSoak {
         Mix = $mix
         PublisherResults = $publisherResults
         AllPublisherRequestsAreAccounted = $allPublisherRequestsAreAccounted
+        AcknowledgedCommittedRequests = $acknowledgedCommittedTotal
+        DurableCommittedRequests = $durableCommittedTotal
+        AmbiguousCommitCount = $ambiguousCommitCount
+        DurablePublishingBoundsHold = $durablePublishingBoundsHold
         WorkerDeaths = $workerDeaths
         ReplacementWorkersParticipated = $replacementWorkersParticipated
         DatabaseOutages = $databaseOutages

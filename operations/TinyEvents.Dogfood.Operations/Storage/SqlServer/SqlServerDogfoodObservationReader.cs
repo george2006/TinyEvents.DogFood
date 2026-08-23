@@ -76,6 +76,9 @@ internal static class SqlServerDogfoodObservationReader
             FROM dbo.DogfoodEffects
             GROUP BY ProcessId ORDER BY ProcessId;
 
+            SELECT ScenarioId, COUNT(*) FROM dbo.DogfoodBusinessOperations
+            GROUP BY ScenarioId ORDER BY ScenarioId;
+
             SELECT ScenarioId, COUNT(*) FROM dbo.DogfoodEffects
             GROUP BY ScenarioId ORDER BY ScenarioId;
 

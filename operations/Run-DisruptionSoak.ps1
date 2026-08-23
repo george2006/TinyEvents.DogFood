@@ -108,10 +108,9 @@ $manifest |
 [pscustomobject]@{
     TargetRequestsPerSecond = $result.TargetRequestsPerSecond
     DurationSeconds = $result.DurationSeconds
-    CommittedRequests = @(
-        $result.PublisherResults.Values |
-            ForEach-Object { $_.CommittedRequests } |
-            Measure-Object -Sum).Sum
+    AcknowledgedCommittedRequests = $result.AcknowledgedCommittedRequests
+    DurableCommittedRequests = $result.DurableCommittedRequests
+    AmbiguousCommitCount = $result.AmbiguousCommitCount
     FailedRequests = @(
         $result.PublisherResults.Values |
             ForEach-Object { $_.FailedRequests } |

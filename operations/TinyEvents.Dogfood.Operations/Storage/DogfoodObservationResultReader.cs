@@ -52,6 +52,9 @@ internal static class DogfoodObservationResultReader
         var processEffects = await ReadCountsAsync(reader, cancellationToken);
 
         await reader.NextResultAsync(cancellationToken);
+        var scenarioOperations = await ReadCountsAsync(reader, cancellationToken);
+
+        await reader.NextResultAsync(cancellationToken);
         var scenarioEffects = await ReadCountsAsync(reader, cancellationToken);
 
         await reader.NextResultAsync(cancellationToken);
@@ -77,6 +80,7 @@ internal static class DogfoodObservationResultReader
             workerEffects,
             workerAttempts,
             processEffects,
+            scenarioOperations,
             scenarioEffects,
             scenarioAttempts);
     }
