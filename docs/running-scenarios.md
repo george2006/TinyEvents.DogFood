@@ -108,7 +108,7 @@ Direct scenario files use their runner's default provider. Use the owning runner
 | Pending payload storage (`TE-L05-A`) | `operations/Run-StorageMeasurements.ps1` | SQL Server, PostgreSQL |
 | Outbox state storage (`TE-L05-B`) | `operations/Run-StorageStateMeasurements.ps1` | SQL Server, PostgreSQL |
 | Retained-history drain (`TE-L05-C`) | `operations/Run-RetainedHistoryLoad.ps1` | SQL Server, PostgreSQL |
-| Cleanup eligibility boundary (`TE-L06-A`) | `operations/Run-CleanupScenarios.ps1` | SQL Server, PostgreSQL |
+| Cleanup boundary and concurrent progress (`TE-L06-A`, `TE-L06-B`) | `operations/Run-CleanupScenarios.ps1` | SQL Server, PostgreSQL |
 | Schema and deployment | `deployment/Run-SchemaScenarios.ps1` | SQL Server, PostgreSQL |
 | Published-alpha and rolling upgrades | `deployment/Run-RollingUpgrade.ps1` | SQL Server, PostgreSQL |
 

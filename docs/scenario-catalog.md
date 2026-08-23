@@ -120,6 +120,7 @@ Evidence: `artifacts/load/<run-id>/<scenario-id>/`
 | `TE-L05-B` | `.\operations\Run-StorageStateMeasurements.ps1` | Real workers create exact pending, actively claimed, processed, and terminally failed 5,000-row populations. Every state reports physical bytes while exact effects and three failed attempts remain enforced. |
 | `TE-L05-C` | `.\operations\Run-RetainedHistoryLoad.ps1` | The same 1,000-message active backlog drains after 0, 10,000, and 100,000 processed rows are retained. Both providers preserve exact terminal counts and zero duplicates while reporting throughput relative to empty history. |
 | `TE-L06-A` | `.\operations\Run-CleanupScenarios.ps1` | The real cleanup store deletes only a processed row strictly older than the cutoff. A processed row exactly on the cutoff, a newer processed row, and pending, processing, and failed rows remain addressable by their original message IDs. |
+| `TE-L06-B` | `.\operations\Run-CleanupScenarios.ps1` | Four independent processes repeatedly compete for a 401-row eligible population with a 37-row batch. Every cleanup call stays bounded, concurrent call windows overlap, every wave's reported deletions equal its durable row decrease, and all rows are deleted exactly once across multiple waves. |
 
 Run the same scenarios against PostgreSQL with:
 
