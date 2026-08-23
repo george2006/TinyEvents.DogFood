@@ -54,6 +54,9 @@ internal static class DogfoodHost
         DogfoodCleanupProcessSettings? cleanupSettings = null)
     {
         var builder = Host.CreateApplicationBuilder();
+        builder.Logging.AddFilter(
+            "Microsoft.EntityFrameworkCore.Database.Command",
+            LogLevel.Warning);
 
         if (cleanupSettings is not null)
         {
@@ -85,10 +88,10 @@ internal static class DogfoodHost
             options.BatchSize = batchSize;
             options.ClaimTimeout = TimeSpan.FromSeconds(5);
             options.PollingInterval = TimeSpan.FromMilliseconds(50);
+            options.CleanupEnabled = cleanupSettings is not null;
 
             if (cleanupSettings is not null)
             {
-                options.CleanupEnabled = true;
                 options.ProcessedRetention = cleanupSettings.ProcessedRetention;
                 options.CleanupBatchSize = cleanupSettings.BatchSize;
                 options.CleanupInterval = cleanupSettings.Interval;
