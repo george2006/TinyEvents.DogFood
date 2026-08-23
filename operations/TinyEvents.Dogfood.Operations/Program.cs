@@ -446,7 +446,7 @@ static async Task<int> RunMixedPublishingLoadAsync(
         arguments.Length >= 4 &&
         arguments.Length % 2 == 0 &&
         int.TryParse(arguments[1], out durationSeconds) &&
-        durationSeconds is > 0 and <= 60;
+        durationSeconds is > 0 and <= 600;
     var definitionsAreValid = TryParsePublishingLoadDefinitions(
         arguments,
         out var definitions);
@@ -454,7 +454,7 @@ static async Task<int> RunMixedPublishingLoadAsync(
     if (!durationIsValid || !definitionsAreValid)
     {
         Console.Error.WriteLine(
-            "Expected publish-mixed-load <duration-seconds:1-60> <scenario> <target-requests-per-second:1-10000> [...].");
+            "Expected publish-mixed-load <duration-seconds:1-600> <scenario> <target-requests-per-second:1-10000> [...].");
         return 1;
     }
 
