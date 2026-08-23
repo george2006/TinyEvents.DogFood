@@ -2,14 +2,16 @@
 
 This roadmap lists the evidence still required before TinyEvents can be considered beta-ready. It does not repeat completed work.
 
-Current as of August 22, 2026:
+Current as of August 23, 2026:
 
 - 44 named behavioral contracts have executable evidence;
 - contract compatibility, invalid-message isolation, transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
 - SQL Server and PostgreSQL pass the complete database-recovery suite;
 - the final package and retention gates remain open.
 
-See the [scenario catalog](scenario-catalog.md) for completed evidence and copyable commands.
+See the [scenario catalog](scenario-catalog.md) for completed evidence and
+copyable commands. The [beta execution guide](beta-hardening-execution.md)
+records the current checkpoint and review-sized implementation order.
 
 ## 2. Schema and Application Deployment
 
@@ -62,8 +64,8 @@ database interruption, active publication and processing, and sustained
 the implementation compiles.
 
 - [ ] Validate the candidate retention defaults from `TE-L05` and `TE-L06`; change them if executable evidence rejects them.
-- [ ] Delete eligible terminal rows in bounded batches.
-- [ ] Never delete pending or actively claimed messages.
+- [ ] Demonstrate that cleanup deletes eligible processed rows in bounded batches.
+- [ ] Demonstrate that cleanup never deletes pending or actively claimed messages.
 - [ ] Prove cleanup can resume after process or database failure.
 - [ ] Prove cleanup does not starve publishers or workers.
 - [ ] Re-run load and recovery evidence with cleanup enabled.

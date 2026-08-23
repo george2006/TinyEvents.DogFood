@@ -289,7 +289,7 @@ Creating and completing 100,000 retained rows through public behavior took long 
 
 #### TE-L06 - Storage budget and retention decision
 
-Measure bytes per pending, processing, processed, and failed row for representative payloads. Use the evidence to define processed-message retention, failed-message retention, cleanup batch size, and a safe storage budget. Do not build cleanup before this decision.
+Use the completed `TE-L05` measurements to validate the merged candidate policy for processed-message retention, explicit V1 failed-row preservation, cleanup batch size, and storage budget. The implementation is not beta evidence: defaults remain candidates until the executable cleanup scenarios accept them.
 
 #### TE-L07 - Soak and repeated disruption
 

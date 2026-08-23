@@ -29,7 +29,7 @@ The current laboratory demonstrates:
 | Workers, claims, and retries | `TE-W01`–`TE-W13` | ✅ | `TE-W01` | [Worker commands](docs/scenario-catalog.md#workers-claims-retries-and-shutdown) |
 | Database failure and recovery | `TE-D01`–`TE-D06` | ✅ | ✅ | [Recovery commands](docs/scenario-catalog.md#database-failure-and-recovery) |
 | Schema and deployment | `TE-S01`–`TE-S05` | ✅ | ✅ | [Schema commands](docs/scenario-catalog.md#schema-and-deployment) |
-| Load and storage | `TE-L01`–`TE-L04` | ✅ | ✅ | [Load commands](docs/scenario-catalog.md#load-backlog-and-storage) |
+| Load and storage | `TE-L01`–`TE-L05` | ✅ | ✅ | [Load commands](docs/scenario-catalog.md#load-backlog-and-storage) |
 
 Some contract IDs intentionally share stronger executable evidence instead of duplicating a scenario. The [scenario catalog](docs/scenario-catalog.md) identifies every shared proof explicitly.
 
@@ -92,6 +92,7 @@ TE-T05               True
 - [Run the scenarios](docs/running-scenarios.md)
 - [Scenario catalog](docs/scenario-catalog.md)
 - [Beta hardening roadmap](docs/roadmap.md)
+- [Current beta execution checkpoint](docs/beta-hardening-execution.md)
 - [V1 product findings and operational boundaries](docs/v1-product-findings.md)
 - [Identity and compatibility](identity/README.md)
 - [Transactions, workers, and database recovery](operations/README.md)
