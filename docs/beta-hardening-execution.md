@@ -118,6 +118,12 @@ processing, and candidate cleanup demonstrably overlap. Enabling cleanup on
 every worker represents the natural horizontally scaled hosted-worker setup;
 `TE-L06-B` already proves their concurrent delete coordination.
 
+Every process uses a maximum connection-pool size of 16 for both providers. The
+budget prevents one publisher process from consuming PostgreSQL's complete
+100-connection server limit before the four workers can participate. The value
+matches the existing mixed-load scenario and is recorded in the run manifest;
+the experiment does not raise the database server limit to hide pressure.
+
 The scenario records requested and committed rate, commit latency percentiles,
 settlement duration, worker participation, eligible rows deleted, cleanup rate,
 and the relative change between baseline and cleanup. It uses the lightweight
