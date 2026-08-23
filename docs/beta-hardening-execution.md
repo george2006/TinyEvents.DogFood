@@ -19,12 +19,11 @@ Current as of August 23, 2026:
 - the beta is not ready until cleanup, soak, provider, package, and final audit
   gates close.
 
-The next product-code slice is a characterization test for disabled cleanup
-with a custom provider under dependency-injection build validation. Review found
-that `TinyOutboxCleanup` is registered even when cleanup is disabled, so this
-configuration may fail before the hosted service can observe
-`CleanupEnabled = false`. The test must demonstrate the observable failure
-before production code changes.
+The `FIX-1` characterization test demonstrated that disabled cleanup with a
+custom provider failed dependency-injection build validation. Commit `35d3156`
+defers `TinyOutboxCleanup` construction through an explicit service factory.
+Disabled cleanup no longer requires `ITinyOutboxCleanupStore`; enabled cleanup
+retains its existing startup validation. The worker test suite passes.
 
 ## Slice Rules
 
@@ -46,8 +45,8 @@ No pull request is created or merged without explicit review approval.
 | Slice | Repository | Status | Outcome |
 | --- | --- | --- | --- |
 | `DOC-1` | Dogfood | Complete | Align documentation with merged cleanup and record this execution checkpoint. |
-| `FIX-1` | TinyEvents | Next | Reproduce strict DI validation with cleanup disabled, then make the smallest behavior-preserving registration fix. |
-| `TE-L06-A` | Dogfood | Pending | Prove cutoff exclusivity and preservation of pending, processing, failed, and boundary rows through both real providers. |
+| `FIX-1` | TinyEvents | Complete | Preserve enabled-cleanup startup validation while allowing disabled cleanup with custom providers. |
+| `TE-L06-A` | Dogfood | Next | Prove cutoff exclusivity and preservation of pending, processing, failed, and boundary rows through both real providers. |
 | `TE-L06-B` | Dogfood | Pending | Prove bounded deletion and safe progress with concurrent cleanup processes. |
 | `TE-L06-C` | Dogfood | Pending | Prove cleanup resumes after process termination and database interruption. |
 | `TE-L06-D` | Dogfood | Pending | Run cleanup during active publishing and processing at 200, 400, and 800 messages per second and measure interference. |
