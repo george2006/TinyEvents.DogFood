@@ -291,6 +291,8 @@ Creating and completing 100,000 retained rows through public behavior took long 
 
 Use the completed `TE-L05` measurements to validate the merged candidate policy for processed-message retention, explicit V1 failed-row preservation, cleanup batch size, and storage budget. The implementation is not beta evidence: defaults remain candidates until the executable cleanup scenarios accept them.
 
+**TE-L06-A executable:** `.\operations\Run-CleanupScenarios.ps1` publishes six messages through the real application API, gives each one a distinct cleanup role through a dogfood-only fixture, invokes the real provider cleanup store, and observes the same durable message IDs afterward. SQL Server and PostgreSQL each deleted exactly the processed row strictly older than the fixed cutoff. Both preserved the processed row exactly on the cutoff, the newer processed row, and the pending, processing, and failed rows. The accepted runs used Dogfood commit `9639b04` and TinyEvents commit `35d3156`. This closes the eligibility boundary only; bounded deletion under a larger population, concurrent cleaners, interruption recovery, load interference, and default acceptance remain open.
+
 #### TE-L07 - Soak and repeated disruption
 
 Run sustained mixed traffic while repeatedly terminating workers and restarting the database. Record backlog, duplicate effects, memory, connection count, storage growth, and recovery time across the complete run.

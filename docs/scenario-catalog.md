@@ -119,6 +119,7 @@ Evidence: `artifacts/load/<run-id>/<scenario-id>/`
 | `TE-L05-A` | `.\operations\Run-StorageMeasurements.ps1` | Isolated 10,000-row pending populations measure empty, 1 KB, and 16 KB representative payloads from their own empty-table baselines. Payload, table, index, and total physical bytes remain separately visible. |
 | `TE-L05-B` | `.\operations\Run-StorageStateMeasurements.ps1` | Real workers create exact pending, actively claimed, processed, and terminally failed 5,000-row populations. Every state reports physical bytes while exact effects and three failed attempts remain enforced. |
 | `TE-L05-C` | `.\operations\Run-RetainedHistoryLoad.ps1` | The same 1,000-message active backlog drains after 0, 10,000, and 100,000 processed rows are retained. Both providers preserve exact terminal counts and zero duplicates while reporting throughput relative to empty history. |
+| `TE-L06-A` | `.\operations\Run-CleanupScenarios.ps1` | The real cleanup store deletes only a processed row strictly older than the cutoff. A processed row exactly on the cutoff, a newer processed row, and pending, processing, and failed rows remain addressable by their original message IDs. |
 
 Run the same scenarios against PostgreSQL with:
 
@@ -130,6 +131,7 @@ Run the same scenarios against PostgreSQL with:
 .\operations\Run-StorageMeasurements.ps1 -StorageProvider PostgreSql
 .\operations\Run-StorageStateMeasurements.ps1 -StorageProvider PostgreSql
 .\operations\Run-RetainedHistoryLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-CleanupScenarios.ps1 -StorageProvider PostgreSql
 ```
 
 For `TE-L01`, `TargetWasSustained` means the observed committed rate reached at least 95% of the requested rate. It is recorded evidence, not an acceptance gate or a product throughput guarantee. `AcceptancePassed` instead requires every request to commit and every durable count to match exactly.
