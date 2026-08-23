@@ -10,10 +10,10 @@ Current as of August 23, 2026:
 
 - TinyEvents `main` at `52e6889` contains bounded processed-message cleanup for
   SQL Server and PostgreSQL, including ADO.NET and EF Core providers;
-- Dogfood `main` at `1acb8d2` contains the `TE-L05-C` and complete
-  `TE-L06-A` through `TE-L06-C2` scenarios and their measured evidence;
-- Dogfood branch `hardening/cleanup-under-load` contains the completed cleanup
-  hardening work and awaits integration;
+- Dogfood `main` at `c0db57f` contains the complete `TE-L05` and `TE-L06`
+  scenarios, decisions, and measured evidence;
+- Dogfood branch `hardening/disruption-soak` is the clean starting point for
+  the bounded soak gate;
 - the cleanup capability is not present in the latest published NuGet packages;
 - TinyEvents documentation commit `936794c` accepts the one-hour retention,
   1,000-row batch, and one-second interval, publishes their measured storage
@@ -197,12 +197,52 @@ pending work, and preserved failed rows remain workload-specific. The product
 documentation gives operators the formula and directs them to lower retention
 or cleanup pressure only from their own measured budget and capacity.
 
+## TE-L07 Contract
+
+TE-L07 is one bounded integration soak, not a new test framework. Its default
+run lasts 120 seconds at 200 publishing requests per second with four worker
+processes. The workload reuses TE-L03's 80% success, 10% transient, 5%
+permanent, and 5% slow mix. Every worker hosts event processing and cleanup
+together, using the accepted one-hour retention, 1,000-row batch, and one-second
+interval. The run begins with 50,000 expired processed rows so cleanup has real
+work while current messages are published and consumed.
+
+During active publication the runner terminates two workers while they own
+claimed work and starts a distinctly named replacement after each death. It
+also stops and restores the real database twice for five seconds. A maximum
+pool of 16 connections per process and a one-second connection timeout keep
+outage pressure bounded. Failed publishing requests during an intentional
+database outage are observable application failures, not acknowledged outbox
+work. Acceptance derives every durable count from the requests that actually
+committed.
+
+The runner samples process working set and private memory, active database
+connections, physical outbox storage, and durable backlog during the run.
+These resource values are evidence, not arbitrary pass/fail ceilings. V1
+acceptance instead requires:
+
+- every committed request has one business row and one outbox row;
+- every committed success, transient, and slow message reaches `Processed`;
+- every committed permanent message reaches `Failed` with its bounded retry
+  state;
+- distinct effects cover every processed operation, while any duplicate
+  effects are retained and reconcile exactly with the at-least-once model;
+- both replacement workers participate and no process exits unexpectedly;
+- both database outages produce observable failure and recovery without
+  restarting the surviving workers;
+- cleanup makes progress before and after disruption and removes the complete
+  seeded expired history without deleting current or failed work;
+- the final durable state has no pending or processing remainder.
+
+SQL Server and PostgreSQL run the same scenario and assertions. A shorter run
+may be used while developing the runner, but it cannot close TE-L07.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
-repository branches and working trees, and continue `TE-L07` after reviewing
-and integrating the completed cleanup branches. Define a bounded timed soak
-that reuses existing disruption mechanisms and records resource and durable
-outcomes without creating another orchestration layer. Do not modify a dirty
-checkout, repeat completed evidence without a reason, or advance to a pull
-request before reviewing the complete branch diff.
+repository branches and working trees, and continue `TE-L07` on Dogfood branch
+`hardening/disruption-soak`. Implement the contract above by reusing the
+existing process, worker, database, observation, publishing-load, and cleanup
+mechanisms. Do not add a soak framework, modify a dirty checkout, repeat
+completed evidence without a reason, or advance to a pull request before
+reviewing the complete branch diff.

@@ -307,7 +307,7 @@ The first PostgreSQL TE-L06-D attempt used the provider's default 100-connection
 
 #### TE-L07 - Soak and repeated disruption
 
-Run sustained mixed traffic while repeatedly terminating workers and restarting the database. Record backlog, duplicate effects, memory, connection count, storage growth, and recovery time across the complete run.
+Run the same bounded 120-second mixed workload against SQL Server and PostgreSQL with four processing-and-cleanup workers, 50,000 expired processed rows, two claimed-worker deaths and replacements, and two five-second database outages. Reconcile the final state from successful application commits rather than treating requests rejected during database unavailability as lost outbox work. Record backlog, duplicates, process memory, active database connections, physical storage, cleanup progress, and recovery timing across the complete run. Resource measurements have no invented V1 threshold; durable convergence, replacement participation, worker survival, recovery, and cleanup completion are the acceptance boundary.
 
 ## Required Measurements
 
