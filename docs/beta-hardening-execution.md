@@ -13,8 +13,8 @@ Current as of August 23, 2026:
 - Dogfood `main` at `da2423c` contains the `TE-L05-C`, `TE-L06-A`, and
   `TE-L06-B` scenarios and their measured evidence;
 - Dogfood branch `hardening/cleanup-recovery` contains the committed
-  `TE-L06-C1` process-death scenario and has not been merged into Dogfood
-  `main`;
+  `TE-L06-C1` process-death and `TE-L06-C2` database-outage scenarios and has
+  not been merged into Dogfood `main`;
 - the cleanup capability is not present in the latest published NuGet packages;
 - `TE-L05-A`, `TE-L05-B`, and `TE-L05-C` provide repeatable storage and
   retained-history evidence against both providers;
@@ -31,6 +31,10 @@ Current as of August 23, 2026:
   revision `940f395` and TinyEvents `main` revision `52e6889`. Cleanup stops
   with a durable remainder after abrupt process termination, and a replacement
   process completes that remainder without deleting business rows;
+- `TE-L06-C2` passes against SQL Server and PostgreSQL from committed Dogfood
+  revision `7113f60` and TinyEvents `main` revision `52e6889`. The same cleanup
+  process reports failure, survives the database outage, reports recovery,
+  deletes another batch, and completes the durable remainder;
 - the beta is not ready until cleanup, soak, provider, package, and final audit
   gates close.
 
@@ -64,8 +68,8 @@ No pull request is created or merged without explicit review approval.
 | `TE-L06-A` | Dogfood | Complete | Prove the exclusive cutoff and preservation rules through the real cleanup store against both providers. |
 | `TE-L06-B` | Dogfood | Complete | Prove bounded deletion and exact durable progress with concurrent cleanup processes against both providers. |
 | `TE-L06-C1` | Dogfood | Complete | Prove a replacement process resumes cleanup after abrupt process termination. |
-| `TE-L06-C2` | Dogfood | Next | Prove the same cleanup process resumes after database interruption. |
-| `TE-L06-D` | Dogfood | Pending | Run cleanup during active publishing and processing at 200, 400, and 800 messages per second and measure interference. |
+| `TE-L06-C2` | Dogfood | Complete | Prove the same cleanup process resumes after database interruption. |
+| `TE-L06-D` | Dogfood | Next | Run cleanup during active publishing and processing at 200, 400, and 800 messages per second and measure interference. |
 | `TE-L06-E` | Dogfood | Pending | Accept or change retention, batch, and interval defaults and publish the measured storage budget. |
 | `TE-L07` | Dogfood | Pending | Run a timed soak with repeated worker and database disruption. |
 | `PROVIDER-1` | Both | Pending | Close only provider guarantees not already demonstrated by shared evidence. |

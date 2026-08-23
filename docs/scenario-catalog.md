@@ -122,6 +122,7 @@ Evidence: `artifacts/load/<run-id>/<scenario-id>/`
 | `TE-L06-A` | `.\operations\Run-CleanupScenarios.ps1` | The real cleanup store deletes only a processed row strictly older than the cutoff. A processed row exactly on the cutoff, a newer processed row, and pending, processing, and failed rows remain addressable by their original message IDs. |
 | `TE-L06-B` | `.\operations\Run-CleanupScenarios.ps1` | Four independent processes repeatedly compete for a 401-row eligible population with a 37-row batch. Every cleanup call stays bounded, concurrent call windows overlap, every wave's reported deletions equal its durable row decrease, and all rows are deleted exactly once across multiple waves. |
 | `TE-L06-C1` | `.\operations\Run-CleanupScenarios.ps1` | The real cleanup background service makes partial progress over 1,000 eligible rows before its process is terminated. Durable state stops changing without a cleaner, then a replacement process removes the exact remainder while preserving all business rows. |
+| `TE-L06-C2` | `.\operations\Run-CleanupScenarios.ps1` | The database disappears after partial cleanup. The same background-service process reports bounded cleanup failures, survives the outage, reports recovery, deletes another batch after recovery, and removes the exact durable remainder. |
 
 Run the same scenarios against PostgreSQL with:
 
