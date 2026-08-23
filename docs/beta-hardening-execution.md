@@ -12,16 +12,15 @@ Current as of August 23, 2026:
   SQL Server and PostgreSQL, including ADO.NET and EF Core providers;
 - Dogfood `main` at `1acb8d2` contains the `TE-L05-C` and complete
   `TE-L06-A` through `TE-L06-C2` scenarios and their measured evidence;
-- Dogfood branch `hardening/cleanup-under-load` is the clean starting point for
-  the remaining cleanup hardening work;
+- Dogfood branch `hardening/cleanup-under-load` contains the completed cleanup
+  hardening work and awaits integration;
 - the cleanup capability is not present in the latest published NuGet packages;
-- TinyEvents documentation commit `c629baf` labels the current retention,
-  batch, and interval values as candidates, repeats their next-release status,
-  and exposes migration `002_AddProcessedCleanupIndex` from every provider
-  package README;
+- TinyEvents documentation commit `936794c` accepts the one-hour retention,
+  1,000-row batch, and one-second interval, publishes their measured storage
+  budget, and retains their next-release status;
 - `TE-L05-A`, `TE-L05-B`, and `TE-L05-C` provide repeatable storage and
   retained-history evidence against both providers;
-- cleanup defaults have not yet passed dogfood acceptance;
+- cleanup defaults have passed the complete `TE-L06` dogfood acceptance;
 - `TE-L06-A` passes against SQL Server and PostgreSQL from committed Dogfood
   revision `9639b04` and TinyEvents revision `35d3156`. Both providers delete
   only the eligible processed row and preserve the cutoff, recent, pending,
@@ -52,11 +51,12 @@ defers `TinyOutboxCleanup` construction through an explicit service factory.
 Disabled cleanup no longer requires `ITinyOutboxCleanupStore`; enabled cleanup
 retains its existing startup validation. The worker test suite passes.
 
-The post-merge documentation audit is closed by TinyEvents commit `c629baf`.
-Its root README, worker guide, retention guide, and four provider package
-READMEs now distinguish candidate defaults from the published alpha and expose
-migration `002_AddProcessedCleanupIndex`. Existing alpha.3 package release
-notes remain unchanged until release preparation.
+The post-merge documentation audit is closed by TinyEvents commits `c629baf`
+and `936794c`. Its root README, worker guide, retention guide, and four provider
+package READMEs distinguish the next-release capability from the published
+alpha, expose migration `002_AddProcessedCleanupIndex`, and publish the accepted
+defaults and measured budget. Existing alpha.3 package release notes remain
+unchanged until release preparation.
 
 ## Slice Rules
 
@@ -86,8 +86,8 @@ No pull request is created or merged without explicit review approval.
 | `DOC-2A` | Dogfood | Complete | Record the post-merge checkpoint and documentation audit findings. |
 | `DOC-2B` | TinyEvents | Complete | Mark cleanup defaults as candidates and complete next-release and migration references without changing alpha.3 release notes. |
 | `TE-L06-D` | Dogfood | Complete | Compare the same active workload with cleanup disabled and with the candidate policy enabled at 200, 400, and 800 messages per second. |
-| `TE-L06-E` | Dogfood | Next | Accept or change retention, batch, and interval defaults and publish the measured storage budget. |
-| `TE-L07` | Dogfood | Pending | Run a timed soak with repeated worker and database disruption. |
+| `TE-L06-E` | Both | Complete | Accept retention, batch, and interval defaults and publish the measured storage budget. |
+| `TE-L07` | Dogfood | Next | Run a timed soak with repeated worker and database disruption. |
 | `PROVIDER-1` | Both | Pending | Close only provider guarantees not already demonstrated by shared evidence. |
 | `PACKAGE-1` | Both | Pending | Pack the candidate and run supported consumers without project references. |
 | `BETA-GATE` | Both | Pending | Run the clean-checkout gate, review public limitations, and make the explicit beta/no-beta decision. |
@@ -169,12 +169,40 @@ pool matched the complete server limit before four workers were considered.
 The accepted runner uses the same explicit 16-connection budget already used
 by the mixed-load scenario. It does not raise the PostgreSQL server limit.
 
+## TE-L06-E Decision
+
+TinyEvents commit `936794c` accepts one-hour processed retention, a 1,000-row
+cleanup batch, and a one-second interval for the next release. One hour keeps a
+useful operational inspection window. The nominal configuration permits up to
+1,000 deleted rows per second per application instance, so one instance is not
+configured below the highest tested input target. Lowering the batch or
+lengthening the interval would make that property false. TE-L06-D found no
+material throughput interference at 200 or 400 requests per second on either
+provider. The SQL Server 800 point remains an explicit local catch-up warning,
+not hidden evidence.
+
+TE-L05-B measured a representative processed row containing 1 KB of
+compression-resistant content at 4,515 bytes on SQL Server and 1,951 bytes on
+PostgreSQL. The accepted one-hour planning budget is therefore:
+
+| Sustained processed rate | Rows retained | SQL Server | PostgreSQL |
+|---:|---:|---:|---:|
+| 200 messages/s | 720,000 | 3.25 GB | 1.40 GB |
+| 400 messages/s | 1,440,000 | 6.50 GB | 2.81 GB |
+| 800 messages/s | 2,880,000 | 13.00 GB | 5.62 GB |
+
+These are decimal-GB projections for the measured outbox table and indexes,
+not a universal database-size ceiling. Payload shape, engine allocation,
+pending work, and preserved failed rows remain workload-specific. The product
+documentation gives operators the formula and directs them to lower retention
+or cleanup pressure only from their own measured budget and capacity.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
-repository branches and working trees, and continue `TE-L06-E` on Dogfood
-branch `hardening/cleanup-under-load`. Use the completed `TE-L05` storage data
-and `TE-L06-D` interference measurements to accept or change each candidate
-default and publish an honest storage budget. Do not modify a dirty checkout,
-repeat completed evidence without a reason, or advance to a pull request before
-reviewing the complete branch diff.
+repository branches and working trees, and continue `TE-L07` after reviewing
+and integrating the completed cleanup branches. Define a bounded timed soak
+that reuses existing disruption mechanisms and records resource and durable
+outcomes without creating another orchestration layer. Do not modify a dirty
+checkout, repeat completed evidence without a reason, or advance to a pull
+request before reviewing the complete branch diff.

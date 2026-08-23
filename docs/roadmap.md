@@ -4,10 +4,11 @@ This roadmap lists the evidence still required before TinyEvents can be consider
 
 Current as of August 23, 2026:
 
-- 48 named behavioral contracts have executable evidence;
+- 49 named behavioral contracts have executable evidence;
 - contract compatibility, invalid-message isolation, transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
 - SQL Server and PostgreSQL pass the complete database-recovery suite;
-- the final package and retention gates remain open.
+- cleanup and retention gates are complete; soak, provider, package, and final
+  audit gates remain open.
 
 See the [scenario catalog](scenario-catalog.md) for completed evidence and
 copyable commands. The [beta execution guide](beta-hardening-execution.md)
@@ -35,13 +36,13 @@ This phase is complete when a real application can upgrade without losing suppor
   - [x] `TE-L05-A` — Measure empty, 1 KB, and 16 KB pending payload curves from isolated empty-database baselines against SQL Server and PostgreSQL.
   - [x] `TE-L05-B` — Measure processing, processed, and failed states through real worker behavior.
   - [x] `TE-L05-C` — Measure claim and completion behavior as retained terminal history grows.
-- [ ] `TE-L06` — Validate processed retention, explicit V1 failed-row preservation, cleanup batch size, and the documented storage budget against `TE-L05` evidence.
+- [x] `TE-L06` — Validate processed retention, explicit V1 failed-row preservation, cleanup batch size, and the documented storage budget against `TE-L05` evidence.
   - [x] `TE-L06-A` — Prove the exclusive cleanup cutoff and preservation of recent processed, pending, processing, and failed rows against SQL Server and PostgreSQL.
   - [x] `TE-L06-B` — Prove bounded batches and exact durable convergence while four independent cleanup processes compete against SQL Server and PostgreSQL.
   - [x] `TE-L06-C1` — Prove a replacement cleanup process resumes from the durable remainder after the original process is terminated during partial progress.
   - [x] `TE-L06-C2` — Prove one cleanup process survives database interruption and resumes after database recovery.
   - [x] `TE-L06-D` — Compare active publishing and processing with cleanup disabled and with the candidate policy enabled at 200, 400, and 800 requests per second.
-  - [ ] `TE-L06-E` — Accept or change retention, batch, and interval defaults from measured interference and publish the storage budget.
+  - [x] `TE-L06-E` — Accept retention, batch, and interval defaults from measured interference and publish the storage budget.
 - [ ] `TE-L07` — Run a soak test with repeated worker and database disruption.
 
 Existing evidence is reused where it proves the same behavior. A partial result is not marked complete until the missing measurement is executable and repeatable.
@@ -49,8 +50,8 @@ Existing evidence is reused where it proves the same behavior. A partial result 
 ## 4. V1 Retention and Cleanup
 
 Retention cleanup is the final planned TinyEvents V1 feature. Its production
-implementation is merged into TinyEvents `main`; beta readiness remains blocked on the
-dogfood evidence below.
+implementation is merged into TinyEvents `main`, and its cleanup-specific
+dogfood gate is complete.
 
 The merged implementation has this deliberately narrow
 contract:
@@ -62,19 +63,20 @@ contract:
 - allow independent application instances to clean concurrently through
   provider row locking rather than a cleanup leader or lease;
 - default to one-hour processed retention, a 1,000-row batch, and a one-second
-  interval until dogfood evidence accepts or changes those values.
+  interval.
 
-The next executable evidence must cover concurrent cleaners, process and
-database interruption, active publication and processing, and sustained
-200/400/800-message-per-second input. A default is not accepted merely because
-the implementation compiles.
+The completed evidence covers concurrent cleaners, process and database
+interruption, active publication and processing, and requested
+200/400/800-message-per-second input, including the local SQL Server saturation
+observed at 800. The defaults were accepted from that evidence and the measured
+storage budget, not because the implementation compiled.
 
-- [ ] Validate the candidate retention defaults from `TE-L05` and `TE-L06`; change them if executable evidence rejects them.
+- [x] Validate the retention defaults from `TE-L05` and `TE-L06`; change them if executable evidence rejects them.
 - [x] Demonstrate that cleanup deletes eligible processed rows in bounded batches.
 - [x] Demonstrate that cleanup never deletes pending or actively claimed messages.
 - [x] Prove cleanup can resume after process or database failure.
-- [ ] Prove cleanup does not starve publishers or workers.
-- [ ] Re-run load and recovery evidence with cleanup enabled.
+- [x] Prove cleanup does not starve publishers or workers.
+- [x] Re-run representative load with cleanup enabled and reuse the completed recovery evidence.
 
 ## 5. Provider Evidence
 
