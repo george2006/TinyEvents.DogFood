@@ -85,3 +85,51 @@ function Stop-DogfoodDatabase {
         "stop",
         $Database.ComposeService)
 }
+
+function Get-DogfoodDatabaseConnectionCount {
+    param([pscustomobject]$Database)
+
+    $output = switch ($Database.ComposeService) {
+        "sqlserver" {
+            docker exec `
+                $Database.ContainerName `
+                /opt/mssql-tools18/bin/sqlcmd `
+                -C `
+                -S localhost `
+                -U sa `
+                -P "TinyEvents_2026!" `
+                -d TinyEventsDogfoodOperations `
+                -h -1 `
+                -W `
+                -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE is_user_process = 1 AND database_id = DB_ID();"
+        }
+
+        "postgresql" {
+            docker exec `
+                $Database.ContainerName `
+                psql `
+                -U postgres `
+                -d TinyEventsDogfoodOperations `
+                -tAc "SELECT COUNT(*) FROM pg_stat_activity WHERE datname = current_database();"
+        }
+
+        default {
+            throw "Database connection observation does not support '$($Database.ComposeService)'."
+        }
+    }
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not observe active connections for $($Database.Description)."
+    }
+
+    $connectionCount = 0
+    $hasConnectionCount = [int]::TryParse(
+        $output.Trim(),
+        [ref]$connectionCount)
+
+    if (!$hasConnectionCount) {
+        throw "Database connection observation returned '$output'."
+    }
+
+    return $connectionCount
+}
