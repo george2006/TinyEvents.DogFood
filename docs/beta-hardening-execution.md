@@ -15,6 +15,10 @@ Current as of August 23, 2026:
 - Dogfood branch `hardening/cleanup-under-load` is the clean starting point for
   the remaining cleanup hardening work;
 - the cleanup capability is not present in the latest published NuGet packages;
+- TinyEvents documentation commit `c629baf` labels the current retention,
+  batch, and interval values as candidates, repeats their next-release status,
+  and exposes migration `002_AddProcessedCleanupIndex` from every provider
+  package README;
 - `TE-L05-A`, `TE-L05-B`, and `TE-L05-C` provide repeatable storage and
   retained-history evidence against both providers;
 - cleanup defaults have not yet passed dogfood acceptance;
@@ -79,8 +83,8 @@ No pull request is created or merged without explicit review approval.
 | `TE-L06-C1` | Dogfood | Complete | Prove a replacement process resumes cleanup after abrupt process termination. |
 | `TE-L06-C2` | Dogfood | Complete | Prove the same cleanup process resumes after database interruption. |
 | `DOC-2A` | Dogfood | Complete | Record the post-merge checkpoint and documentation audit findings. |
-| `DOC-2B` | TinyEvents | Next | Mark cleanup defaults as candidates and complete next-release and migration references without changing alpha.3 release notes. |
-| `TE-L06-D` | Dogfood | Pending | Run cleanup during active publishing and processing at 200, 400, and 800 messages per second and measure interference. |
+| `DOC-2B` | TinyEvents | Complete | Mark cleanup defaults as candidates and complete next-release and migration references without changing alpha.3 release notes. |
+| `TE-L06-D` | Dogfood | Next | Compare the same active workload with cleanup disabled and with the candidate policy enabled at 200, 400, and 800 messages per second. |
 | `TE-L06-E` | Dogfood | Pending | Accept or change retention, batch, and interval defaults and publish the measured storage budget. |
 | `TE-L07` | Dogfood | Pending | Run a timed soak with repeated worker and database disruption. |
 | `PROVIDER-1` | Both | Pending | Close only provider guarantees not already demonstrated by shared evidence. |
@@ -98,12 +102,42 @@ packaging changes the behavior they proved.
 inform `TE-L06`; they are not universal capacity guarantees and do not by
 themselves approve the candidate cleanup defaults.
 
+## TE-L06-D Contract
+
+Each target rate runs two isolated variants against freshly reset storage:
+
+1. a baseline with cleanup disabled;
+2. the candidate policy with cleanup enabled on every worker process, using
+   one-hour processed retention, 1,000-row batches, and a one-second interval.
+
+Both variants begin with the same 50,000-row eligible processed history created
+through the real publisher and the existing dogfood-only cleanup fixture. A
+real publisher then issues one application transaction per request for ten
+seconds. It starts before four real worker processes so active publication,
+processing, and candidate cleanup demonstrably overlap. Enabling cleanup on
+every worker represents the natural horizontally scaled hosted-worker setup;
+`TE-L06-B` already proves their concurrent delete coordination.
+
+The scenario records requested and committed rate, commit latency percentiles,
+settlement duration, worker participation, eligible rows deleted, cleanup rate,
+and the relative change between baseline and cleanup. It uses the lightweight
+outstanding-work probe while waiting and reads the complete durable observation
+only at boundaries. Cleanup logs establish that deletion happened while the
+publisher was still active without repeatedly scanning the evidence tables.
+
+Acceptance requires every request to commit, every active message to produce
+one distinct effect, no failed or duplicate effect, no pending or processing
+remainder, participation from every worker, complete retention of the eligible
+history in the baseline, and positive cleanup progress during active load in
+the candidate variant. The scenario does not invent a universal performance
+threshold. `TE-L06-E` uses the measured interference from both database engines
+to accept or change the candidate defaults and publish the storage budget.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
-repository branches and working trees, and complete `DOC-2B` first on a small
-TinyEvents documentation branch. Return to Dogfood branch
-`hardening/cleanup-under-load` only after that documentation boundary is
-reviewed. Then design `TE-L06-D` before implementation. Do not modify a dirty
-checkout, repeat completed evidence without a reason, or advance to a pull
-request before reviewing the complete branch diff.
+repository branches and working trees, and continue `TE-L06-D` on Dogfood
+branch `hardening/cleanup-under-load`. Implement the persisted contract without
+adding a new product mode or duplicating existing process orchestration. Do not
+modify a dirty checkout, repeat completed evidence without a reason, or advance
+to a pull request before reviewing the complete branch diff.
