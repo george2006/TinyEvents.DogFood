@@ -99,7 +99,7 @@ Direct scenario files use their runner's default provider. Use the owning runner
 | Commit and single-worker baseline | `operations/Run-OperationalBaseline.ps1` | SQL Server, PostgreSQL |
 | Transaction boundaries | `operations/Run-TransactionScenarios.ps1` | SQL Server, PostgreSQL |
 | Competing workers | `operations/Run-WorkerScaling.ps1` | SQL Server |
-| Claims, death, retries, and shutdown | `operations/Run-WorkerRecovery.ps1` | SQL Server |
+| Claims, death, retries, and shutdown | `operations/Run-WorkerRecovery.ps1` | SQL Server, PostgreSQL |
 | Database failure and recovery | `operations/Run-DatabaseRecovery.ps1` | SQL Server, PostgreSQL |
 | Sustained publishing load | `operations/Run-PublishingLoad.ps1` | SQL Server, PostgreSQL |
 | Prebuilt backlog drain | `operations/Run-WorkerDrainLoad.ps1` | SQL Server, PostgreSQL |
@@ -110,6 +110,7 @@ Direct scenario files use their runner's default provider. Use the owning runner
 | Retained-history drain (`TE-L05-C`) | `operations/Run-RetainedHistoryLoad.ps1` | SQL Server, PostgreSQL |
 | Cleanup boundary, concurrency, and recovery (`TE-L06-A`–`TE-L06-C2`) | `operations/Run-CleanupScenarios.ps1` | SQL Server, PostgreSQL |
 | Cleanup under active load (`TE-L06-D`) | `operations/Run-CleanupUnderLoad.ps1` | SQL Server, PostgreSQL |
+| Repeated disruption soak (`TE-L07`) | `operations/Run-DisruptionSoak.ps1` | SQL Server, PostgreSQL |
 | Schema and deployment | `deployment/Run-SchemaScenarios.ps1` | SQL Server, PostgreSQL |
 | Published-alpha and rolling upgrades | `deployment/Run-RollingUpgrade.ps1` | SQL Server, PostgreSQL |
 

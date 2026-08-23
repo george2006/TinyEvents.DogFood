@@ -10,10 +10,10 @@ Current as of August 23, 2026:
 
 - TinyEvents `main` at `52e6889` contains bounded processed-message cleanup for
   SQL Server and PostgreSQL, including ADO.NET and EF Core providers;
-- Dogfood `main` at `c0db57f` contains the complete `TE-L05` and `TE-L06`
+- Dogfood `main` at `967f63f` contains the complete `TE-L05` through `TE-L07`
   scenarios, decisions, and measured evidence;
-- Dogfood branch `hardening/disruption-soak` contains the completed bounded
-  soak gate and awaits integration;
+- Dogfood branch `hardening/provider-parity` contains the completed worker
+  parity gate and awaits integration;
 - the cleanup capability is not present in the latest published NuGet packages;
 - TinyEvents documentation commit `936794c` accepts the one-hour retention,
   1,000-row batch, and one-second interval, publishes their measured storage
@@ -42,8 +42,9 @@ Current as of August 23, 2026:
   variant committed and processed its complete active workload without loss,
   duplicate, failed attempt, or worker starvation while candidate cleanup made
   concurrent durable progress;
-- the beta is not ready until cleanup, soak, provider, package, and final audit
-  gates close.
+- `TE-W03` through `TE-W13` pass unchanged against PostgreSQL from Dogfood
+  revision `89e771b` and TinyEvents revision `936794c`;
+- the beta is not ready until package and final audit gates close.
 
 The `FIX-1` characterization test demonstrated that disabled cleanup with a
 custom provider failed dependency-injection build validation. Commit `35d3156`
@@ -88,8 +89,8 @@ No pull request is created or merged without explicit review approval.
 | `TE-L06-D` | Dogfood | Complete | Compare the same active workload with cleanup disabled and with the candidate policy enabled at 200, 400, and 800 messages per second. |
 | `TE-L06-E` | Both | Complete | Accept retention, batch, and interval defaults and publish the measured storage budget. |
 | `TE-L07` | Dogfood | Complete | Reconcile a timed mixed-load soak through repeated worker death, database outage, and active cleanup against both providers. |
-| `PROVIDER-1` | Both | Pending | Close only provider guarantees not already demonstrated by shared evidence. |
-| `PACKAGE-1` | Both | Pending | Pack the candidate and run supported consumers without project references. |
+| `PROVIDER-1` | Both | Complete | Run the unchanged process-level worker recovery contract against PostgreSQL after reusing its existing storage and recovery evidence. |
+| `PACKAGE-1` | Both | Next | Pack the candidate and run supported consumers without project references. |
 | `BETA-GATE` | Both | Pending | Run the clean-checkout gate, review public limitations, and make the explicit beta/no-beta decision. |
 
 ## Evidence We Reuse
@@ -272,10 +273,30 @@ bytes on PostgreSQL. Final outbox allocations were 33,595,392 and 24,625,152
 bytes respectively. These resource measurements describe this machine and
 workload; they are not product ceilings.
 
+## PROVIDER-1 Result
+
+PostgreSQL already had real ADO.NET and EF Core integration coverage for due
+claims, active and expired leases, competing workers, completion ownership,
+retry scheduling, terminal failures, migrations, and cleanup. Its destructive
+database-recovery suite also already passed TE-D01 through TE-D06. Repeating
+those proofs under new IDs would add script count rather than confidence.
+
+The remaining gap was process-level worker behavior. The existing
+`Run-WorkerRecovery.ps1` runner now selects SQL Server or PostgreSQL through
+the laboratory's existing database component; every scenario and assertion is
+shared. The unchanged PostgreSQL run under
+`artifacts/workers/20260823-211438/recovery` passed TE-W03, TE-W04, TE-W05,
+TE-W07, idle and active TE-W08, and TE-W09 through TE-W13 from Dogfood commit
+`89e771b` and TinyEvents commit `936794c`. This closes active-claim protection,
+worker-death recovery, effect-before-death redelivery, lease loss, shutdown,
+durable retries, terminal failure, multi-consumer redelivery, and duplicate
+configured worker identity with the same observable contract as SQL Server.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
 repository branches and working trees, and review Dogfood branch
-`hardening/disruption-soak` for integration. TE-L07 is complete. Continue with
-`PROVIDER-1` only after the branch is integrated; do not rerun completed
-evidence without a concrete reason or add a new hardening framework.
+`hardening/provider-parity` for integration. `PROVIDER-1` is complete. Continue
+with `PACKAGE-1` only after the branch is integrated; reuse the existing
+package-consumer hosts and do not replace project-reference tests with package
+claims they cannot prove.

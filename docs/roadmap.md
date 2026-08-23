@@ -80,9 +80,9 @@ storage budget, not because the implementation compiled.
 
 ## 5. Provider Evidence
 
-- [ ] Compare the remaining SQL Server-only worker scenarios with existing PostgreSQL integration and database-recovery evidence.
-- [ ] Add PostgreSQL destructive executions only where provider-specific behavior remains unproven.
-- [ ] Keep the same observable assertions for both providers; do not create a weaker PostgreSQL contract.
+- [x] Compare the remaining SQL Server-only worker scenarios with existing PostgreSQL integration and database-recovery evidence.
+- [x] Add PostgreSQL destructive executions only where provider-specific behavior remains unproven.
+- [x] Keep the same observable assertions for both providers; do not create a weaker PostgreSQL contract.
 - [ ] Complete package-consumer smoke tests for every supported EF Core and ADO.NET provider path.
 
 The objective is equal product guarantees, not a duplicated script count.

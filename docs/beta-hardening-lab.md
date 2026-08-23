@@ -465,6 +465,8 @@ TE-D06 bounds every process to two pooled connections for the selected provider.
 
 The PostgreSQL EF Core real-database suite passed 65 tests with zero skips on 2026-08-21. It covers transactional publishing, provider-specific claim and completion behavior, retries, terminal failure, lease ownership, competing claims, and migrations. The separate destructive suite also passed `TE-D01` through `TE-D06` consecutively against PostgreSQL on 2026-08-21. That run proves recovery from physical container loss before polling and during active processing, the observable at-least-once boundary after a lost completion acknowledgement, mixed-load restart recovery, and bounded connection-pool recovery.
 
+The remaining process-level worker suite passed unchanged against PostgreSQL on 2026-08-23 from Dogfood commit `89e771b` and TinyEvents commit `936794c`. `Run-WorkerRecovery.ps1 -StorageProvider PostgreSql` passed TE-W03, TE-W04, TE-W05, TE-W07, both TE-W08 shutdown boundaries, and TE-W09 through TE-W13 with the same scenarios and acceptance rules used for SQL Server. Together with the existing provider integration and database-recovery evidence, this closes V1 worker-provider parity without duplicating scenario implementations.
+
 The destructive host selects one internal storage-provider implementation at startup. SQL Server and PostgreSQL each own their configuration, model mapping, database reset, durable probe writers, evidence queries, and physical connection creation without branching throughout the host or scenarios. The same executable scenarios and acceptance rules prove both providers; no provider-specific copies or weakened PostgreSQL assertions were introduced.
 
 ### BETA-6 - Transactions, contracts, and deployment

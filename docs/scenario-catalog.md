@@ -64,12 +64,15 @@ Evidence locations:
 
 ## Workers, Claims, Retries, and Shutdown
 
-`TE-W01` is proven against **SQL Server and PostgreSQL**. The remaining worker scenarios currently have executable SQL Server evidence.
+Every worker contract is proven against **SQL Server and PostgreSQL**. `TE-W02`
+reuses the stronger two-provider backlog scaling evidence from `TE-L02`;
+`TE-W03` through `TE-W13` run unchanged through the provider-selectable worker
+recovery runner.
 
 | ID | Run or coverage | Expected evidence |
 | --- | --- | --- |
 | `TE-W01` | `.\operations\Run-OperationalBaseline.ps1` | One hosted worker drains a known backlog without loss, failed messages, or duplicate effects. This runner also executes `TE-T01`. |
-| `TE-W02` | `.\operations\Run-WorkerScaling.ps1 -Backlog 1000` | Two, four, and eight worker processes compete for distinct rows. Every message is processed once and every worker participates. |
+| `TE-W02` | `.\operations\Run-WorkerScaling.ps1 -Backlog 1000`; PostgreSQL shares `TE-L02` | Two, four, and eight worker processes compete for distinct rows. Every message is processed once and every worker participates. |
 | `TE-W03` | `.\operations\Run-WorkerRecovery.ps1 -Scenario TE-W03` | A competing worker cannot steal a claim before the database-authoritative lease expires. |
 | `TE-W04` | `.\operations\Run-WorkerRecovery.ps1 -Scenario TE-W04` | After the owner dies, replacement capacity waits for lease expiry, reclaims the message, and completes it once. |
 | `TE-W05` | `.\operations\Run-WorkerRecovery.ps1 -Scenario TE-W05` | Death after a durable consumer effect but before outbox completion causes the expected redelivery and one duplicate effect. |
@@ -169,6 +172,7 @@ The following commands reproduce all currently implemented evidence. Run Postgre
 .\operations\Run-TransactionScenarios.ps1 -StorageProvider PostgreSql
 .\operations\Run-WorkerScaling.ps1
 .\operations\Run-WorkerRecovery.ps1
+.\operations\Run-WorkerRecovery.ps1 -StorageProvider PostgreSql
 .\operations\Run-DatabaseRecovery.ps1
 .\operations\Run-DatabaseRecovery.ps1 -StorageProvider PostgreSql
 .\operations\Run-PublishingLoad.ps1
@@ -179,6 +183,8 @@ The following commands reproduce all currently implemented evidence. Run Postgre
 .\operations\Run-MixedLoad.ps1 -StorageProvider PostgreSql
 .\operations\Run-BacklogRecoveryLoad.ps1
 .\operations\Run-BacklogRecoveryLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-DisruptionSoak.ps1
+.\operations\Run-DisruptionSoak.ps1 -StorageProvider PostgreSql
 .\deployment\Run-SchemaScenarios.ps1
 .\deployment\Run-SchemaScenarios.ps1 -StorageProvider PostgreSql
 .\deployment\Run-PublishedAlphaUpgrade.ps1

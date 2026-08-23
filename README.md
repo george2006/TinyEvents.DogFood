@@ -26,10 +26,10 @@ The current laboratory demonstrates:
 | --- | --- | :---: | :---: | --- |
 | Identity and compatibility | `TE-C01`–`TE-C08` | ✅ | — | [Identity evidence](identity/README.md) |
 | Transactional publishing | `TE-T01`–`TE-T05` | ✅ | ✅ | [Transaction commands](docs/scenario-catalog.md#transactional-publishing) |
-| Workers, claims, and retries | `TE-W01`–`TE-W13` | ✅ | `TE-W01` | [Worker commands](docs/scenario-catalog.md#workers-claims-retries-and-shutdown) |
+| Workers, claims, and retries | `TE-W01`–`TE-W13` | ✅ | ✅ | [Worker commands](docs/scenario-catalog.md#workers-claims-retries-and-shutdown) |
 | Database failure and recovery | `TE-D01`–`TE-D06` | ✅ | ✅ | [Recovery commands](docs/scenario-catalog.md#database-failure-and-recovery) |
 | Schema and deployment | `TE-S01`–`TE-S05` | ✅ | ✅ | [Schema commands](docs/scenario-catalog.md#schema-and-deployment) |
-| Load and storage | `TE-L01`–`TE-L05`, `TE-L06-A`–`TE-L06-D` | ✅ | ✅ | [Load commands](docs/scenario-catalog.md#load-backlog-and-storage) |
+| Load and storage | `TE-L01`–`TE-L07` | ✅ | ✅ | [Load commands](docs/scenario-catalog.md#load-backlog-and-storage) |
 
 Some contract IDs intentionally share stronger executable evidence instead of duplicating a scenario. The [scenario catalog](docs/scenario-catalog.md) identifies every shared proof explicitly.
 
