@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using TinyEvents;
 using TinyEvents.Worker;
 
@@ -53,6 +54,13 @@ internal static class DogfoodHost
         DogfoodCleanupProcessSettings? cleanupSettings = null)
     {
         var builder = Host.CreateApplicationBuilder();
+
+        if (cleanupSettings is not null)
+        {
+            builder.Logging.AddFilter(
+                "TinyEvents.Worker.TinyEventsCleanupBackgroundService",
+                LogLevel.Debug);
+        }
 
         builder.Services.AddSingleton(settings);
         builder.Services.AddSingleton(new WorkerIdentity(workerId));

@@ -1,14 +1,14 @@
 function Wait-ForTEL06PartialCleanup {
     param(
         [string]$Assembly,
-        [pscustomobject]$CleanupProcess,
+        [System.Diagnostics.Process]$CleanupProcess,
         [int]$InitialMessageCount
     )
 
     $deadline = (Get-Date).AddSeconds(20)
 
     while ((Get-Date) -lt $deadline) {
-        if ($CleanupProcess.Process.HasExited) {
+        if ($CleanupProcess.HasExited) {
             throw "Cleanup process exited before making partial progress."
         }
 
@@ -30,14 +30,14 @@ function Wait-ForTEL06PartialCleanup {
 function Wait-ForTEL06CleanupCompletion {
     param(
         [string]$Assembly,
-        [pscustomobject]$CleanupProcess,
+        [System.Diagnostics.Process]$CleanupProcess,
         [int]$ExpectedBusinessOperationCount
     )
 
     $deadline = (Get-Date).AddSeconds(30)
 
     while ((Get-Date) -lt $deadline) {
-        if ($CleanupProcess.Process.HasExited) {
+        if ($CleanupProcess.HasExited) {
             throw "Replacement cleanup process exited before completing cleanup."
         }
 
@@ -99,7 +99,7 @@ function Invoke-TEL06CleanupProcessRecovery {
             "original-cleanup"
         $partial = Wait-ForTEL06PartialCleanup `
             $Assembly `
-            $original `
+            $original.Process `
             $messageCount
         Save-Observation $partial $scenarioDirectory "partial-cleanup"
 
@@ -127,7 +127,7 @@ function Invoke-TEL06CleanupProcessRecovery {
             "replacement-cleanup"
         $completed = Wait-ForTEL06CleanupCompletion `
             $Assembly `
-            $replacement `
+            $replacement.Process `
             $messageCount
         Save-Observation $completed $scenarioDirectory "completed"
         $replacementExitCode = Stop-LoggedProcess $replacement
