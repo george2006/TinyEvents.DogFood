@@ -212,6 +212,9 @@ switch (args[0].ToLowerInvariant())
     case "worker-with-plan":
         return await RunWorkerWithPlanAsync(args, settings);
 
+    case "worker-with-plan-and-cleanup":
+        return await RunWorkerWithPlanAndCleanupAsync(args, settings);
+
     case "worker-with-batch":
         return await RunWorkerWithBatchAsync(args, settings);
 
@@ -621,6 +624,76 @@ static async Task<int> RunWorkerWithPlanAsync(
         arguments[1],
         consumerTiming,
         consumerFailureRules);
+    await host.RunAsync();
+    return 0;
+}
+
+static async Task<int> RunWorkerWithPlanAndCleanupAsync(
+    string[] arguments,
+    DogfoodSettings settings)
+{
+    var hasRequiredArguments = arguments.Length >= 9;
+    var hasWorkerId =
+        hasRequiredArguments &&
+        !string.IsNullOrWhiteSpace(arguments[1]);
+    var hasSlowScenarioId =
+        hasRequiredArguments &&
+        !string.IsNullOrWhiteSpace(arguments[2]);
+    var afterEffectDelayMilliseconds = 0;
+    var hasAfterEffectDelay =
+        hasRequiredArguments &&
+        int.TryParse(arguments[3], out afterEffectDelayMilliseconds) &&
+        afterEffectDelayMilliseconds >= 0;
+    var processedRetentionSeconds = 0;
+    var hasProcessedRetention =
+        hasRequiredArguments &&
+        int.TryParse(arguments[4], out processedRetentionSeconds) &&
+        processedRetentionSeconds > 0;
+    var cleanupBatchSize = 0;
+    var hasCleanupBatchSize =
+        hasRequiredArguments &&
+        int.TryParse(arguments[5], out cleanupBatchSize) &&
+        cleanupBatchSize > 0;
+    var cleanupIntervalMilliseconds = 0;
+    var hasCleanupInterval =
+        hasRequiredArguments &&
+        int.TryParse(arguments[6], out cleanupIntervalMilliseconds) &&
+        cleanupIntervalMilliseconds > 0;
+    var failureRulesAreValid = TryParseFailureRules(
+        arguments,
+        7,
+        out var failureRules);
+    var argumentsAreValid =
+        hasWorkerId &&
+        hasSlowScenarioId &&
+        hasAfterEffectDelay &&
+        hasProcessedRetention &&
+        hasCleanupBatchSize &&
+        hasCleanupInterval &&
+        failureRulesAreValid;
+
+    if (!argumentsAreValid)
+    {
+        Console.Error.WriteLine(
+            "Expected worker-with-plan-and-cleanup <worker-id> <slow-scenario-id> <after-effect-delay-ms> <positive-retention-seconds> <positive-cleanup-batch-size> <positive-cleanup-interval-ms> <failure-scenario-id> <positive-rejected-attempt-count> [...].");
+        return 1;
+    }
+
+    var consumerTiming = new ConsumerExecutionTiming(
+        TimeSpan.Zero,
+        TimeSpan.FromMilliseconds(afterEffectDelayMilliseconds),
+        arguments[2]);
+    var consumerFailureRules = new ConsumerFailureRules(failureRules);
+    var cleanupSettings = new DogfoodCleanupProcessSettings(
+        TimeSpan.FromSeconds(processedRetentionSeconds),
+        cleanupBatchSize,
+        TimeSpan.FromMilliseconds(cleanupIntervalMilliseconds));
+    using var host = DogfoodHost.Build(
+        settings,
+        arguments[1],
+        consumerTiming,
+        consumerFailureRules,
+        cleanupSettings: cleanupSettings);
     await host.RunAsync();
     return 0;
 }

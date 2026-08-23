@@ -81,6 +81,41 @@ function Start-PlannedWorker {
         -PassThru
 }
 
+function Start-PlannedCleanupWorker {
+    param(
+        [string]$Assembly,
+        [string]$WorkerId,
+        [string]$SlowScenarioId,
+        [int]$AfterEffectDelayMilliseconds,
+        [int]$ProcessedRetentionSeconds,
+        [int]$CleanupBatchSize,
+        [int]$CleanupIntervalMilliseconds,
+        [string[]]$FailureRules,
+        [string]$ArtifactDirectory,
+        [string]$EvidenceName = $WorkerId
+    )
+
+    $standardOutput = Join-Path $ArtifactDirectory "$EvidenceName.stdout.log"
+    $standardError = Join-Path $ArtifactDirectory "$EvidenceName.stderr.log"
+    $arguments = @(
+        $Assembly,
+        "worker-with-plan-and-cleanup",
+        $WorkerId,
+        $SlowScenarioId,
+        [string]$AfterEffectDelayMilliseconds,
+        [string]$ProcessedRetentionSeconds,
+        [string]$CleanupBatchSize,
+        [string]$CleanupIntervalMilliseconds) + $FailureRules
+
+    return Start-Process `
+        -FilePath "dotnet" `
+        -ArgumentList $arguments `
+        -RedirectStandardOutput $standardOutput `
+        -RedirectStandardError $standardError `
+        -WindowStyle Hidden `
+        -PassThru
+}
+
 function Start-BatchWorker {
     param(
         [string]$Assembly,
