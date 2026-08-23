@@ -101,6 +101,8 @@ Prove the processed-retention boundary and concurrent bounded progress through t
 
 `TE-L06-B` prepares 401 eligible processed rows and releases four independent cleanup processes together with a 37-row batch. It requires overlapping calls, multiple contributors in every wave, a per-call result no greater than 37, and exact agreement between reported deletions and durable row decreases until no eligible row remains. It does not yet prove interruption recovery, background-service polling, load interference, or the candidate defaults.
 
+`TE-L06-C1` prepares 1,000 eligible processed rows and runs the real cleanup background service with a 37-row batch. The scenario terminates the process after partial progress, proves the durable remainder is stable without a cleaner, and starts a replacement process that completes the remainder without deleting business rows. Database-interruption recovery remains separate in `TE-L06-C2`.
+
 Run one independently named scenario either through the suite selector or its own file:
 
 ```powershell
@@ -184,7 +186,7 @@ The same boundary applies to the cumulative duration of a claimed batch. Workers
 
 `TE-L04` runs unchanged against SQL Server and PostgreSQL. One process publishes 4,000 operations at 200 requests per second. Workers remain stopped until at least 1,000 messages are pending, then four independent workers must process at least that initial backlog and reduce outstanding work to no more than one second of current input while the publisher is still running. Final acceptance requires all 4,000 messages to complete once, every worker to participate, and no failed attempt or duplicate effect. Recovery timing includes worker startup and up to one 100-millisecond observation interval.
 
-The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, `TE-L01` through `TE-L05`, and `TE-L06-A` through `TE-L06-B` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, prebuilt-backlog drain, sustained mixed load, live backlog recovery, retained-history measurement, cleanup-boundary behavior, and concurrent cleanup progress are proven without provider-specific scenario copies.
+The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, `TE-L01` through `TE-L05`, and `TE-L06-A` through `TE-L06-C1` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, prebuilt-backlog drain, sustained mixed load, live backlog recovery, retained-history measurement, cleanup-boundary behavior, concurrent cleanup progress, and process-death recovery are proven without provider-specific scenario copies.
 
 Processed outbox rows are intentionally retained by the existing scenarios unless a cleanup scenario explicitly invokes deletion. `TE-L05` measured payload curves, physical cost by status, and active drain behavior through 100,000 retained rows. `TE-L06-A` proves the cleanup eligibility boundary, and `TE-L06-B` proves bounded concurrent storage coordination. The remaining `TE-L06` slices must validate recovery, interference, and the candidate retention and storage-budget decisions before beta acceptance.
 

@@ -4,7 +4,7 @@ This roadmap lists the evidence still required before TinyEvents can be consider
 
 Current as of August 23, 2026:
 
-- 46 named behavioral contracts have executable evidence;
+- 47 named behavioral contracts have executable evidence;
 - contract compatibility, invalid-message isolation, transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
 - SQL Server and PostgreSQL pass the complete database-recovery suite;
 - the final package and retention gates remain open.
@@ -38,6 +38,8 @@ This phase is complete when a real application can upgrade without losing suppor
 - [ ] `TE-L06` — Validate processed retention, explicit V1 failed-row preservation, cleanup batch size, and the documented storage budget against `TE-L05` evidence.
   - [x] `TE-L06-A` — Prove the exclusive cleanup cutoff and preservation of recent processed, pending, processing, and failed rows against SQL Server and PostgreSQL.
   - [x] `TE-L06-B` — Prove bounded batches and exact durable convergence while four independent cleanup processes compete against SQL Server and PostgreSQL.
+  - [x] `TE-L06-C1` — Prove a replacement cleanup process resumes from the durable remainder after the original process is terminated during partial progress.
+  - [ ] `TE-L06-C2` — Prove one cleanup process survives database interruption and resumes after database recovery.
 - [ ] `TE-L07` — Run a soak test with repeated worker and database disruption.
 
 Existing evidence is reused where it proves the same behavior. A partial result is not marked complete until the missing measurement is executable and repeatable.

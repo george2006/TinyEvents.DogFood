@@ -295,6 +295,8 @@ Use the completed `TE-L05` measurements to validate the merged candidate policy 
 
 **TE-L06-B executable:** the same runner prepares 401 eligible processed rows, then releases four independent .NET processes together with a batch size of 37. SQL Server and PostgreSQL both converged in three waves: `148 + 148 + 105 = 401`. Every call remained at or below 37, every wave contained overlapping cleanup calls and multiple contributors, and every reported deletion matched the exact durable row decrease. The business rows remained intact. The accepted runs used Dogfood commit `6078b56` and TinyEvents commit `35d3156`. This proves bounded storage coordination; it does not yet prove background-service recovery or behavior under active publish and consume load.
 
+**TE-L06-C1 executable:** the same runner prepares 1,000 eligible processed rows and starts the real cleanup background service with a 37-row batch. After durable partial progress, it terminates that process abruptly and proves the remaining count is stable while no cleaner exists. A replacement process then removes the exact durable remainder while all 1,000 business rows survive. SQL Server and PostgreSQL pass from Dogfood commit `940f395` and TinyEvents `main` commit `52e6889`. This proves replacement-process recovery only; same-process recovery after database interruption remains `TE-L06-C2`.
+
 #### TE-L07 - Soak and repeated disruption
 
 Run sustained mixed traffic while repeatedly terminating workers and restarting the database. Record backlog, duplicate effects, memory, connection count, storage growth, and recovery time across the complete run.
