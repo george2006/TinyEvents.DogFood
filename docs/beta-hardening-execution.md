@@ -10,11 +10,10 @@ Current as of August 23, 2026:
 
 - TinyEvents `main` at `52e6889` contains bounded processed-message cleanup for
   SQL Server and PostgreSQL, including ADO.NET and EF Core providers;
-- Dogfood `main` at `da2423c` contains the `TE-L05-C`, `TE-L06-A`, and
-  `TE-L06-B` scenarios and their measured evidence;
-- Dogfood branch `hardening/cleanup-recovery` contains the committed
-  `TE-L06-C1` process-death and `TE-L06-C2` database-outage scenarios and has
-  not been merged into Dogfood `main`;
+- Dogfood `main` at `1acb8d2` contains the `TE-L05-C` and complete
+  `TE-L06-A` through `TE-L06-C2` scenarios and their measured evidence;
+- Dogfood branch `hardening/cleanup-under-load` is the clean starting point for
+  the remaining cleanup hardening work;
 - the cleanup capability is not present in the latest published NuGet packages;
 - `TE-L05-A`, `TE-L05-B`, and `TE-L05-C` provide repeatable storage and
   retained-history evidence against both providers;
@@ -44,6 +43,16 @@ defers `TinyOutboxCleanup` construction through an explicit service factory.
 Disabled cleanup no longer requires `ITinyOutboxCleanupStore`; enabled cleanup
 retains its existing startup validation. The worker test suite passes.
 
+The post-merge documentation audit found no missing cleanup guide in
+TinyEvents. Its root README, documentation index, worker guide, architecture,
+migration guide, and dedicated retention guide describe the implemented
+capability. Before `TE-L06-D`, TinyEvents documentation must still label the
+current one-hour retention, 1,000-row batch, and one-second interval as
+candidate defaults pending `TE-L06-D/E`. The worker guide should repeat the
+next-release status for direct readers, and the four provider package READMEs
+should reference migration `002_AddProcessedCleanupIndex`. Existing alpha.3
+package release notes remain unchanged until release preparation.
+
 ## Slice Rules
 
 Each slice must:
@@ -69,7 +78,9 @@ No pull request is created or merged without explicit review approval.
 | `TE-L06-B` | Dogfood | Complete | Prove bounded deletion and exact durable progress with concurrent cleanup processes against both providers. |
 | `TE-L06-C1` | Dogfood | Complete | Prove a replacement process resumes cleanup after abrupt process termination. |
 | `TE-L06-C2` | Dogfood | Complete | Prove the same cleanup process resumes after database interruption. |
-| `TE-L06-D` | Dogfood | Next | Run cleanup during active publishing and processing at 200, 400, and 800 messages per second and measure interference. |
+| `DOC-2A` | Dogfood | Complete | Record the post-merge checkpoint and documentation audit findings. |
+| `DOC-2B` | TinyEvents | Next | Mark cleanup defaults as candidates and complete next-release and migration references without changing alpha.3 release notes. |
+| `TE-L06-D` | Dogfood | Pending | Run cleanup during active publishing and processing at 200, 400, and 800 messages per second and measure interference. |
 | `TE-L06-E` | Dogfood | Pending | Accept or change retention, batch, and interval defaults and publish the measured storage budget. |
 | `TE-L07` | Dogfood | Pending | Run a timed soak with repeated worker and database disruption. |
 | `PROVIDER-1` | Both | Pending | Close only provider guarantees not already demonstrated by shared evidence. |
@@ -90,6 +101,9 @@ themselves approve the candidate cleanup defaults.
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
-repository branches and working trees, and continue the first incomplete slice.
-Do not modify a dirty checkout, repeat completed evidence without a reason, or
-advance to a pull request before reviewing the complete branch diff.
+repository branches and working trees, and complete `DOC-2B` first on a small
+TinyEvents documentation branch. Return to Dogfood branch
+`hardening/cleanup-under-load` only after that documentation boundary is
+reviewed. Then design `TE-L06-D` before implementation. Do not modify a dirty
+checkout, repeat completed evidence without a reason, or advance to a pull
+request before reviewing the complete branch diff.
