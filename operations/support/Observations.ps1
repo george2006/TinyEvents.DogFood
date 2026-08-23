@@ -10,6 +10,18 @@ function Get-Observation {
     return $json | ConvertFrom-Json
 }
 
+function Test-OutstandingMessages {
+    param([string]$Assembly)
+
+    $json = & dotnet $Assembly has-outstanding-messages
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Outstanding-message observation command failed."
+    }
+
+    return [bool]::Parse($json)
+}
+
 function Get-StorageObservation {
     param([string]$Assembly)
 

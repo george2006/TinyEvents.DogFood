@@ -81,6 +81,26 @@ Measure pending, processing, processed, and failed outbox states created through
 
 The state runner creates an isolated empty-database baseline for every state. Its default 5,000-row population uses 1 KB of deterministic, compression-resistant content, four worker processes, and a batch of 10. Acceptance requires the exact requested state and effect counts before physical table and index allocation is reported.
 
+Measure an identical active backlog with empty, 10,000-row, and 100,000-row processed histories:
+
+```powershell
+.\operations\Run-RetainedHistoryLoad.ps1
+.\operations\Run-RetainedHistoryLoad.ps1 -StorageProvider PostgreSql
+```
+
+`TE-L05-C` creates every retained row through the real publisher and worker, then measures a separate 1,000-message drain. A lightweight indexed probe detects outstanding work without repeatedly scanning the complete evidence model. One exact observation validates all terminal counts after the drain. The completion probe adds at most 250 ms of boundary distortion, recorded in the result.
+
+Prove the processed-retention boundary and concurrent bounded progress through the real cleanup store:
+
+```powershell
+.\operations\Run-CleanupScenarios.ps1
+.\operations\Run-CleanupScenarios.ps1 -StorageProvider PostgreSql
+```
+
+`TE-L06-A` deletes one processed row strictly older than a fixed cutoff and checks the original message IDs afterward. It preserves a processed row exactly on the cutoff, a newer processed row, and pending, processing, and failed rows.
+
+`TE-L06-B` prepares 401 eligible processed rows and releases four independent cleanup processes together with a 37-row batch. It requires overlapping calls, multiple contributors in every wave, a per-call result no greater than 37, and exact agreement between reported deletions and durable row decreases until no eligible row remains. It does not yet prove interruption recovery, background-service polling, load interference, or the candidate defaults.
+
 Run one independently named scenario either through the suite selector or its own file:
 
 ```powershell
@@ -164,8 +184,8 @@ The same boundary applies to the cumulative duration of a claimed batch. Workers
 
 `TE-L04` runs unchanged against SQL Server and PostgreSQL. One process publishes 4,000 operations at 200 requests per second. Workers remain stopped until at least 1,000 messages are pending, then four independent workers must process at least that initial backlog and reduce outstanding work to no more than one second of current input while the publisher is still running. Final acceptance requires all 4,000 messages to complete once, every worker to participate, and no failed attempt or duplicate effect. Recovery timing includes worker startup and up to one 100-millisecond observation interval.
 
-The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, and `TE-L01` through `TE-L04` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, prebuilt-backlog drain, sustained mixed load, and live backlog recovery are proven without provider-specific scenario copies.
+The PostgreSQL executable baseline, `TE-D01` through `TE-D06`, `TE-L01` through `TE-L05`, and `TE-L06-A` through `TE-L06-B` use the same publisher, consumers, observations, and behavioral assertions as SQL Server. PostgreSQL reset, migration, successful processing, transient retry, durable inspection, physical database recovery, bounded connection-pressure recovery, isolated publishing load, prebuilt-backlog drain, sustained mixed load, live backlog recovery, retained-history measurement, cleanup-boundary behavior, and concurrent cleanup progress are proven without provider-specific scenario copies.
 
-Processed outbox rows are intentionally retained during current hardening. Cleanup design remains blocked on `TE-L05`, which will measure bytes per status and define retention and deletion budgets before production behavior is added.
+Processed outbox rows are intentionally retained by the existing scenarios unless a cleanup scenario explicitly invokes deletion. `TE-L05` measured payload curves, physical cost by status, and active drain behavior through 100,000 retained rows. `TE-L06-A` proves the cleanup eligibility boundary, and `TE-L06-B` proves bounded concurrent storage coordination. The remaining `TE-L06` slices must validate recovery, interference, and the candidate retention and storage-budget decisions before beta acceptance.
 
 The operational executable also exposes `reset`, `publish`, `inspect`, `worker`, and dogfood-only `worker-for` commands for later destructive scenarios. It references the sibling TinyEvents source projects until hardened packages are published.

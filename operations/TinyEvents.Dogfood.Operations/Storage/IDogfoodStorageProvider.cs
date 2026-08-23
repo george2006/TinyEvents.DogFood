@@ -24,6 +24,10 @@ internal interface IDogfoodStorageProvider
         DogfoodSettings settings,
         CancellationToken cancellationToken);
 
+    ValueTask<bool> HasOutstandingMessagesAsync(
+        DogfoodSettings settings,
+        CancellationToken cancellationToken);
+
     ValueTask<StorageObservation> ReadStorageObservationAsync(
         DogfoodSettings settings,
         CancellationToken cancellationToken);

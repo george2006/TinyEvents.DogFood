@@ -116,6 +116,11 @@ Evidence: `artifacts/load/<run-id>/<scenario-id>/`
 | `TE-L02` | `.\operations\Run-WorkerDrainLoad.ps1` | With publishers stopped, 1, 2, 4, and 8 worker processes drain independent 10,000-message backlogs. Every worker participates, all rows reach `Processed`, every message has one effect, and the result retains throughput, speedup, and scaling efficiency. |
 | `TE-L03` | `.\operations\Run-MixedLoad.ps1` | One publisher sustains 200 requests per second across successful, transient, permanent, and slow work while four worker processes share a bounded connection budget. Unrelated success progresses during retry pressure and every committed message reaches its exact terminal outcome. |
 | `TE-L04` | `.\operations\Run-BacklogRecoveryLoad.ps1` | One publisher first creates at least 1,000 pending messages at 200 requests per second. Four workers then reduce outstanding work to no more than one second of incoming traffic while that publisher remains active. All 4,000 messages subsequently complete once with every worker participating. |
+| `TE-L05-A` | `.\operations\Run-StorageMeasurements.ps1` | Isolated 10,000-row pending populations measure empty, 1 KB, and 16 KB representative payloads from their own empty-table baselines. Payload, table, index, and total physical bytes remain separately visible. |
+| `TE-L05-B` | `.\operations\Run-StorageStateMeasurements.ps1` | Real workers create exact pending, actively claimed, processed, and terminally failed 5,000-row populations. Every state reports physical bytes while exact effects and three failed attempts remain enforced. |
+| `TE-L05-C` | `.\operations\Run-RetainedHistoryLoad.ps1` | The same 1,000-message active backlog drains after 0, 10,000, and 100,000 processed rows are retained. Both providers preserve exact terminal counts and zero duplicates while reporting throughput relative to empty history. |
+| `TE-L06-A` | `.\operations\Run-CleanupScenarios.ps1` | The real cleanup store deletes only a processed row strictly older than the cutoff. A processed row exactly on the cutoff, a newer processed row, and pending, processing, and failed rows remain addressable by their original message IDs. |
+| `TE-L06-B` | `.\operations\Run-CleanupScenarios.ps1` | Four independent processes repeatedly compete for a 401-row eligible population with a 37-row batch. Every cleanup call stays bounded, concurrent call windows overlap, every wave's reported deletions equal its durable row decrease, and all rows are deleted exactly once across multiple waves. |
 
 Run the same scenarios against PostgreSQL with:
 
@@ -124,6 +129,10 @@ Run the same scenarios against PostgreSQL with:
 .\operations\Run-WorkerDrainLoad.ps1 -StorageProvider PostgreSql
 .\operations\Run-MixedLoad.ps1 -StorageProvider PostgreSql
 .\operations\Run-BacklogRecoveryLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-StorageMeasurements.ps1 -StorageProvider PostgreSql
+.\operations\Run-StorageStateMeasurements.ps1 -StorageProvider PostgreSql
+.\operations\Run-RetainedHistoryLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-CleanupScenarios.ps1 -StorageProvider PostgreSql
 ```
 
 For `TE-L01`, `TargetWasSustained` means the observed committed rate reached at least 95% of the requested rate. It is recorded evidence, not an acceptance gate or a product throughput guarantee. `AcceptancePassed` instead requires every request to commit and every durable count to match exactly.
