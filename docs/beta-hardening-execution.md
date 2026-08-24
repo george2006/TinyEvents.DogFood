@@ -315,6 +315,11 @@ same smoke. Every package now proves its identity, author, MIT expression,
 project and repository URLs, repository type, declared and included README,
 description, and tags before a package consumer is restored.
 
+Dogfood commit `adad738` indexes every runner and accepted finding. TinyEvents
+commit `37c960d` publishes the corresponding reliability contract: demonstrated
+guarantees, explicit non-guarantees, and operator responsibilities. Product
+limitations are no longer left only in laboratory notes.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
