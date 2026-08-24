@@ -43,11 +43,21 @@ function Invoke-GateCommand {
     Write-Host ""
     Write-Host "=== $Name ==="
 
-    & $FilePath @Arguments 2>&1 |
-        Tee-Object -FilePath $logPath |
-        Out-Host
+    $previousErrorActionPreference = $ErrorActionPreference
 
-    $exitCode = $LASTEXITCODE
+    try {
+        $ErrorActionPreference = "Continue"
+
+        & $FilePath @Arguments 2>&1 |
+            Tee-Object -FilePath $logPath |
+            Out-Host
+
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
     $completedAtUtc = [DateTimeOffset]::UtcNow
 
     return [pscustomobject]@{
