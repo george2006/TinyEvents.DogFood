@@ -40,7 +40,7 @@ operator-facing guarantees and responsibilities.
 | Finding | What changed |
 | --- | --- |
 | Repeated full-state observation can perturb the system under test. | The retained-history runner replaced 100 ms aggregate scans with an indexed outstanding-work probe and one terminal exact read. |
-| An exact SQL Server observation can itself become deadlock victim 1205. | Dogfood retries only that read-only observation; production locking and worker behavior were not weakened. |
+| An exact SQL Server observation can itself become deadlock victim 1205, and three immediate attempts are insufficient under sustained disruption. | Dogfood retries only that read-only observation through a bounded ten-attempt backoff window; production locking and worker behavior were not weakened. |
 | Four PostgreSQL publisher processes exhausted the container's 100-connection limit. | Mixed traffic now uses one publisher with concurrent traffic definitions and explicit pool budgets. |
 | Publisher acknowledgement counts are not durable commit counts during connection loss. | The soak records acknowledged and durable operations separately and reconciles by business identity. |
 | SQL Server saturated locally at the requested 800 writes/s while PostgreSQL did not. | The result remains provider-specific evidence; no universal TinyEvents ceiling is claimed. |

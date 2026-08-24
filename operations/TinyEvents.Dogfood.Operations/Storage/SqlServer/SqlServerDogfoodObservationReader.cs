@@ -6,7 +6,7 @@ namespace TinyEvents.Dogfood.Operations;
 internal static class SqlServerDogfoodObservationReader
 {
     private const int DeadlockVictimErrorNumber = 1205;
-    private const int MaximumAttempts = 3;
+    private const int MaximumAttempts = 10;
 
     public static async ValueTask<ScenarioObservation> ReadAsync(
         DogfoodSettings settings,
@@ -20,7 +20,7 @@ internal static class SqlServerDogfoodObservationReader
             }
             catch (SqlException exception) when (ShouldRetry(exception, attempt))
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken);
+                await Task.Delay(GetRetryDelay(attempt), cancellationToken);
             }
         }
 
@@ -33,6 +33,11 @@ internal static class SqlServerDogfoodObservationReader
             exception.Number == DeadlockVictimErrorNumber;
         var anotherAttemptIsAvailable = attempt < MaximumAttempts;
         return observationWasDeadlockVictim && anotherAttemptIsAvailable;
+    }
+
+    private static TimeSpan GetRetryDelay(int attempt)
+    {
+        return TimeSpan.FromMilliseconds(100 * attempt);
     }
 
     private static async ValueTask<ScenarioObservation> ReadOnceAsync(
