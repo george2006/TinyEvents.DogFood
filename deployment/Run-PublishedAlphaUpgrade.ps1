@@ -144,7 +144,7 @@ function Test-CandidateObservation {
         $Observation.FailedLastError -eq $ExpectedFailure -and
         $Observation.DistinctEventTypeCount -eq 1 -and
         $Observation.EventType -eq $ExpectedEventType -and
-        $Observation.MigrationCount -eq 1 -and
+        $Observation.MigrationCount -eq 2 -and
         $Observation.EffectCount -eq 2 -and
         $Observation.DistinctEffectCount -eq 2 -and
         $Observation.DistinctOperationEffectCount -eq 2 -and

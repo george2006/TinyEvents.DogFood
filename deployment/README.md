@@ -91,6 +91,8 @@ By default, the runner expects a clean TinyEvents `main` checkout beside this re
 - one exact durable event type and migration history row;
 - no consumer effects before the candidate starts.
 
-`TE-S02-B` then builds and packs the release train from clean `main`, restores the same host only from those local candidate packages, migrates the SQL Server database, and runs the real outbox processor once. `TE-S02-C` applies the unchanged contract to PostgreSQL. Acceptance requires the pending row and expired processing row to become processed with one effect each, while the terminally failed row, attempt count, and error remain unchanged. Each provider's migration history must still contain exactly one row.
+`TE-S02-B` then builds and packs the release train from clean `main`, restores the same host only from those local candidate packages, migrates the SQL Server database, and runs the real outbox processor once. `TE-S02-C` applies the unchanged contract to PostgreSQL. Acceptance requires the pending row and expired processing row to become processed with one effect each, while the terminally failed row, attempt count, and error remain unchanged. Published alpha starts with migration `001`; the candidate must advance each provider to the exact two-migration current schema including `002_AddProcessedCleanupIndex`.
+
+The complete two-provider contract passed on 2026-08-24 against TinyEvents `main` commit `1feb235`.
 
 The runner stores alpha-state and result files per provider, plus the overall `result.json` and `manifest.json`, under `artifacts/deployment/<run-id>/TE-S02/`. It reports `TeS02Complete = true` only when both providers satisfy the complete upgrade contract in the same run.
