@@ -39,7 +39,8 @@ operator-facing guarantees and responsibilities.
 
 | Finding | What changed |
 | --- | --- |
-| Repeated full-state observation can perturb the system under test. | Retained-history and backlog-drain runners replaced 100 ms aggregate scans with an indexed outstanding-work probe and one terminal exact read. The monolithic gate retained the resulting lease loss and 49 duplicate effects as failed evidence before the TE-L02 correction. |
+| Repeated full-state observation can perturb the system under test. | Retained-history, backlog-drain, and terminal storage-state runners replaced 100 ms aggregate scans with an indexed outstanding-work probe and one terminal exact read. Monolithic gates retain the resulting lease losses and incorrect effects as failed evidence rather than weakening acceptance. |
+| A fixture that rejects only the expected retry count can succeed after ownership loss creates an additional attempt. | TE-L05-B's failed-state population always rejects; TinyEvents still enforces the configured three-attempt terminal limit, and acceptance requires exactly three attempts per row. |
 | An exact SQL Server observation can itself become deadlock victim 1205, and three immediate attempts are insufficient under sustained disruption. | Dogfood retries only that read-only observation through a bounded ten-attempt backoff window; production locking and worker behavior were not weakened. |
 | Four PostgreSQL publisher processes exhausted the container's 100-connection limit. | Mixed traffic now uses one publisher with concurrent traffic definitions and explicit pool budgets. |
 | Publisher acknowledgement counts are not durable commit counts during connection loss. | The soak records acknowledged and durable operations separately and reconciles by business identity. |

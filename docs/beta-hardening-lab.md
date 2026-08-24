@@ -285,6 +285,20 @@ Measure claim and completion behavior with growing processed history. The initia
 
 The first SQL Server 100,000-row attempt invalidated itself by running the complete multi-table observation every 100 milliseconds. Those repeated aggregate scans deadlocked with active work and extended some five-second claims far enough to expose duplicate effects. The laboratory replaced that intrusive polling with the indexed outstanding-work probe and repeated the unchanged workload successfully. The failed attempt is a laboratory-design finding, not a new TinyEvents product limitation; the already documented lease-duration boundary remains unchanged.
 
+The 2026-08-24 monolithic gate found the same intrusive polling in the
+5,000-row state measurement. The failed-state population stopped after five
+minutes with 4,997 failed rows, three processed rows, and evidence of expired
+claims. Its fixture rejected only the first three observed consumer attempts,
+so a reclaimed fourth attempt could incorrectly create an effect instead of
+the intended terminal failure. TE-L05-B now probes only the indexed
+outstanding-work predicate while terminal states are changing, reads exact
+evidence once after completion, and configures its population consumer to
+always reject. TinyEvents still owns and enforces the three-attempt terminal
+limit. Unchanged acceptance requires 5,000 failed rows, exactly 15,000 attempts,
+and zero effects. Targeted SQL Server and PostgreSQL repetitions passed those
+requirements; the 250-millisecond probe interval is the maximum terminal-state
+detection distortion.
+
 Creating and completing 100,000 retained rows through public behavior took long enough to make a one-million-row repetition poor V1 evidence for its cost. The 100,000-row result already shows the direction and scale of degradation needed for the retention decision. One million remains available through the runner's parameter range if cleanup or soak evidence later justifies it. `TE-L05` is complete, but it does not choose retention defaults; that decision belongs to `TE-L06`.
 
 #### TE-L06 - Storage budget and retention decision

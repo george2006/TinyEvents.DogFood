@@ -31,6 +31,7 @@ function Wait-ForTEL05State {
     )
 
     $deadline = (Get-Date).AddMinutes(5)
+    $terminalStateWasRequested = $State -in @("Processed", "Failed")
 
     while ((Get-Date) -lt $deadline) {
         $exitedWorker = $Workers |
@@ -39,6 +40,15 @@ function Wait-ForTEL05State {
 
         if ($null -ne $exitedWorker) {
             throw "Storage measurement worker $($exitedWorker.Id) exited before reaching $State."
+        }
+
+        $terminalStateIsStillChanging =
+            $terminalStateWasRequested -and
+            (Test-OutstandingMessages $Assembly)
+
+        if ($terminalStateIsStillChanging) {
+            Start-Sleep -Milliseconds 250
+            continue
         }
 
         $observation = Get-Observation $Assembly
@@ -289,6 +299,7 @@ function Invoke-TEL05FailedState {
     $stateDirectory = Join-Path $ArtifactDirectory "failed"
     New-Item -ItemType Directory -Force -Path $stateDirectory | Out-Null
     $scenarioId = "TE-L05-failed"
+    $rejectEveryAttempt = [int]::MaxValue
     $empty = New-TEL05StatePopulation `
         $Assembly `
         $RowCount `
@@ -304,7 +315,7 @@ function Invoke-TEL05FailedState {
                     $Assembly `
                     "TE-L05-failed-worker-$workerNumber" `
                     $scenarioId `
-                    3 `
+                    $rejectEveryAttempt `
                     $stateDirectory `
                     $WorkerBatchSize
             })
