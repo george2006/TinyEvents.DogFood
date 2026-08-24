@@ -12,6 +12,9 @@ measurements, commits, and historical failing baselines. The
 [V1 product findings](v1-product-findings.md) are the publication source for
 operator-facing guarantees and responsibilities.
 
+The [complete beta gate result](beta-gate-result-2026-08-24.md) records the
+accepted revisions, suite matrix, and representative final measurements.
+
 ## Accepted Product Boundaries
 
 | Finding | Evidence | V1 decision |

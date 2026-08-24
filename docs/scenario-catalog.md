@@ -4,7 +4,8 @@ This catalog contains the behavior demonstrated by the repository today. The
 third column records the accepted result, not a future expectation. Planned
 scenarios are intentionally excluded.
 
-See the [beta hardening roadmap](roadmap.md) for incomplete work and the final release boundary.
+The catalog currently contains 50 stable behavioral IDs. See the
+[evidence roadmap](roadmap.md) for public beta boundaries and future work.
 
 Run every command from the `TinyEvents.Dogfood` repository root.
 

@@ -145,6 +145,9 @@ artifacts/beta-gate/<run-id>/result.json
 remain under their owning artifact directories because their runners remain the
 source of truth for assertions and detailed evidence.
 
+The [August 24 beta gate](beta-gate-result-2026-08-24.md) is the latest accepted
+complete execution: 36 of 36 suites and 543 of 543 product tests passed.
+
 ## Evidence and Exit Codes
 
 Every run creates a timestamped directory beneath `artifacts/`. Depending on the suite, it contains:

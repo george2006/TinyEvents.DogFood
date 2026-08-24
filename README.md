@@ -4,9 +4,11 @@ An executable reliability laboratory for [TinyEvents](https://github.com/george2
 
 This repository does not replace unit or integration tests. It runs real application processes against real SQL Server and PostgreSQL databases, introduces failures from outside the library, and decides success from durable state and process behavior.
 
-> **Status:** Active beta hardening. Every scenario listed as implemented has executable evidence. The complete V1 release gate is still in progress.
+> **Status:** Beta hardening complete. The August 24, 2026 gate passed all 36 mandatory suites and all 543 product tests.
 
-This is the dogfood laboratory we are using to earn beta readiness. It is intentionally a work in progress: completed scenarios contain reproducible evidence, while roadmap items remain unproven and are not product guarantees.
+This is the dogfood laboratory used to earn TinyEvents beta readiness. Completed
+scenarios contain reproducible evidence; future roadmap items are not product
+guarantees.
 
 The current laboratory demonstrates:
 
@@ -32,6 +34,10 @@ The current laboratory demonstrates:
 | Load and storage | `TE-L01`–`TE-L07` | ✅ | ✅ | [Load commands](docs/scenario-catalog.md#load-backlog-and-storage) |
 
 Some contract IDs intentionally share stronger executable evidence instead of duplicating a scenario. The [scenario catalog](docs/scenario-catalog.md) identifies every shared proof explicitly.
+
+The [complete gate record](docs/beta-gate-result-2026-08-24.md) preserves the
+tested revisions, suite matrix, representative measurements, accepted
+at-least-once evidence, and remaining release boundary.
 
 ## Quick Start
 
@@ -91,14 +97,14 @@ TE-T05               True
 
 - [Run the scenarios](docs/running-scenarios.md)
 - [Scenario catalog](docs/scenario-catalog.md)
-- [Beta hardening roadmap](docs/roadmap.md)
-- [Current beta execution checkpoint](docs/beta-hardening-execution.md)
+- [Evidence roadmap](docs/roadmap.md)
+- [Complete beta gate result](docs/beta-gate-result-2026-08-24.md)
 - [V1 product findings and operational boundaries](docs/v1-product-findings.md)
 - [Beta findings index](docs/findings-index.md)
 - [Identity and compatibility](identity/README.md)
 - [Transactions, workers, and database recovery](operations/README.md)
 - [Schema and deployment](deployment/README.md)
-- [Beta hardening plan and findings](docs/beta-hardening-lab.md)
+- [Hardening contract and engineering record](docs/beta-hardening-lab.md)
 
 ## Repository Relationship
 
@@ -108,7 +114,9 @@ packs all six supported packages, restores them through an isolated NuGet cache,
 and runs the SQL Server and PostgreSQL EF Core and ADO.NET paths without project
 references.
 
-Completed evidence and planned work are documented separately. The catalog describes only behavior demonstrated today; the hardening plan remains explicitly incomplete until the final release gate passes.
+Completed evidence and future work are documented separately. The catalog
+describes only demonstrated behavior; the roadmap does not turn future ideas
+into current guarantees.
 
 ## License
 

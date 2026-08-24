@@ -1,139 +1,72 @@
-# TinyEvents Beta Hardening Roadmap
+# TinyEvents Dogfood Roadmap
 
-This roadmap lists the evidence still required before TinyEvents can be considered beta-ready. It does not repeat completed work.
+This is the public evidence roadmap for TinyEvents. It records demonstrated
+behavior and future product questions; it is not an implementation diary.
 
-Current as of August 24, 2026:
+## Beta Hardening Status
 
-- 49 named behavioral contracts have executable evidence;
-- contract compatibility, invalid-message isolation, transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
-- SQL Server and PostgreSQL pass the complete database-recovery suite;
-- cleanup, retention, soak, provider, and package gates are complete; only the
-  composed clean-checkout gate and final audit remain open.
+TinyEvents beta hardening is complete as of August 24, 2026.
 
-See the [scenario catalog](scenario-catalog.md) for completed evidence and
-copyable commands. The [beta execution guide](beta-hardening-execution.md)
-records the current checkpoint and review-sized implementation order.
+- 50 named behavioral contracts have executable evidence.
+- SQL Server and PostgreSQL pass the same supported behavioral guarantees.
+- Transaction, worker, retry, database-recovery, migration, upgrade, load,
+  storage, retention, cleanup, and disruption evidence is complete.
+- All six supported packages pass compatibility, metadata, isolated restore,
+  build, and runtime consumption checks.
+- The composed gate passed all 36 mandatory suites and all 543 product tests
+  against Dogfood `69bef4c` and TinyEvents `e479a83`.
 
-## 2. Schema and Application Deployment
+See the [scenario catalog](scenario-catalog.md) for copyable commands and the
+[complete gate result](beta-gate-result-2026-08-24.md) for the tested revisions,
+suite matrix, measurements, and accepted limitations.
 
-- [x] `TE-S02` — Create representative in-flight state with the published `0.1.0-alpha.3` packages, upgrade to the beta candidate, migrate, and process supported messages.
-  - [x] `TE-S02-A` — Restore only from nuget.org and create one pending, one reclaimable processing, and one failed message with published `0.1.0-alpha.3` packages.
-  - [x] `TE-S02-B` — Pack the candidate from clean `main`, migrate the alpha database, drain supported work, and preserve the failed row.
-  - [x] `TE-S02-C` — Run the unchanged upgrade contract against PostgreSQL.
-- [x] `TE-S03` — Terminate a migration process and prove a later process can safely resume.
-- [x] `TE-S04` — Characterize missing, partially created, and checksum-conflicting schemas with actionable diagnostics.
-- [x] `TE-S05` — Run old and new application versions concurrently while messages remain in flight.
+No behavioral hardening item remains open for the beta. Versioning, release
+notes, tagging, and package publication are release operations rather than
+additional reliability evidence.
 
-This phase is complete when a real application can upgrade without losing supported work or silently accepting an incompatible schema.
+## Demonstrated Evidence
 
-## 3. Load, Backlog, and Storage
+| Area | Contract | Providers |
+| --- | --- | --- |
+| Identity and compatibility | `TE-C01`–`TE-C08` | SQL Server |
+| Transactional publishing | `TE-T01`–`TE-T05` | SQL Server and PostgreSQL |
+| Workers, claims, retries, and shutdown | `TE-W01`–`TE-W13` | SQL Server and PostgreSQL |
+| Database failure and recovery | `TE-D01`–`TE-D06` | SQL Server and PostgreSQL |
+| Schema and deployment | `TE-S01`–`TE-S05` | SQL Server and PostgreSQL |
+| Load, storage, cleanup, and disruption | `TE-L01`–`TE-L07` | SQL Server and PostgreSQL |
 
-- [x] `TE-L01` — Measure sustained publishing at 200, 400, and 800 committed requests per second, independently from consumer throughput, with identical durable assertions for SQL Server and PostgreSQL.
-- [x] `TE-L02` — Measure a prebuilt 10,000-message backlog with 1, 2, 4, and 8 worker processes independently from publisher throughput, with identical durable assertions for SQL Server and PostgreSQL.
-- [x] `TE-L03` — Sustain successful, transient, permanent, and slow processing together while proving unrelated progress, exact retries, terminal outcomes, and bounded connection usage.
-- [x] `TE-L04` — Recover a controlled live backlog to no more than one second of incoming traffic while publishing continues, measuring recovery time and worker participation with identical durable assertions for SQL Server and PostgreSQL.
-- [x] `TE-L05` — Measure bytes per pending, processing, processed, and failed row with representative payloads.
-  - [x] `TE-L05-A` — Measure empty, 1 KB, and 16 KB pending payload curves from isolated empty-database baselines against SQL Server and PostgreSQL.
-  - [x] `TE-L05-B` — Measure processing, processed, and failed states through real worker behavior.
-  - [x] `TE-L05-C` — Measure claim and completion behavior as retained terminal history grows.
-- [x] `TE-L06` — Validate processed retention, explicit V1 failed-row preservation, cleanup batch size, and the documented storage budget against `TE-L05` evidence.
-  - [x] `TE-L06-A` — Prove the exclusive cleanup cutoff and preservation of recent processed, pending, processing, and failed rows against SQL Server and PostgreSQL.
-  - [x] `TE-L06-B` — Prove bounded batches and exact durable convergence while four independent cleanup processes compete against SQL Server and PostgreSQL.
-  - [x] `TE-L06-C1` — Prove a replacement cleanup process resumes from the durable remainder after the original process is terminated during partial progress.
-  - [x] `TE-L06-C2` — Prove one cleanup process survives database interruption and resumes after database recovery.
-  - [x] `TE-L06-D` — Compare active publishing and processing with cleanup disabled and with the candidate policy enabled at 200, 400, and 800 requests per second.
-  - [x] `TE-L06-E` — Accept retention, batch, and interval defaults from measured interference and publish the storage budget.
-- [x] `TE-L07` — Run the bounded 120-second mixed-load soak with two claimed-worker deaths, two database outages, active cleanup, resource sampling, and exact durable reconciliation against SQL Server and PostgreSQL.
+Some IDs have several executable variants, and some reuse stronger evidence
+instead of duplicating a scenario. The catalog makes those relationships
+explicit.
 
-Existing evidence is reused where it proves the same behavior. A partial result is not marked complete until the missing measurement is executable and repeatable.
+## Public Beta Boundaries
 
-## 4. V1 Retention and Cleanup
+The beta deliberately retains these boundaries:
 
-Retention cleanup is the final planned TinyEvents V1 feature. Its production
-implementation is merged into TinyEvents `main`, and its cleanup-specific
-dogfood gate is complete.
+- delivery is at least once, so consumer side effects may repeat;
+- explicitly configured worker IDs must be unique;
+- `ClaimTimeout` must cover the configured batch's worst-case processing time;
+- ambiguous publisher acknowledgement after a database interruption requires
+  business idempotency or reconciliation;
+- failed rows are preserved in V1 and processed-row cleanup is bounded and
+  configurable;
+- measured throughput and storage figures describe the tested environment, not
+  universal production limits.
 
-The merged implementation has this deliberately narrow
-contract:
+The complete guarantees, non-guarantees, and operator responsibilities are in
+[V1 product findings](v1-product-findings.md).
 
-- delete only `Processed` rows with `ProcessedAtUtc < cutoffUtc`;
-- preserve rows exactly on the cutoff boundary;
-- preserve `Pending`, `Processing`, and `Failed` rows;
-- delete one atomic, bounded batch per cleanup interval;
-- allow independent application instances to clean concurrently through
-  provider row locking rather than a cleanup leader or lease;
-- default to one-hour processed retention, a 1,000-row batch, and a one-second
-  interval.
+## Beyond the Beta
 
-The completed evidence covers concurrent cleaners, process and database
-interruption, active publication and processing, and requested
-200/400/800-message-per-second input, including the local SQL Server saturation
-observed at 800. The defaults were accepted from that evidence and the measured
-storage budget, not because the implementation compiled.
+Future work must be justified by observable product evidence. Current areas to
+investigate are:
 
-- [x] Validate the retention defaults from `TE-L05` and `TE-L06`; change them if executable evidence rejects them.
-- [x] Demonstrate that cleanup deletes eligible processed rows in bounded batches.
-- [x] Demonstrate that cleanup never deletes pending or actively claimed messages.
-- [x] Prove cleanup can resume after process or database failure.
-- [x] Prove cleanup does not starve publishers or workers.
-- [x] Re-run representative load with cleanup enabled and reuse the completed recovery evidence.
+- worker-instance fencing or lease renewal for workloads that cannot size
+  `ClaimTimeout` safely;
+- failed-message retention and operational recovery workflows;
+- automated release-gate execution with externally retained artifacts;
+- longer resource profiles for CPU, managed allocations, garbage collection,
+  working set, and connection-pool stability;
+- additional providers only when they can meet the same behavioral contract.
 
-## 5. Provider Evidence
-
-- [x] Compare the remaining SQL Server-only worker scenarios with existing PostgreSQL integration and database-recovery evidence.
-- [x] Add PostgreSQL destructive executions only where provider-specific behavior remains unproven.
-- [x] Keep the same observable assertions for both providers; do not create a weaker PostgreSQL contract.
-- [x] Complete package-consumer smoke tests for every supported EF Core and ADO.NET provider path.
-
-The objective is equal product guarantees, not a duplicated script count.
-
-## 6. Package and Release Gate
-
-- [x] Pack the beta candidate locally and run consumers against NuGet packages instead of project references.
-- [x] Verify public API compatibility from the last published alpha.
-- [x] Verify package metadata and license remain consistent with the other Tiny packages.
-- [x] Provide one documented command that executes every mandatory acceptance suite.
-- [ ] Run the gate from a clean checkout and archive its manifests and results.
-- [x] Publish the accepted at-least-once limitations and operator responsibilities using [V1 product findings](v1-product-findings.md) as the reviewed source.
-- [ ] Complete a final principal-engineer review and make an explicit beta or no-beta decision.
-
-## Beta Completion Boundary
-
-The beta is ready only when:
-
-- no mandatory scenario has an unexplained failure or skip;
-- no acknowledged business commit loses its outbox message;
-- claims, retries, and recovery follow database-authoritative boundaries;
-- duplicates match the documented at-least-once model;
-- supported provider paths have equivalent guarantees;
-- storage growth and retention are measured and bounded;
-- the complete gate passes from a clean checkout using packaged artifacts.
-
-## Explicitly Deferred Beyond V1
-
-The following ideas remain documented but are not required for V1:
-
-- a durable worker registry, heartbeat, or lease-fencing token;
-- automatic renewal or progressive acquisition for batches whose cumulative processing time approaches `ClaimTimeout`;
-- batched completion updates without measured evidence that they are needed;
-- additional orchestration abstractions that do not close an observable scenario.
-
-### Runtime resource hardening
-
-After the V1 functional and storage gates close, add reproducible resource
-profiles for:
-
-- CPU saturation and throughput degradation under sustained publish, consume,
-  retry, and cleanup load;
-- managed allocations, heap growth, garbage-collection frequency, pause time,
-  large-object-heap pressure, and recovery after backlog drain;
-- process working-set and connection-pool stability during long soak tests;
-- GPU utilization only if a future TinyEvents component introduces a real GPU
-  workload. TinyEvents does not use GPU resources today, so a GPU benchmark now
-  would not demonstrate a product property.
-
-Resource gates must record the runtime, provider, database, payload profile,
-worker count, and machine limits. Results are evidence for the tested
-environment, not universal capacity promises.
-
-Deferral is intentional. A demonstrated product problem must justify reopening these designs.
+These are not missing beta guarantees. They are candidates for later versions.

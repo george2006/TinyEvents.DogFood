@@ -2,11 +2,17 @@
 
 ## Status
 
-This document defines the executable hardening work required before TinyEvents is treated as a beta candidate.
+This document records the executable hardening contract used to qualify
+TinyEvents as a beta candidate. The complete gate passed on August 24, 2026.
 
-It is a test and product-validation plan. It does not authorize production-code changes by itself. Every discovered failure must first be reproduced by an executable scenario, reviewed, and then fixed in the smallest separate slice.
+It is a test and product-validation record. Product guarantees come from
+executable scenarios and their durable observations, not from this document
+alone.
 
-Use the [scenario catalog](scenario-catalog.md) for behavior demonstrated today and the [beta hardening roadmap](roadmap.md) for incomplete work. The implementation-slice history in this document preserves earlier hypotheses and failing baselines only when they are explicitly labeled as historical.
+Use the [scenario catalog](scenario-catalog.md) for behavior demonstrated today,
+the [gate result](beta-gate-result-2026-08-24.md) for the complete acceptance
+run, and the [roadmap](roadmap.md) for future work. Historical failing baselines
+remain only where they explain a product or laboratory finding.
 
 ## Objective
 
@@ -342,9 +348,10 @@ Every load or disruption run records at least:
 
 Throughput never overrides correctness. A run that reaches 800 requests per second while losing or incorrectly claiming messages fails.
 
-## Implementation Slices
+## Executed Hardening Record
 
-Only one slice proceeds at a time. Each slice stops after executable evidence, diff, and principal review.
+This section preserves the technical progression and findings behind the final
+executable contract. It is historical evidence, not an active work plan.
 
 ### BETA-1 - Event identity characterization — Complete
 
@@ -580,18 +587,20 @@ conflates that property with a narrow wall-clock race.
 
 ### BETA-8 - Package and release gates
 
-The package-consumer smoke is complete. Candidate commit `cf9a8bd` packed all
-six supported packages, restored them through an isolated NuGet cache, built
-the package-only host, and ran the SQL Server and PostgreSQL EF Core and ADO.NET
-paths. Each runtime resolved the processing worker and the cleanup worker from
-the packaged registration. Remaining work is public API compatibility, suite-
-consistent package metadata, the complete acceptance command, and a clean-
-checkout run. Symbols and Source Link are not introduced as a beta-only
-TinyEvents requirement while the other Tiny packages do not publish them.
+The package-consumer smoke, public API compatibility, package metadata, and
+complete acceptance command are implemented. The August 24 local composed gate
+packed the candidate and passed the SQL Server and PostgreSQL EF Core and
+ADO.NET package-consumer paths without project references. Symbols and Source
+Link are not introduced as a beta-only TinyEvents requirement while the other
+Tiny packages do not publish them.
 
-### BETA-9 - Final principal audit
+### BETA-9 - Final acceptance
 
-Run every mandatory scenario from a clean checkout, archive the evidence, list accepted limitations, and decide whether the candidate may be tagged beta.
+The composed gate passed all 36 mandatory suites and all 543 product tests
+against Dogfood `69bef4c` and TinyEvents `e479a83`. Its source-controlled
+[result](beta-gate-result-2026-08-24.md) records the complete suite matrix,
+representative evidence, and accepted limitations. TinyEvents satisfied the
+beta hardening boundary; package publication remains a separate release action.
 
 ## Beta Acceptance Boundary
 
