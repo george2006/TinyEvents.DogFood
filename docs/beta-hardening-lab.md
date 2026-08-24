@@ -536,6 +536,14 @@ failed or duplicate effect. The 250-millisecond probe interval is the maximum
 drain-completion detection distortion. No TinyEvents production behavior
 changed.
 
+A later monolithic repetition exposed a timing flaw in the TE-W08 fixture. Its
+one-second idle-worker clock began before the host was built and started. Under
+the accumulated gate load, the clock expired during startup and correctly
+triggered TinyEvents' already characterized canceled-start behavior instead of
+the intended graceful idle shutdown. The fixture now starts the host before it
+starts measuring the requested worker lifetime. Product cancellation semantics
+were not changed.
+
 The first canonical SQL Server run also exposed the dogfood observation query as a deadlock victim while it scanned the active outbox. The worker remained correct and all unfinished rows stayed recoverable. A later clean beta gate proved that three retries over 100 milliseconds were still too narrow during the disruption soak. The laboratory now retries only SQL Server error 1205 for this read-only exact observation, across a bounded ten-attempt window with linear backoff. It does not use dirty reads or change TinyEvents production behavior. The unchanged 120-second disruption soak then passed with two database outages and two worker deaths.
 
 TE-L03 uses one application publisher to sustain a 2,000-message mix at a combined target of 200 requests per second: 80% successful, 10% transient, 5% permanent, and 5% delayed after their durable effect. Four worker processes run concurrently. Both providers committed all 2,000 messages, processed 1,900, deliberately exhausted 100, recorded exactly 700 failed attempts and 900 failure-plan invocations, produced 1,900 effects, and produced no duplicate. An intermediate durable observation proved successful work advanced while retries remained active. SQL Server settled 6.28 seconds after publishing completed; PostgreSQL settled in 6.23 seconds. The two configured three-second retry boundaries account for that expected tail.

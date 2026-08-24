@@ -810,10 +810,12 @@ static async Task<int> RunTimedWorkerAsync(
         return 1;
     }
 
+    using var host = DogfoodHost.Build(settings, arguments[1], consumerTiming);
+    await host.StartAsync();
+
     using var shutdown = new CancellationTokenSource(
         TimeSpan.FromMilliseconds(runDurationMilliseconds));
-    using var host = DogfoodHost.Build(settings, arguments[1], consumerTiming);
-    await host.RunAsync(shutdown.Token);
+    await host.WaitForShutdownAsync(shutdown.Token);
     return 0;
 }
 
