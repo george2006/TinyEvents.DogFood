@@ -90,7 +90,7 @@ The objective is equal product guarantees, not a duplicated script count.
 ## 6. Package and Release Gate
 
 - [x] Pack the beta candidate locally and run consumers against NuGet packages instead of project references.
-- [ ] Verify public API compatibility from the last published alpha.
+- [x] Verify public API compatibility from the last published alpha.
 - [ ] Verify package metadata and license remain consistent with the other Tiny packages.
 - [ ] Provide one documented command that executes every mandatory acceptance suite.
 - [ ] Run the gate from a clean checkout and archive its manifests and results.

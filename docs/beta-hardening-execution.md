@@ -305,9 +305,14 @@ processing worker alongside the cleanup worker registered by the package. This
 caught and removed the sample's stale assumption that TinyEvents registered a
 single hosted service; no product behavior changed.
 
+TinyEvents commit `9ce2148` then made the same package command validate each
+candidate assembly against its published `0.1.0-alpha.3` package through the
+.NET SDK package-validation target. All six package surfaces passed without a
+compatibility suppression.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
 repository branches and working trees. `PACKAGE-1` is complete. Continue with
-`BETA-GATE`: first characterize public API compatibility, then compose and run
-the mandatory gate from a clean checkout before making the beta decision.
+`BETA-GATE`: verify suite-consistent package manifests, then compose and run the
+mandatory gate from a clean checkout before making the beta decision.
