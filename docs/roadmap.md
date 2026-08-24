@@ -91,7 +91,7 @@ The objective is equal product guarantees, not a duplicated script count.
 
 - [x] Pack the beta candidate locally and run consumers against NuGet packages instead of project references.
 - [x] Verify public API compatibility from the last published alpha.
-- [ ] Verify package metadata and license remain consistent with the other Tiny packages.
+- [x] Verify package metadata and license remain consistent with the other Tiny packages.
 - [ ] Provide one documented command that executes every mandatory acceptance suite.
 - [ ] Run the gate from a clean checkout and archive its manifests and results.
 - [ ] Publish the accepted at-least-once limitations and operator responsibilities using [V1 product findings](v1-product-findings.md) as the reviewed source.

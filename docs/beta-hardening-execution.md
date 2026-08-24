@@ -310,9 +310,14 @@ candidate assembly against its published `0.1.0-alpha.3` package through the
 .NET SDK package-validation target. All six package surfaces passed without a
 compatibility suppression.
 
+TinyEvents commit `e5425bb` added the suite-consistent manifest boundary to the
+same smoke. Every package now proves its identity, author, MIT expression,
+project and repository URLs, repository type, declared and included README,
+description, and tags before a package consumer is restored.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
 repository branches and working trees. `PACKAGE-1` is complete. Continue with
-`BETA-GATE`: verify suite-consistent package manifests, then compose and run the
-mandatory gate from a clean checkout before making the beta decision.
+`BETA-GATE`: compose and run the mandatory gate from a clean checkout before
+making the beta decision.
