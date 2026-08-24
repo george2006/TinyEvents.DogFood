@@ -10,22 +10,6 @@ function Get-TES04MigrationObservation {
     return $json | ConvertFrom-Json
 }
 
-function Test-TES04CurrentSchema {
-    param([pscustomobject]$Observation)
-
-    $history = @($Observation.History)
-    $migration = $history | Select-Object -First 1
-
-    return (
-        $Observation.OutboxTableExists -and
-        $Observation.HistoryTableExists -and
-        $history.Count -eq 1 -and
-        $null -ne $migration -and
-        $migration.Version -eq 1 -and
-        $migration.Name -eq "001_CreateTinyOutbox" -and
-        $migration.Checksum.Length -eq 64)
-}
-
 function Invoke-TES04MissingSchemaCase {
     param(
         [string]$Assembly,
@@ -41,7 +25,7 @@ function Invoke-TES04MissingSchemaCase {
         !$beforeMigration.OutboxTableExists -and
         !$beforeMigration.HistoryTableExists -and
         @($beforeMigration.History).Count -eq 0
-    $wasCreated = Test-TES04CurrentSchema $afterMigration
+    $wasCreated = Test-TinyEventsCurrentSchema $afterMigration
 
     return [ordered]@{
         SchemaWasMissing = $wasMissing
@@ -75,10 +59,12 @@ function Invoke-TES04PartialSchemaCase {
         (Join-Path $ScenarioDirectory "partial-migrate.stderr.log") `
         -Raw
 
+    $migrationHistoryIsCurrent =
+        Test-TinyEventsCurrentMigrationHistory $beforeMigration.History
     $wasPartial =
         !$beforeMigration.OutboxTableExists -and
         $beforeMigration.HistoryTableExists -and
-        @($beforeMigration.History).Count -eq 1
+        $migrationHistoryIsCurrent
     $wasRejected = $exitCode -ne 0
     $diagnosticWasActionable =
         $standardError -match "TinyOutbox" -and
@@ -121,8 +107,10 @@ function Invoke-TES04ChecksumConflictCase {
         (Join-Path $ScenarioDirectory "checksum-migrate.stderr.log") `
         -Raw
 
+    $migrationHistoryHasCurrentShape =
+        Test-TinyEventsCurrentMigrationHistory $beforeMigration.History
     $conflictWasPresent =
-        @($beforeMigration.History).Count -eq 1 -and
+        $migrationHistoryHasCurrentShape -and
         $beforeMigration.History[0].Checksum -eq $conflictingChecksum
     $wasRejected = $exitCode -ne 0
     $diagnosticWasActionable =

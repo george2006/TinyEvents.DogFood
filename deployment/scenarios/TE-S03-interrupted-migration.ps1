@@ -72,18 +72,7 @@ function Wait-TES03ForMigrationLockRelease {
 function Test-TES03FinalMigrationState {
     param([pscustomobject]$Observation)
 
-    $history = @($Observation.History)
-    $migration = $history | Select-Object -First 1
-
-    return (
-        $Observation.OutboxTableExists -and
-        $Observation.HistoryTableExists -and
-        $history.Count -eq 1 -and
-        $null -ne $migration -and
-        $migration.Version -eq 1 -and
-        $migration.Name -eq "001_CreateTinyOutbox" -and
-        $migration.Checksum.Length -eq 64 -and
-        $null -ne $migration.AppliedAtUtc)
+    return Test-TinyEventsCurrentSchema $Observation
 }
 
 function Get-TES03InterruptedStateClassification {

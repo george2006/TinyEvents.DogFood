@@ -67,26 +67,32 @@ function Invoke-TES01ConcurrentApplicationMigrations {
         ConvertTo-Json -Depth 8 |
         Set-Content (Join-Path $scenarioDirectory "after-migration.json")
 
-    $history = @($afterMigration.History)
-    $migration = $history | Select-Object -First 1
-    $migrationLogs = Join-Path $scenarioDirectory "migrator-*.stdout.log"
+    $migrationLogs = @(
+        Get-ChildItem `
+            -Path (Join-Path $scenarioDirectory "migrator-*.stdout.log"))
     $applyingMigrators = @(
-        Select-String -Path $migrationLogs -Pattern "[1401]" -SimpleMatch)
+        $migrationLogs |
+            Where-Object {
+                Select-String `
+                    -Path $_.FullName `
+                    -Pattern "[1401]" `
+                    -SimpleMatch `
+                    -Quiet
+            })
     $currentSchemaObservers = @(
-        Select-String -Path $migrationLogs -Pattern "[1402]" -SimpleMatch)
+        $migrationLogs |
+            Where-Object {
+                Select-String `
+                    -Path $_.FullName `
+                    -Pattern "[1402]" `
+                    -SimpleMatch `
+                    -Quiet
+            })
     $databaseWasFresh =
         !$beforeMigration.OutboxTableExists -and
         !$beforeMigration.HistoryTableExists -and
         @($beforeMigration.History).Count -eq 0
-    $historyIsExact =
-        $afterMigration.OutboxTableExists -and
-        $afterMigration.HistoryTableExists -and
-        $history.Count -eq 1 -and
-        $null -ne $migration -and
-        $migration.Version -eq 1 -and
-        $migration.Name -eq "001_CreateTinyOutbox" -and
-        $migration.Checksum.Length -eq 64 -and
-        $null -ne $migration.AppliedAtUtc
+    $historyIsExact = Test-TinyEventsCurrentSchema $afterMigration
     $logsProveSerialization =
         $applyingMigrators.Count -eq 1 -and
         $currentSchemaObservers.Count -eq ($migratorCount - 1)

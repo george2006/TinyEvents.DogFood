@@ -25,9 +25,9 @@ Run one independently addressable scenario with `-Scenario <scenario-id>`.
 | `TE-S04` | Missing and incompatible schemas produce the documented recovery or actionable rejection behavior. |
 | `TE-S05` | Published alpha and clean-main application processes concurrently drain one shared backlog without loss or duplicate effects. |
 
-TE-S01 first recreates the dogfood database without the TinyEvents schema. Eight independently hosted migrators then start together. Every process must complete successfully, while the final database contains the outbox and exactly one `001_CreateTinyOutbox` history row with its durable checksum and application timestamp.
+TE-S01 first recreates the dogfood database without the TinyEvents schema. Eight independently hosted migrators then start together. Every process must complete successfully, while the final database contains the outbox and the exact ordered current migration history, including durable checksums and application timestamps. One process applies every pending migration; the other seven observe the resulting current schema.
 
-The unchanged scenario passed against SQL Server and PostgreSQL on 2026-08-21.
+The scenario passed against SQL Server and PostgreSQL on 2026-08-24 with migrations `001_CreateTinyOutbox` and `002_AddProcessedCleanupIndex`.
 
 Evidence is retained under `artifacts/schema/<run-id>/`.
 
@@ -42,7 +42,7 @@ Run the process-death scenario against either provider:
 
 `TE-S03` installs a temporary database-side DDL interruption, starts the real TinyEvents migrator, and waits until the database proves that one migrator is blocked inside DDL while holding the provider migration lock. Only then does the runner terminate the application process.
 
-The scenario waits for the database to release the abandoned session lock before inspecting durable state. The interrupted transaction may leave no schema, an empty migration-history table, or a completely committed migration; all are safe atomic boundaries. An outbox without its matching history entry, or a history entry without its outbox, fails acceptance. After removing the external interruption, a second process must finish with one exact `001_CreateTinyOutbox` history row.
+The scenario waits for the database to release the abandoned session lock before inspecting durable state. The interrupted transaction may leave no schema, an empty migration-history table, or a completely committed schema; all are safe atomic boundaries. An outbox without its matching history, or history without its outbox, fails acceptance. After removing the external interruption, a second process must finish with the exact ordered current migration history.
 
 The DDL trigger/event trigger belongs only to the dogfood fault injector. It is removed in a `finally` block and is not part of TinyEvents production code.
 
@@ -55,9 +55,9 @@ Run the schema-compatibility scenario against either provider:
 .\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S04 -StorageProvider PostgreSql
 ```
 
-`TE-S04` starts from three independently prepared durable states. A completely missing TinyEvents schema must migrate successfully. A current migration-history row whose physical outbox table is missing must fail without claiming the schema is current. A history row with a conflicting checksum must also fail. Both incompatible states must identify the problem and relevant migration or table in stderr.
+`TE-S04` starts from three independently prepared durable states. A completely missing TinyEvents schema must migrate successfully. Current migration history whose physical outbox table is missing must fail without claiming the schema is current. A migration with a conflicting checksum must also fail. Both incompatible states must identify the problem and relevant migration or table in stderr.
 
-The scenario passed unchanged against SQL Server and PostgreSQL on 2026-08-22 using TinyEvents `main` commit `4612c24`.
+The scenario passed against SQL Server and PostgreSQL on 2026-08-24 using the two-migration schema at TinyEvents `main` commit `37c960d`.
 
 ## Rolling Application Upgrade
 

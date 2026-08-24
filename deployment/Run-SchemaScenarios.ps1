@@ -14,6 +14,7 @@ $operationsDirectory = Join-Path $dogfoodRoot "operations"
 
 . (Join-Path $operationsDirectory "support\Process.ps1")
 . (Join-Path $operationsDirectory "support\Database.ps1")
+. (Join-Path $PSScriptRoot "support\MigrationAssertions.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-S01-concurrent-application-migrations.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-S03-interrupted-migration.ps1")
 . (Join-Path $PSScriptRoot "scenarios\TE-S04-incompatible-schema.ps1")
