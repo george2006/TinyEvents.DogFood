@@ -83,15 +83,15 @@ storage budget, not because the implementation compiled.
 - [x] Compare the remaining SQL Server-only worker scenarios with existing PostgreSQL integration and database-recovery evidence.
 - [x] Add PostgreSQL destructive executions only where provider-specific behavior remains unproven.
 - [x] Keep the same observable assertions for both providers; do not create a weaker PostgreSQL contract.
-- [ ] Complete package-consumer smoke tests for every supported EF Core and ADO.NET provider path.
+- [x] Complete package-consumer smoke tests for every supported EF Core and ADO.NET provider path.
 
 The objective is equal product guarantees, not a duplicated script count.
 
 ## 6. Package and Release Gate
 
-- [ ] Pack the beta candidate locally and run consumers against NuGet packages instead of project references.
+- [x] Pack the beta candidate locally and run consumers against NuGet packages instead of project references.
 - [ ] Verify public API compatibility from the last published alpha.
-- [ ] Verify package metadata, license, symbols, and Source Link.
+- [ ] Verify package metadata and license remain consistent with the other Tiny packages.
 - [ ] Provide one documented command that executes every mandatory acceptance suite.
 - [ ] Run the gate from a clean checkout and archive its manifests and results.
 - [ ] Publish the accepted at-least-once limitations and operator responsibilities using [V1 product findings](v1-product-findings.md) as the reviewed source.

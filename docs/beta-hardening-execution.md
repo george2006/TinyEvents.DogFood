@@ -90,8 +90,8 @@ No pull request is created or merged without explicit review approval.
 | `TE-L06-E` | Both | Complete | Accept retention, batch, and interval defaults and publish the measured storage budget. |
 | `TE-L07` | Dogfood | Complete | Reconcile a timed mixed-load soak through repeated worker death, database outage, and active cleanup against both providers. |
 | `PROVIDER-1` | Both | Complete | Run the unchanged process-level worker recovery contract against PostgreSQL after reusing its existing storage and recovery evidence. |
-| `PACKAGE-1` | Both | Next | Pack the candidate and run supported consumers without project references. |
-| `BETA-GATE` | Both | Pending | Run the clean-checkout gate, review public limitations, and make the explicit beta/no-beta decision. |
+| `PACKAGE-1` | Both | Complete | Pack the candidate and run supported consumers without project references. |
+| `BETA-GATE` | Both | Next | Run the clean-checkout gate, review public limitations, and make the explicit beta/no-beta decision. |
 
 ## Evidence We Reuse
 
@@ -292,11 +292,22 @@ worker-death recovery, effect-before-death redelivery, lease loss, shutdown,
 durable retries, terminal failure, multi-consumer redelivery, and duplicate
 configured worker identity with the same observable contract as SQL Server.
 
+## PACKAGE-1 Result
+
+`samples/TinyEvents.PackageSmoke/Test-PackageSmoke.ps1 -Run` built the release
+train, packed all six supported packages, restored the package-only sample
+through an isolated NuGet cache, and built it without project references. The
+runtime then passed the SQL Server and PostgreSQL EF Core and ADO.NET paths.
+
+The accepted run used TinyEvents commit `cf9a8bd` and local package version
+`0.1.0-local.20260823212038`. Each provider path resolved exactly one public
+processing worker alongside the cleanup worker registered by the package. This
+caught and removed the sample's stale assumption that TinyEvents registered a
+single hosted service; no product behavior changed.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
-repository branches and working trees, and review Dogfood branch
-`hardening/provider-parity` for integration. `PROVIDER-1` is complete. Continue
-with `PACKAGE-1` only after the branch is integrated; reuse the existing
-package-consumer hosts and do not replace project-reference tests with package
-claims they cannot prove.
+repository branches and working trees. `PACKAGE-1` is complete. Continue with
+`BETA-GATE`: first characterize public API compatibility, then compose and run
+the mandatory gate from a clean checkout before making the beta decision.

@@ -101,7 +101,11 @@ TE-T05               True
 
 ## Repository Relationship
 
-The dogfood application references the sibling TinyEvents source projects directly while the beta contract is being hardened. Package-consumer acceptance will use locally packed NuGet artifacts before release.
+The destructive scenarios reference the sibling TinyEvents source projects
+directly while the beta contract is being hardened. The separate package smoke
+packs all six supported packages, restores them through an isolated NuGet cache,
+and runs the SQL Server and PostgreSQL EF Core and ADO.NET paths without project
+references.
 
 Completed evidence and planned work are documented separately. The catalog describes only behavior demonstrated today; the hardening plan remains explicitly incomplete until the final release gate passes.
 

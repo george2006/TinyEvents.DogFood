@@ -519,7 +519,14 @@ TE-L04 starts one publisher at 200 requests per second with workers stopped, obs
 
 ### BETA-8 - Package and release gates
 
-Add clean package-consumer smoke, published-alpha upgrade, public API compatibility, package metadata, symbols, Source Link, documentation, and the complete dogfood acceptance command to release automation.
+The package-consumer smoke is complete. Candidate commit `cf9a8bd` packed all
+six supported packages, restored them through an isolated NuGet cache, built
+the package-only host, and ran the SQL Server and PostgreSQL EF Core and ADO.NET
+paths. Each runtime resolved the processing worker and the cleanup worker from
+the packaged registration. Remaining work is public API compatibility, suite-
+consistent package metadata, the complete acceptance command, and a clean-
+checkout run. Symbols and Source Link are not introduced as a beta-only
+TinyEvents requirement while the other Tiny packages do not publish them.
 
 ### BETA-9 - Final principal audit
 
