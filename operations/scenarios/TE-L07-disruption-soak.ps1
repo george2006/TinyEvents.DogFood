@@ -499,11 +499,12 @@ function Invoke-TEL07DisruptionSoak {
     $transient = $mix | Where-Object { $_.Name -eq "transient" }
     $permanent = $mix | Where-Object { $_.Name -eq "permanent" }
     $slow = $mix | Where-Object { $_.Name -eq "slow" }
+    $rejectEveryPermanentInvocation = [int]::MaxValue
     $failureRules = @(
         $transient.ScenarioId,
         "2",
         $permanent.ScenarioId,
-        "3")
+        [string]$rejectEveryPermanentInvocation)
     $cutoffUtc = [DateTimeOffset]::UtcNow.AddHours(-1)
 
     Invoke-LoggedProcess $Assembly @("reset") $scenarioDirectory "reset"
@@ -682,6 +683,11 @@ function Invoke-TEL07DisruptionSoak {
     $permanentAttempts = Get-ScenarioCount `
         $completed.ScenarioAttempts `
         $permanent.ScenarioId
+    $permanentFailureErrorPrefix =
+        "$($permanent.ScenarioId) rejects consumer attempt "
+    $terminalErrorShowsPermanentRejection =
+        $completed.TerminalError -is [string] -and
+        $completed.TerminalError.StartsWith($permanentFailureErrorPrefix)
     $replacementWorkersParticipated = Test-TEL07ReplacementParticipation `
         $completed `
         $workerDeaths.ToArray()
@@ -722,8 +728,7 @@ function Invoke-TEL07DisruptionSoak {
         (Get-ScenarioCount `
             $completed.ScenarioEffects `
             $permanent.ScenarioId) -eq 0 -and
-        $completed.TerminalError -eq
-            "TE-L07-permanent rejects consumer attempt 3."
+        $terminalErrorShowsPermanentRejection
     $passed =
         $eligibleHistoryIsReady -and
         $allPublisherRequestsAreAccounted -and

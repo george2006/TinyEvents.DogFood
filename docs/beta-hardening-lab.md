@@ -544,6 +544,18 @@ the intended graceful idle shutdown. The fixture now starts the host before it
 starts measuring the requested worker lifetime. Product cancellation semantics
 were not changed.
 
+The same repetition exposed an invalid TE-L07 fixture assumption. Its
+"permanent" consumer rejected only its first three invocations. A deliberate
+worker death can occur after the consumer invocation is recorded but before
+TinyEvents durably records that failed delivery attempt. Two interrupted
+messages therefore reached a fourth invocation, which the fixture incorrectly
+allowed to succeed. The permanent consumer now rejects every invocation while
+TinyEvents remains responsible for its three durable delivery attempts. The
+acceptance still requires every permanent message to finish in `Failed`, no
+permanent effect, and only a bounded number of interrupted failure records.
+Targeted SQL Server and PostgreSQL disruption soaks then passed without a
+TinyEvents production change.
+
 The first canonical SQL Server run also exposed the dogfood observation query as a deadlock victim while it scanned the active outbox. The worker remained correct and all unfinished rows stayed recoverable. A later clean beta gate proved that three retries over 100 milliseconds were still too narrow during the disruption soak. The laboratory now retries only SQL Server error 1205 for this read-only exact observation, across a bounded ten-attempt window with linear backoff. It does not use dirty reads or change TinyEvents production behavior. The unchanged 120-second disruption soak then passed with two database outages and two worker deaths.
 
 TE-L03 uses one application publisher to sustain a 2,000-message mix at a combined target of 200 requests per second: 80% successful, 10% transient, 5% permanent, and 5% delayed after their durable effect. Four worker processes run concurrently. Both providers committed all 2,000 messages, processed 1,900, deliberately exhausted 100, recorded exactly 700 failed attempts and 900 failure-plan invocations, produced 1,900 effects, and produced no duplicate. An intermediate durable observation proved successful work advanced while retries remained active. SQL Server settled 6.28 seconds after publishing completed; PostgreSQL settled in 6.23 seconds. The two configured three-second retry boundaries account for that expected tail.
