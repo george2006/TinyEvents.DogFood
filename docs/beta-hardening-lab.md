@@ -509,6 +509,19 @@ TE-L01 issues one real application scope and database commit per request while w
 
 TE-L02 builds a fresh 10,000-message backlog before every worker-count variant, then measures drain with publishers stopped. On 2026-08-22, SQL Server processed 120.39, 246.15, 481.51, and 553.74 messages per second with 1, 2, 4, and 8 workers. PostgreSQL processed 235.04, 457.66, 716.49, and 1,121.03. All 80,000 messages across both providers reached `Processed`, every worker participated, and no failed attempt, lost effect, or duplicate effect was observed. SQL Server scaled almost linearly through four workers and then gained 15% at eight; PostgreSQL still gained 56% from four to eight. This provider contrast prevents the SQL Server knee from being misclassified as a universal TinyEvents coordination limit.
 
+The 2026-08-24 monolithic gate found that TE-L02 still read the complete
+multi-table observation every 100 milliseconds while the backlog drained. In
+its four-worker SQL Server variant, that observer pressure extended processing
+past the deliberately short five-second dogfood lease and exposed 49 duplicate
+effects. All four workers had participated and every outbox row still reached
+`Processed`; the failure was not hidden as a scheduler anomaly. TE-L02 now uses
+the existing indexed outstanding-work probe while work remains and reads the
+exact evidence model once at the terminal boundary. The unchanged strict
+acceptance then passed 1, 2, 4, and 8 workers against both providers with no
+failed or duplicate effect. The 250-millisecond probe interval is the maximum
+drain-completion detection distortion. No TinyEvents production behavior
+changed.
+
 The first canonical SQL Server run also exposed the dogfood observation query as a deadlock victim while it scanned the active outbox. The worker remained correct and all unfinished rows stayed recoverable. A later clean beta gate proved that three retries over 100 milliseconds were still too narrow during the disruption soak. The laboratory now retries only SQL Server error 1205 for this read-only exact observation, across a bounded ten-attempt window with linear backoff. It does not use dirty reads or change TinyEvents production behavior. The unchanged 120-second disruption soak then passed with two database outages and two worker deaths.
 
 TE-L03 uses one application publisher to sustain a 2,000-message mix at a combined target of 200 requests per second: 80% successful, 10% transient, 5% permanent, and 5% delayed after their durable effect. Four worker processes run concurrently. Both providers committed all 2,000 messages, processed 1,900, deliberately exhausted 100, recorded exactly 700 failed attempts and 900 failure-plan invocations, produced 1,900 effects, and produced no duplicate. An intermediate durable observation proved successful work advanced while retries remained active. SQL Server settled 6.28 seconds after publishing completed; PostgreSQL settled in 6.23 seconds. The two configured three-second retry boundaries account for that expected tail.

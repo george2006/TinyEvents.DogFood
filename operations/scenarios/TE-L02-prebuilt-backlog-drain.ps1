@@ -16,15 +16,11 @@ function Wait-ForTEL02Drain {
             throw "Worker process $($exitedWorker.Id) exited before the backlog drained. Exit code: $($exitedWorker.ExitCode)."
         }
 
-        $observation = Get-Observation $Assembly
-
-        if ($observation.PendingMessages -eq 0 -and
-            $observation.ProcessingMessages -eq 0 -and
-            $observation.ProcessedMessages -eq $ExpectedMessageCount) {
-            return $observation
+        if (!(Test-OutstandingMessages $Assembly)) {
+            return Get-Observation $Assembly
         }
 
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 250
     }
 
     throw "Workers did not drain $ExpectedMessageCount messages within five minutes."
