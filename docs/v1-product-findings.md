@@ -54,6 +54,105 @@ This file is also the publication queue for the TinyEvents product page. Every a
 
 **V1 decision:** Accepted. A durable worker registry and process-incarnation fencing remain post-V1 work.
 
+## A Lost Commit Acknowledgement Has an Ambiguous Outcome
+
+**Observed behavior:** A database can commit the business transaction and close
+the connection before the publisher receives the acknowledgement. Retrying the
+application operation blindly may create a second business operation even
+though the first outbox message is durable.
+
+**Evidence:** `TE-T05` proves the two sides of the commit boundary. `TE-L07`
+retained three SQL Server commits whose acknowledgements were lost during a
+database interruption and reconciled them from durable business identity.
+
+**Product impact:** TinyEvents guarantees that an acknowledged business commit
+contains its outbox message. It cannot turn an interrupted database commit into
+a known client-side outcome.
+
+**Operator action:** Give retriable business operations an application-level
+idempotency key or reconcile their durable state before retrying an ambiguous
+commit.
+
+**V1 decision:** Accepted. TinyEvents does not retry or recreate the caller's
+business transaction.
+
+## Event Names Are Durable Contracts
+
+**Observed behavior:** Renaming an event type or namespace changes its default
+durable name. Existing messages keep the previous name, and TinyEvents cannot
+infer whether a new type is a rename or a different business event.
+
+**Evidence:** `TE-C04` processes an in-flight renamed event through an explicit
+previous-name mapping. `TE-C05` proves that an assembly move is compatible when
+the full type name is unchanged.
+
+**Product impact:** A namespace or type rename without a mapping is a breaking
+change for in-flight messages. Adding a mapping does not automatically requeue
+rows that already reached `Failed`.
+
+**Operator action:** Deploy an explicit previous-name mapping before the rename
+and keep it for as long as old messages can remain pending or retryable.
+
+**V1 decision:** Accepted. TinyEvents preserves POCO contracts and requires an
+explicit mapping instead of guessing durable identity.
+
+## Failed Rows Are Preserved in V1
+
+**Observed behavior:** Unknown event types, malformed payloads, and exhausted
+consumer retries become terminal `Failed` rows. Processed cleanup deliberately
+does not remove them.
+
+**Evidence:** `TE-C07`, `TE-C08`, and `TE-W11` retain the actionable terminal
+error. `TE-L06-A` proves cleanup preserves failed rows while deleting only
+eligible processed rows.
+
+**Product impact:** Failed-row storage can grow independently of processed
+retention, and adding a contract mapping does not replay an already failed row.
+
+**Operator action:** Monitor failed-row growth and use an explicit operational
+investigation, removal, or future replay procedure.
+
+**V1 decision:** Accepted. The V1 schema has no authoritative terminal-failure
+timestamp for safe automatic retention.
+
+## Migrations Reject Drift Instead of Repairing It
+
+**Observed behavior:** A current migration history without its physical outbox,
+or a stored migration with a conflicting checksum, is rejected.
+
+**Evidence:** `TE-S04` first exposed acceptance of a missing outbox, drove the
+product fix, and now proves both SQL Server and PostgreSQL reject inconsistent
+state with actionable diagnostics.
+
+**Product impact:** Built-in migrations are forward-only. TinyEvents does not
+infer or repair manually altered schemas and provides no down migration.
+
+**Operator action:** Back up and reconcile schema drift explicitly before
+starting the application with a conflicting database.
+
+**V1 decision:** Accepted after closing silent acceptance. Refusing ambiguous
+schema state is the supported behavior.
+
+## Capacity and Storage Results Are Environment-Specific
+
+**Observed behavior:** Worker scaling, publisher saturation, row size, and
+cleanup interference differed materially between SQL Server and PostgreSQL on
+the same machine.
+
+**Evidence:** `TE-L01` through `TE-L06` retain provider-specific throughput,
+latency, connection, row-size, and retention measurements. SQL Server's local
+800-request target saturated while PostgreSQL sustained it; neither result is a
+universal product ceiling.
+
+**Product impact:** TinyEvents cannot promise a fixed throughput or database-
+size budget independent of payload, provider, schema, hardware, and topology.
+
+**Operator action:** Use the published formulas as a starting point and validate
+retention, batch, claim, pool, and cleanup settings against the real workload.
+
+**V1 decision:** Accepted. Measurements are reproducible evidence, not marketing
+capacity guarantees.
+
 ## Public Documentation Checklist
 
 Before the V1 release gate closes, product documentation must explain:
@@ -63,6 +162,10 @@ Before the V1 release gate closes, product documentation must explain:
 - why consumers must be idempotent;
 - how multiple consumers affect retry behavior;
 - why explicit worker IDs must be unique;
+- how to handle an ambiguous commit acknowledgement;
+- why durable event renames require an explicit previous-name mapping;
+- that failed rows require monitoring and an explicit operational procedure;
+- that migrations reject drift rather than repairing it;
 - which defaults are safe starting points and which values require workload-specific measurement.
 
 The public wording must link guarantees to demonstrated behavior without presenting dogfood throughput or timing as universal production capacity.

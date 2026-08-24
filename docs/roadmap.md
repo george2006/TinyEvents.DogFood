@@ -2,13 +2,13 @@
 
 This roadmap lists the evidence still required before TinyEvents can be considered beta-ready. It does not repeat completed work.
 
-Current as of August 23, 2026:
+Current as of August 24, 2026:
 
 - 49 named behavioral contracts have executable evidence;
 - contract compatibility, invalid-message isolation, transaction, worker, database-recovery, and concurrent-migration fundamentals have executable evidence;
 - SQL Server and PostgreSQL pass the complete database-recovery suite;
-- cleanup and retention gates are complete; soak, provider, package, and final
-  audit gates remain open.
+- cleanup, retention, soak, provider, and package gates are complete; only the
+  composed clean-checkout gate and final audit remain open.
 
 See the [scenario catalog](scenario-catalog.md) for completed evidence and
 copyable commands. The [beta execution guide](beta-hardening-execution.md)

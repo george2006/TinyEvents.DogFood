@@ -112,7 +112,9 @@ Direct scenario files use their runner's default provider. Use the owning runner
 | Cleanup under active load (`TE-L06-D`) | `operations/Run-CleanupUnderLoad.ps1` | SQL Server, PostgreSQL |
 | Repeated disruption soak (`TE-L07`) | `operations/Run-DisruptionSoak.ps1` | SQL Server, PostgreSQL |
 | Schema and deployment | `deployment/Run-SchemaScenarios.ps1` | SQL Server, PostgreSQL |
-| Published-alpha and rolling upgrades | `deployment/Run-RollingUpgrade.ps1` | SQL Server, PostgreSQL |
+| Published-alpha upgrade | `deployment/Run-PublishedAlphaUpgrade.ps1` | SQL Server, PostgreSQL |
+| Rolling upgrade | `deployment/Run-RollingUpgrade.ps1` | SQL Server, PostgreSQL |
+| Package consumer | `..\TinyEvents\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1` | SQL Server and PostgreSQL, EF Core and ADO.NET |
 
 Provider support in this table describes executable evidence, not an unsupported TinyEvents product path. A scenario is enabled for a second provider only after the same behavioral assertions pass unchanged.
 
@@ -162,6 +164,8 @@ Do not delete its artifacts. Read the error's evidence path, then inspect `resul
 
 ## Current Source Layout
 
-Until hardened packages are produced, the dogfood projects reference the sibling TinyEvents source tree. This makes every scenario exercise the exact local code under review.
-
-Before release, a separate package-consumer gate will build NuGet packages locally and repeat the public installation path without project references.
+The destructive dogfood projects reference the sibling TinyEvents source tree.
+This makes every fault-injection scenario exercise the exact local code under
+review. The separate package-consumer smoke builds all six packages locally,
+restores them through an isolated NuGet cache, checks compatibility and package
+manifests, and runs all four provider paths without project references.

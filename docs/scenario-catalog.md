@@ -1,6 +1,8 @@
 # TinyEvents Dogfood Scenario Catalog
 
-This catalog contains the behavior demonstrated by the repository today. Planned scenarios are intentionally excluded.
+This catalog contains the behavior demonstrated by the repository today. The
+third column records the accepted result, not a future expectation. Planned
+scenarios are intentionally excluded.
 
 See the [beta hardening roadmap](roadmap.md) for incomplete work and the final release boundary.
 
@@ -31,7 +33,7 @@ Provider: **SQL Server**
 
 Evidence: `artifacts/identity/<run-id>/`
 
-| ID | Run | Expected evidence |
+| ID | Run | Demonstrated result |
 | --- | --- | --- |
 | `TE-C01` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C01` | A shared top-level contract is processed and records one durable effect. |
 | `TE-C02` | `.\identity\Run-IdentityScenarios.ps1 -Scenario TE-C02` | A nested contract is processed through its canonical runtime type name. |
@@ -48,7 +50,7 @@ See [Identity dogfood](../identity/README.md) for the identity contract and curr
 
 Provider: **SQL Server and PostgreSQL**
 
-| ID | Run or coverage | Expected evidence |
+| ID | Run or coverage | Demonstrated result |
 | --- | --- | --- |
 | `TE-T01` | `.\operations\Run-OperationalBaseline.ps1` | Ten business rows and ten outbox messages commit together and are later processed. This runner also executes `TE-W01`. |
 | `TE-T02` | `.\operations\Run-TransactionScenarios.ps1 -Scenario TE-T02` | Ten business rows and ten outbox messages are saved inside one transaction; rollback leaves both durable counts at zero. |
@@ -69,7 +71,7 @@ reuses the stronger two-provider backlog scaling evidence from `TE-L02`;
 `TE-W03` through `TE-W13` run unchanged through the provider-selectable worker
 recovery runner.
 
-| ID | Run or coverage | Expected evidence |
+| ID | Run or coverage | Demonstrated result |
 | --- | --- | --- |
 | `TE-W01` | `.\operations\Run-OperationalBaseline.ps1` | One hosted worker drains a known backlog without loss, failed messages, or duplicate effects. This runner also executes `TE-T01`. |
 | `TE-W02` | `.\operations\Run-WorkerScaling.ps1 -Backlog 1000`; PostgreSQL shares `TE-L02` | Two, four, and eight worker processes compete for distinct rows. Every message is processed once and every worker participates. |
@@ -98,7 +100,7 @@ Provider: **SQL Server and PostgreSQL**
 
 Evidence: `artifacts/database/<run-id>/<scenario-id>/`
 
-| ID | Run | Expected evidence |
+| ID | Run | Demonstrated result |
 | --- | --- | --- |
 | `TE-D01` | `.\operations\Run-DatabaseRecovery.ps1 -Scenario TE-D01` | A worker starts while the database is unavailable, bounds repeated failure logs, survives, and processes preserved work after recovery. |
 | `TE-D02` | `.\operations\Run-DatabaseRecovery.ps1 -Scenario TE-D02` | One unchanged worker processes work before and after a polling-time database outage without loss or duplicates. |
@@ -113,7 +115,7 @@ Provider: **SQL Server and PostgreSQL**
 
 Evidence: `artifacts/load/<run-id>/<scenario-id>/`
 
-| ID | Run | Expected evidence |
+| ID | Run | Demonstrated result |
 | --- | --- | --- |
 | `TE-L01` | `.\operations\Run-PublishingLoad.ps1` | With workers stopped, 200, 400, and 800 requested commits per second each produce the exact expected number of business and pending outbox rows. The result retains committed throughput, target achievement, request errors, and committed-request p50/p95/p99 latency independently for every rate. |
 | `TE-L02` | `.\operations\Run-WorkerDrainLoad.ps1` | With publishers stopped, 1, 2, 4, and 8 worker processes drain independent 10,000-message backlogs. Every worker participates, all rows reach `Processed`, every message has one effect, and the result retains throughput, speedup, and scaling efficiency. |
@@ -127,6 +129,7 @@ Evidence: `artifacts/load/<run-id>/<scenario-id>/`
 | `TE-L06-C1` | `.\operations\Run-CleanupScenarios.ps1` | The real cleanup background service makes partial progress over 1,000 eligible rows before its process is terminated. Durable state stops changing without a cleaner, then a replacement process removes the exact remainder while preserving all business rows. |
 | `TE-L06-C2` | `.\operations\Run-CleanupScenarios.ps1` | The database disappears after partial cleanup. The same background-service process reports bounded cleanup failures, survives the outage, reports recovery, deletes another batch after recovery, and removes the exact durable remainder. |
 | `TE-L06-D` | `.\operations\Run-CleanupUnderLoad.ps1` | Isolated cleanup-disabled and candidate-policy variants run at 200, 400, and 800 requests per second over the same 50,000-row eligible history. Four workers must participate while every request and effect remains exact and cleanup progress and interference are measured. |
+| `TE-L07` | `.\operations\Run-DisruptionSoak.ps1` | A 120-second mixed workload survives two claimed-worker deaths, two database outages, and active cleanup. Durable operations reconcile, expected at-least-once duplicates remain explicit, replacement workers participate, and no pending or processing work remains. |
 
 Run the same scenarios against PostgreSQL with:
 
@@ -150,7 +153,7 @@ Provider: **SQL Server and PostgreSQL**
 
 Evidence: `artifacts/schema/<run-id>/<scenario-id>/` and `artifacts/deployment/<run-id>/TE-S02/`
 
-| ID | Run | Expected evidence |
+| ID | Run | Demonstrated result |
 | --- | --- | --- |
 | `TE-S01` | `.\deployment\Run-SchemaScenarios.ps1 -Scenario TE-S01` | Eight application processes migrate one fresh database concurrently. One applies `001_CreateTinyOutbox`, seven observe the current schema, and durable history contains one row. |
 | `TE-S02` | `.\deployment\Run-PublishedAlphaUpgrade.ps1` | Published `0.1.0-alpha.3` packages create pending, reclaimable-processing, and failed state. Clean-main candidate packages migrate SQL Server and PostgreSQL, process supported work exactly once in the lab, preserve the terminal failure, and retain one migration row per provider. |
@@ -183,11 +186,26 @@ The following commands reproduce all currently implemented evidence. Run Postgre
 .\operations\Run-MixedLoad.ps1 -StorageProvider PostgreSql
 .\operations\Run-BacklogRecoveryLoad.ps1
 .\operations\Run-BacklogRecoveryLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-StorageMeasurements.ps1
+.\operations\Run-StorageMeasurements.ps1 -StorageProvider PostgreSql
+.\operations\Run-StorageStateMeasurements.ps1
+.\operations\Run-StorageStateMeasurements.ps1 -StorageProvider PostgreSql
+.\operations\Run-RetainedHistoryLoad.ps1
+.\operations\Run-RetainedHistoryLoad.ps1 -StorageProvider PostgreSql
+.\operations\Run-CleanupScenarios.ps1
+.\operations\Run-CleanupScenarios.ps1 -StorageProvider PostgreSql
+.\operations\Run-CleanupUnderLoad.ps1
+.\operations\Run-CleanupUnderLoad.ps1 -StorageProvider PostgreSql
 .\operations\Run-DisruptionSoak.ps1
 .\operations\Run-DisruptionSoak.ps1 -StorageProvider PostgreSql
 .\deployment\Run-SchemaScenarios.ps1
 .\deployment\Run-SchemaScenarios.ps1 -StorageProvider PostgreSql
 .\deployment\Run-PublishedAlphaUpgrade.ps1
+.\deployment\Run-RollingUpgrade.ps1
+& ..\TinyEvents\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1 -StartDatabases -Run
 ```
 
 These commands are intentionally separate. A future release gate may coordinate them, but the individual runners remain the source of truth for setup, failure injection, assertions, and evidence.
+
+See the [findings index](findings-index.md) for the product boundaries,
+correctness fixes, and laboratory-method findings discovered by these runs.

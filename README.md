@@ -94,6 +94,7 @@ TE-T05               True
 - [Beta hardening roadmap](docs/roadmap.md)
 - [Current beta execution checkpoint](docs/beta-hardening-execution.md)
 - [V1 product findings and operational boundaries](docs/v1-product-findings.md)
+- [Beta findings index](docs/findings-index.md)
 - [Identity and compatibility](identity/README.md)
 - [Transactions, workers, and database recovery](operations/README.md)
 - [Schema and deployment](deployment/README.md)
