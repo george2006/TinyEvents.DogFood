@@ -31,16 +31,22 @@ function Wait-ForTEL04Backlog {
             throw "Publisher exited before building the $BacklogTarget-message backlog."
         }
 
-        $observation = Get-Observation $Assembly
+        $outstandingMessages = Get-OutstandingMessageCount $Assembly
 
-        if ($observation.PendingMessages -ge $BacklogTarget -and
-            $observation.ProcessingMessages -eq 0 -and
-            $observation.ProcessedMessages -eq 0 -and
-            $observation.Effects -eq 0) {
-            return $observation
+        if ($outstandingMessages -ge $BacklogTarget) {
+            $observation = Get-Observation $Assembly
+            $backlogWasBuilt =
+                $observation.PendingMessages -ge $BacklogTarget -and
+                $observation.ProcessingMessages -eq 0 -and
+                $observation.ProcessedMessages -eq 0 -and
+                $observation.Effects -eq 0
+
+            if ($backlogWasBuilt) {
+                return $observation
+            }
         }
 
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 250
     }
 
     throw "Publisher did not build the $BacklogTarget-message backlog within two minutes."
@@ -64,24 +70,27 @@ function Wait-ForTEL04CatchUp {
             throw "Recovery worker $($exitedWorker.Id) exited before catching up."
         }
 
-        $observation = Get-Observation $Assembly
+        $outstandingMessages = Get-OutstandingMessageCount $Assembly
 
-        $outstandingMessages =
-            $observation.PendingMessages +
-            $observation.ProcessingMessages
-        $historicalBacklogWasProcessed =
-            $observation.ProcessedMessages -ge $InitialBacklog
-        $publisherContinuedAfterWorkersStarted =
-            $observation.BusinessOperations -gt $InitialBacklog
+        if ($outstandingMessages -le $RecoveryThreshold) {
+            $observation = Get-Observation $Assembly
+            $exactOutstandingMessages =
+                $observation.PendingMessages +
+                $observation.ProcessingMessages
+            $historicalBacklogWasProcessed =
+                $observation.ProcessedMessages -ge $InitialBacklog
+            $publisherContinuedAfterWorkersStarted =
+                $observation.BusinessOperations -gt $InitialBacklog
 
-        if ($outstandingMessages -le $RecoveryThreshold -and
-            $historicalBacklogWasProcessed -and
-            $publisherContinuedAfterWorkersStarted -and
-            !$Publisher.Process.HasExited) {
-            return $observation
+            if ($exactOutstandingMessages -le $RecoveryThreshold -and
+                $historicalBacklogWasProcessed -and
+                $publisherContinuedAfterWorkersStarted -and
+                !$Publisher.Process.HasExited) {
+                return $observation
+            }
         }
 
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 250
     }
 
     return $null
@@ -105,15 +114,19 @@ function Wait-ForTEL04Completion {
             throw "Recovery worker $($exitedWorker.Id) exited before final settlement."
         }
 
-        $observation = Get-Observation $Assembly
+        if (!(Test-OutstandingMessages $Assembly)) {
+            $observation = Get-Observation $Assembly
+            $settlementWasReached =
+                $observation.PendingMessages -eq 0 -and
+                $observation.ProcessingMessages -eq 0 -and
+                $observation.ProcessedMessages -eq $ExpectedMessageCount
 
-        if ($observation.PendingMessages -eq 0 -and
-            $observation.ProcessingMessages -eq 0 -and
-            $observation.ProcessedMessages -eq $ExpectedMessageCount) {
-            return $observation
+            if ($settlementWasReached) {
+                return $observation
+            }
         }
 
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 250
     }
 
     throw "Live backlog recovery did not settle within two minutes."
@@ -230,7 +243,7 @@ function Invoke-TEL04LiveBacklogRecovery {
         PublisherResult = $publisherResult
         RecoveredWhilePublishing = $recoveredWhilePublishing
         RecoveryDurationMilliseconds = $recovery.Elapsed.TotalMilliseconds
-        ObservationPollingIntervalMilliseconds = 100
+        ObservationPollingIntervalMilliseconds = 250
         AllWorkersParticipated = $allWorkersParticipated
         WorkerClaims = $completed.WorkerClaims
         WorkerEffects = $completed.WorkerEffects

@@ -544,6 +544,20 @@ The first PostgreSQL topology used four publisher processes solely to create fou
 
 TE-L04 starts one publisher at 200 requests per second with workers stopped, observes at least 1,000 pending messages, and then starts four worker processes without stopping or slowing that publisher. SQL Server reduced 1,009 outstanding messages to no more than one second of incoming traffic in 5.10 seconds; PostgreSQL reduced 1,057 in 3.17 seconds. Both publishers committed all 4,000 operations, every worker participated, every message completed once, and neither provider recorded a failed attempt or duplicate effect. Recovery is deliberately defined by the bounded live backlog rather than requiring a 100-millisecond polling observation to coincide with a transient empty queue.
 
+The 2026-08-24 monolithic gate exposed two laboratory weaknesses in that
+scenario. Repeated complete observations competed with live SQL Server work,
+and the original 20-second publisher duration left only about 14 seconds after
+the backlog was observed. One exact run still settled all 4,000 operations once
+but missed the arbitrary requirement to cross the recovery threshold before
+the publisher exited. TE-L04 now polls only the outstanding outbox count, reads
+the complete evidence when the threshold is crossed, and gives the unchanged
+200-request-per-second workload a 30-second observation window. SQL Server then
+reduced 1,210 outstanding messages to the 200-message threshold in 16.37
+seconds; PostgreSQL reduced 1,219 in 7.12 seconds. Both committed and settled
+all 6,000 operations once with all four workers participating. The scenario
+still fails if worker capacity does not exceed incoming traffic; it no longer
+conflates that property with a narrow wall-clock race.
+
 ### BETA-8 - Package and release gates
 
 The package-consumer smoke is complete. Candidate commit `cf9a8bd` packed all

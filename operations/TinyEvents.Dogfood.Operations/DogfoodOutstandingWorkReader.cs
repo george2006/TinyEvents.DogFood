@@ -10,4 +10,13 @@ internal static class DogfoodOutstandingWorkReader
             settings,
             cancellationToken);
     }
+
+    public static ValueTask<int> CountOutstandingMessagesAsync(
+        DogfoodSettings settings,
+        CancellationToken cancellationToken = default)
+    {
+        return settings.StorageProvider.CountOutstandingMessagesAsync(
+            settings,
+            cancellationToken);
+    }
 }

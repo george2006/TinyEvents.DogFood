@@ -50,6 +50,15 @@ internal sealed class PostgreSqlDogfoodStorageProvider : IDogfoodStorageProvider
             cancellationToken);
     }
 
+    public ValueTask<int> CountOutstandingMessagesAsync(
+        DogfoodSettings settings,
+        CancellationToken cancellationToken)
+    {
+        return PostgreSqlDogfoodOutstandingWorkReader.CountOutstandingMessagesAsync(
+            settings,
+            cancellationToken);
+    }
+
     public ValueTask<bool> HasOutstandingMessagesAsync(
         DogfoodSettings settings,
         CancellationToken cancellationToken)

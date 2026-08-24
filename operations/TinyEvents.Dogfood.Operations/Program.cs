@@ -130,6 +130,12 @@ switch (args[0].ToLowerInvariant())
         Console.WriteLine(JsonSerializer.Serialize(hasOutstandingMessages));
         return 0;
 
+    case "count-outstanding-messages":
+        var outstandingMessageCount =
+            await DogfoodOutstandingWorkReader.CountOutstandingMessagesAsync(settings);
+        Console.WriteLine(JsonSerializer.Serialize(outstandingMessageCount));
+        return 0;
+
     case "inspect-storage":
         var storageObservation =
             await DogfoodStorageObservationReader.ReadAsync(settings);

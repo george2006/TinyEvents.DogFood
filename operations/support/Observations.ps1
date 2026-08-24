@@ -22,6 +22,18 @@ function Test-OutstandingMessages {
     return [bool]::Parse($json)
 }
 
+function Get-OutstandingMessageCount {
+    param([string]$Assembly)
+
+    $json = & dotnet $Assembly count-outstanding-messages
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Outstanding-message count command failed."
+    }
+
+    return [int]::Parse($json)
+}
+
 function Get-StorageObservation {
     param([string]$Assembly)
 

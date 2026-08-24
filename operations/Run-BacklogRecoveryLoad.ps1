@@ -6,7 +6,7 @@ param(
     [int]$TargetRequestsPerSecond = 200,
 
     [ValidateRange(5, 60)]
-    [int]$DurationSeconds = 20,
+    [int]$DurationSeconds = 30,
 
     [ValidateRange(10, 100000)]
     [int]$BacklogTarget = 1000,
