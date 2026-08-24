@@ -70,7 +70,8 @@ function Write-GateResult {
         [string]$StartedAtUtc,
         [string]$DogfoodCommit,
         [string]$TinyEventsCommit,
-        [System.Collections.Generic.List[object]]$Suites
+        [System.Collections.Generic.List[object]]$Suites,
+        [string]$Failure = ""
     )
 
     [pscustomobject]@{
@@ -79,6 +80,7 @@ function Write-GateResult {
         UpdatedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
         DogfoodCommit = $DogfoodCommit
         TinyEventsCommit = $TinyEventsCommit
+        Failure = $Failure
         Suites = @($Suites)
     } |
         ConvertTo-Json -Depth 6 |
@@ -250,14 +252,18 @@ try {
     Write-Host "TinyEvents beta gate passed. Evidence: $artifactDirectory"
 }
 catch {
+    $failure = $_.Exception.Message
+
     Write-GateResult `
         -Path $resultPath `
         -Status "Failed" `
         -StartedAtUtc $startedAtUtc `
         -DogfoodCommit $dogfoodCommit `
         -TinyEventsCommit $tinyEventsCommit `
-        -Suites $results
+        -Suites $results `
+        -Failure $failure
 
-    Write-Error "TinyEvents beta gate failed. Evidence: $artifactDirectory"
+    Write-Host "TinyEvents beta gate failed: $failure"
+    Write-Host "Evidence: $artifactDirectory"
     throw
 }
