@@ -120,6 +120,31 @@ Provider support in this table describes executable evidence, not an unsupported
 
 See the [scenario catalog](scenario-catalog.md) for the exact command and expected result of every implemented scenario.
 
+## Complete Beta Gate
+
+Run the complete mandatory matrix from clean sibling checkouts with:
+
+```powershell
+.\Run-BetaGate.ps1
+```
+
+This is the destructive release gate, not the fastest development check. It
+runs the real-database product tests, all catalog runners against their required
+provider matrix, both upgrade paths, both disruption soaks, and the isolated
+package consumer. It stops at the first failed suite.
+
+Both Git working trees must be clean. The gate starts the local TinyEvents
+Docker databases, records the exact repository commits, writes one log per
+suite, and maintains its result at:
+
+```text
+artifacts/beta-gate/<run-id>/result.json
+```
+
+`Status = Passed` is the executable gate result. Individual scenario artifacts
+remain under their owning artifact directories because their runners remain the
+source of truth for assertions and detailed evidence.
+
 ## Evidence and Exit Codes
 
 Every run creates a timestamped directory beneath `artifacts/`. Depending on the suite, it contains:

@@ -205,7 +205,9 @@ The following commands reproduce all currently implemented evidence. Run Postgre
 & ..\TinyEvents\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1 -StartDatabases -Run
 ```
 
-These commands are intentionally separate. A future release gate may coordinate them, but the individual runners remain the source of truth for setup, failure injection, assertions, and evidence.
+`Run-BetaGate.ps1` coordinates this matrix for release acceptance. The
+individual runners remain the source of truth for setup, failure injection,
+assertions, and detailed evidence.
 
 See the [findings index](findings-index.md) for the product boundaries,
 correctness fixes, and laboratory-method findings discovered by these runs.

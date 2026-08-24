@@ -320,9 +320,14 @@ commit `37c960d` publishes the corresponding reliability contract: demonstrated
 guarantees, explicit non-guarantees, and operator responsibilities. Product
 limitations are no longer left only in laboratory notes.
 
+`Run-BetaGate.ps1` now composes the 36 mandatory suite executions without
+reimplementing their setup or assertions. It requires clean sibling working
+trees, stops at the first failure, and retains a central result plus one log per
+suite.
+
 ## Resume Instruction
 
 In a new session, read this file and [the roadmap](roadmap.md), inspect both
 repository branches and working trees. `PACKAGE-1` is complete. Continue with
-`BETA-GATE`: compose and run the mandatory gate from a clean checkout before
-making the beta decision.
+`BETA-GATE`: run the composed gate from clean sibling checkouts, audit its
+manifest and failures if any, and only then make the beta decision.
