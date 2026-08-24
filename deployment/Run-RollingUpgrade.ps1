@@ -43,6 +43,35 @@ function Get-TES05Observation {
     return $json | ConvertFrom-Json
 }
 
+function Wait-TES05ForAlphaParticipation {
+    param(
+        [string]$Assembly,
+        [object]$AlphaWorker,
+        [int]$ExpectedMessageCount
+    )
+
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds(30)
+
+    while ([DateTimeOffset]::UtcNow -lt $deadline) {
+        if ($AlphaWorker.Process.HasExited) {
+            throw "Published-alpha worker exited before participating in the rolling upgrade."
+        }
+
+        $observation = Get-TES05Observation $Assembly
+        $alphaHasProducedAnEffect = $observation.EffectCount -gt 0
+        $candidateWillHaveWorkToClaim =
+            $observation.ProcessedCount -lt $ExpectedMessageCount
+
+        if ($alphaHasProducedAnEffect -and $candidateWillHaveWorkToClaim) {
+            return $observation
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "Published-alpha worker did not participate before the candidate started."
+}
+
 function Test-TES05Backlog {
     param(
         [object]$Observation,
@@ -75,7 +104,7 @@ function Test-TES05CompletedState {
         $null -eq $Observation.FailedLastError -and
         $Observation.DistinctEventTypeCount -eq 1 -and
         $Observation.EventType -eq $ExpectedEventType -and
-        $Observation.MigrationCount -eq 1 -and
+        $Observation.MigrationCount -eq 2 -and
         $Observation.EffectCount -eq $ExpectedMessageCount -and
         $Observation.DistinctOperationEffectCount -eq $ExpectedMessageCount -and
         $Observation.DistinctWorkerCount -eq 2)
@@ -144,6 +173,10 @@ function Invoke-TES05Provider {
     $candidateWorker = $null
 
     try {
+        $alphaActiveState = Wait-TES05ForAlphaParticipation `
+            $AlphaAssembly `
+            $alphaWorker `
+            $BacklogSize
         $candidateWorker = Start-LoggedDotNetProcess `
             $CandidateAssembly `
             @(
@@ -180,6 +213,7 @@ function Invoke-TES05Provider {
             $afterWorkers.DistinctOperationEffectCount -eq $BacklogSize
         CompletedStateWasExact = $completedStateWasExact
         BeforeWorkers = $beforeWorkers
+        AlphaActiveBeforeCandidate = $alphaActiveState
         AfterWorkers = $afterWorkers
         AcceptancePassed = $passed
     }

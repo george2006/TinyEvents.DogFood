@@ -43,6 +43,7 @@ operator-facing guarantees and responsibilities.
 | An exact SQL Server observation can itself become deadlock victim 1205, and three immediate attempts are insufficient under sustained disruption. | Dogfood retries only that read-only observation through a bounded ten-attempt backoff window; production locking and worker behavior were not weakened. |
 | Four PostgreSQL publisher processes exhausted the container's 100-connection limit. | Mixed traffic now uses one publisher with concurrent traffic definitions and explicit pool budgets. |
 | Publisher acknowledgement counts are not durable commit counts during connection loss. | The soak records acknowledged and durable operations separately and reconciles by business identity. |
+| Racing published-alpha and candidate cold starts is not a rolling deployment; alpha can correctly reject the newer schema if candidate migrates first. | TE-S05 proves alpha is already processing before candidate applies `002`. Existing alpha continues; an alpha restart after migration must be replaced by candidate. |
 | SQL Server saturated locally at the requested 800 writes/s while PostgreSQL did not. | The result remains provider-specific evidence; no universal TinyEvents ceiling is claimed. |
 | Process working set, connection peaks, storage bytes, and timing belong to the tested machine. | Artifacts retain the environment and commits; public documentation labels the numbers as measurements rather than guarantees. |
 

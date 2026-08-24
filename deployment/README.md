@@ -67,11 +67,13 @@ Run both published-alpha and rolling-upgrade evidence with a clean TinyEvents `m
 .\deployment\Run-RollingUpgrade.ps1 -CandidateRoot ..\TinyEvents
 ```
 
-`TE-S05` first runs TE-S02 to create package-only assemblies for published `0.1.0-alpha.3` and the clean-main candidate. It then creates a separate 100-message alpha backlog for each provider and starts one alpha process and one candidate process concurrently against the same database.
+`TE-S05` first runs TE-S02 to create package-only assemblies for published `0.1.0-alpha.3` and the clean-main candidate. It then creates a separate 100-message alpha backlog for each provider, starts the alpha worker, and waits for durable proof that it is processing before starting candidate. Candidate applies migration `002` while the already-running alpha worker remains active, matching a real rolling deployment rather than racing two cold starts.
 
-Acceptance is decided from durable state: all 100 messages must be processed, both worker identities must appear, every message must have one distinct operation effect, no message may remain pending or processing, no failure may exist, and migration history must contain one row. Process stdout identifies execution details but is not acceptance authority.
+Acceptance is decided from durable state: all 100 messages must be processed, both worker identities must appear, every message must have one distinct operation effect, no message may remain pending or processing, no failure may exist, and migration history must advance from one alpha row to the two-row current schema. Process stdout identifies execution details but is not acceptance authority.
 
-The unchanged contract passed against SQL Server and PostgreSQL on 2026-08-22 using candidate commit `4612c24`.
+An alpha process that cold-starts after candidate has applied a newer migration still fails fast because the old migrator cannot prove that a future schema is compatible. The demonstrated rolling contract therefore requires existing old instances to be running before the new version migrates. Restarted instances must use the new version.
+
+The corrected rolling topology passed against SQL Server and PostgreSQL on 2026-08-24 using candidate TinyEvents `main` commit `1feb235`.
 
 ## Published Alpha Upgrade
 
