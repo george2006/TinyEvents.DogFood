@@ -114,6 +114,13 @@ and outbox table/index allocation. Database or container observation failures
 are retained as errors in the time series instead of terminating the workload
 or being recorded as zero.
 
+`Summarize-ExperimentSamples.ps1` produces `infrastructure-summary.json` with
+host/container ranges, database counter deltas, cache-hit ratio, backlog and
+oldest-message ranges, storage growth, observation coverage, and guarded memory
+slope. It highlights pressure signals such as increasing backlog, waiting
+connections, deadlocks, temporary-byte growth, or swap use. A signal identifies
+correlation to investigate; it does not assign the cause to TinyEvents.
+
 ## Destroy
 
 Download evidence before destruction. A populated results bucket is protected

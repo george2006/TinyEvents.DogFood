@@ -317,7 +317,8 @@ it is not intended to run continuously.
   sampling is connected at the experiment boundary; the automated leak trigger
   remains open.
 - Slice 4: a ten-second JSONL series correlates host memory/load, PostgreSQL
-  container resources, database activity, outbox pressure, and storage. Grafana
-  dashboards and series summarization remain open.
+  container resources, database activity, outbox pressure, and storage. Its
+  summary reports ranges, deltas, cache-hit ratio, coverage, guarded host-memory
+  slope, and pressure signals. Grafana dashboards remain open.
 - Slices 6-9: planned or partially scaffolded, not yet executable
   evidence.

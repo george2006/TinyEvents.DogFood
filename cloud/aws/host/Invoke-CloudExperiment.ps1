@@ -168,6 +168,13 @@ try {
     Stop-ExperimentSampler $sampler $samplerOutputTask $samplerErrorTask
     $sampler = $null
 
+    $infrastructureSummaryScript = Join-Path `
+        $DogfoodRoot `
+        "cloud/aws/host/Summarize-ExperimentSamples.ps1"
+    & $infrastructureSummaryScript `
+        -InputPath (Join-Path $runDirectory "experiment-samples.jsonl") `
+        -OutputPath (Join-Path $runDirectory "infrastructure-summary.json") | Out-Null
+
     $summaryScript = Join-Path `
         $DogfoodRoot `
         "cloud/aws/host/Summarize-RuntimeCounters.ps1"
