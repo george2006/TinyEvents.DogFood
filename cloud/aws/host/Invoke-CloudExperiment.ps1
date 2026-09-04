@@ -79,6 +79,9 @@ try {
             }
 
             $runner = Join-Path $DogfoodRoot "operations/Run-WorkerDrainLoad.ps1"
+            $env:TINYEVENTS_DOGFOOD_DOTNET_COUNTERS =
+                "/opt/dotnet-tools/dotnet-counters"
+            $env:TINYEVENTS_DOGFOOD_COUNTER_INTERVAL_SECONDS = "10"
             for ($repetition = 1; $repetition -le $scenario.repetitions; $repetition++) {
                 Save-ExperimentStatus `
                     "Running" `
@@ -164,4 +167,3 @@ catch {
 finally {
     $lock.Dispose()
 }
-

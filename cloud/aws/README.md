@@ -94,6 +94,11 @@ are explicit and refuse capture when less than 10 GiB remains; collecting one
 forces a full generation-2 GC and is therefore reserved for a suspected leak,
 not routine capacity measurement.
 
+The existing worker-scaling runner enables this collection through
+`TINYEVENTS_DOGFOOD_DOTNET_COUNTERS`. Every worker writes an independent runtime
+CSV and collector log beside its normal stdout/stderr evidence. Local dogfood
+runs remain unchanged when the variable is absent.
+
 ## Destroy
 
 Download evidence before destruction. A populated results bucket is protected

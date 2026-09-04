@@ -312,6 +312,7 @@ it is not intended to run continuously.
   implemented but still require their first AWS execution for acceptance.
 - Slice 3: direct PID resource sampling, .NET `System.Runtime` counter capture,
   and bounded explicit GC-dump capture are implemented in the smoke path; the
-  reusable multi-worker supervisor and automated leak trigger remain open.
+  worker-scaling path now attaches and closes one counter collector per worker.
+  Continuous OS sampling, summaries, and the automated leak trigger remain open.
 - Slices 4 and 6-9: planned or partially scaffolded, not yet executable
   evidence.
