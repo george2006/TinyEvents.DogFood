@@ -121,6 +121,14 @@ slope. It highlights pressure signals such as increasing backlog, waiting
 connections, deadlocks, temporary-byte growth, or swap use. A signal identifies
 correlation to investigate; it does not assign the cause to TinyEvents.
 
+Worker-scaling runs also produce `worker-scaling-report.json`. The provisional
+rule keeps the last accepted step that adds at least 15% throughput, has complete
+runtime instrumentation when available, and shows neither PostgreSQL waiters
+nor host swap in its timestamped window. If the largest tested count still
+passes, the report says the upper boundary was not found instead of pretending
+that count is optimal. TE-L02 has no end-to-end p95/p99 latency, so the report
+records latency as a missing decision input rather than inventing it.
+
 ## Destroy
 
 Download evidence before destruction. A populated results bucket is protected

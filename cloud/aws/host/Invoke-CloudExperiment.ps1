@@ -182,6 +182,15 @@ try {
         -EvidenceDirectory $runDirectory `
         -OutputPath (Join-Path $runDirectory "runtime-summary.json") | Out-Null
 
+    if ($scenario.runner -eq "worker-scaling") {
+        $scalingReportScript = Join-Path `
+            $DogfoodRoot `
+            "cloud/aws/host/Build-WorkerScalingReport.ps1"
+        & $scalingReportScript `
+            -EvidenceDirectory $runDirectory `
+            -OutputPath (Join-Path $runDirectory "worker-scaling-report.json") | Out-Null
+    }
+
     $environmentValues = @{}
     foreach ($line in Get-Content -LiteralPath "/etc/tinyevents-lab/environment") {
         if ($line -match "^([^=]+)=(.*)$") {

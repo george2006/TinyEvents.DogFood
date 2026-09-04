@@ -207,13 +207,22 @@ $variantSummaries = @(
             [ordered]@{
                 WorkerCount = $variantWorkerCount
                 InstrumentedWorkers = $workers.Count
+                InferredRepetitionCount = if (
+                    $variantWorkerCount -gt 0 -and
+                    $workers.Count % $variantWorkerCount -eq 0) {
+                    $workers.Count / $variantWorkerCount
+                }
+                else {
+                    $null
+                }
                 MeanCpuPercentageSum = ($cpuMeans | Measure-Object -Sum).Sum
                 MaximumWorkerWorkingSetMB = ($workingSetMaxima | Measure-Object -Maximum).Maximum
                 SumWorkerWorkingSetMaximaMB = ($workingSetMaxima | Measure-Object -Sum).Sum
                 MaximumWorkerGcHeapMB = ($heapMaxima | Measure-Object -Maximum).Maximum
                 SumWorkerGcHeapMaximaMB = ($heapMaxima | Measure-Object -Sum).Sum
                 CompleteInstrumentation =
-                    $workers.Count -eq $variantWorkerCount
+                    $variantWorkerCount -gt 0 -and
+                    $workers.Count % $variantWorkerCount -eq 0
             }
         })
 

@@ -320,5 +320,8 @@ it is not intended to run continuously.
   container resources, database activity, outbox pressure, and storage. Its
   summary reports ranges, deltas, cache-hit ratio, coverage, guarded host-memory
   slope, and pressure signals. Grafana dashboards remain open.
-- Slices 6-9: planned or partially scaffolded, not yet executable
-  evidence.
+- Slice 6: TE-L02 now records exact variant windows. A provisional report joins
+  repeated throughput, runtime instrumentation, and windowed infrastructure
+  pressure, applies the 15% useful-step rule, and distinguishes a measured knee
+  from an unbounded largest tested value. The cloud matrix still needs execution.
+- Slices 7-9: planned or partially scaffolded, not yet executable evidence.

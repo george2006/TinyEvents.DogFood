@@ -87,6 +87,7 @@ function Invoke-TEL02WorkerCount {
             "TE-L02-$WorkerCount-worker-$workerNumber"
         })
     $workers = @()
+    $startedAtUtc = [DateTimeOffset]::UtcNow
     $drain = [System.Diagnostics.Stopwatch]::StartNew()
 
     try {
@@ -124,6 +125,8 @@ function Invoke-TEL02WorkerCount {
     $result = [ordered]@{
         WorkerCount = $WorkerCount
         Backlog = $Backlog
+        StartedAtUtc = $startedAtUtc.ToString("O")
+        CompletedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
         DrainDurationMilliseconds = $drain.Elapsed.TotalMilliseconds
         DrainMessagesPerSecond = $messagesPerSecond
         AllWorkersParticipated = $allWorkersParticipated
