@@ -95,4 +95,3 @@ volumes:
 secrets:
   grafana_admin_password:
     file: /etc/tinyevents-lab/secrets/grafana-admin-password
-

@@ -54,4 +54,3 @@ function Get-LabTerraformOutput {
 
     return $json | ConvertFrom-Json
 }
-

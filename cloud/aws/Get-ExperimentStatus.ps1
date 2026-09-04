@@ -54,4 +54,3 @@ finally {
         Remove-Item -LiteralPath $parametersPath -Force
     }
 }
-

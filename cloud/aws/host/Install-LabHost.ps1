@@ -87,4 +87,3 @@ if ($LASTEXITCODE -ne 0) {
 
 "smoke-ready" | Set-Content -LiteralPath "/opt/tinyevents-lab/bootstrap-status"
 Write-Output $resultPath
-

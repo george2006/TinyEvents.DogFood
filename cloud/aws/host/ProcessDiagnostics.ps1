@@ -125,4 +125,3 @@ function Invoke-BoundedGcDump {
 
     return Get-Item -LiteralPath $OutputPath
 }
-

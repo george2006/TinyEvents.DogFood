@@ -58,4 +58,3 @@ variable "allow_results_bucket_destroy" {
   type        = bool
   default     = false
 }
-

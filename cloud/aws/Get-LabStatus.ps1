@@ -74,4 +74,3 @@ if ($null -ne $ssmValue -and $ssmValue.PingStatus -eq "Online") {
     Ssm = $ssmValue
     BootstrapStatus = $bootstrapStatus
 } | ConvertTo-Json -Depth 5
-

@@ -28,4 +28,3 @@ Invoke-Terraform @(
     "-var", "expires_at=$($output.expires_at.value)",
     "-var", "allow_results_bucket_destroy=$($DeleteResults.IsPresent.ToString().ToLowerInvariant())"
 )
-

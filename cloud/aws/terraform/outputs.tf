@@ -26,4 +26,3 @@ output "ami_id" {
 output "aws_region" {
   value = var.aws_region
 }
-

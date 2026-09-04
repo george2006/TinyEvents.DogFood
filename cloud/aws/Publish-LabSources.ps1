@@ -97,4 +97,3 @@ finally {
         Remove-Item -LiteralPath $temporaryDirectory -Recurse -Force
     }
 }
-
