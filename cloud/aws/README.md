@@ -106,6 +106,14 @@ main memory gauges. A slope is deliberately unavailable when fewer than six
 samples or less than 30 minutes of evidence exists; short runs cannot be called
 memory-leak tests.
 
+Every cloud experiment also writes `experiment-samples.jsonl` at a ten-second
+interval. Each line correlates host load and memory, PostgreSQL container CPU
+and memory, outbox counts and oldest-pending age, database connections and
+waiters, commits/rollbacks, cache/physical reads, temporary bytes, deadlocks,
+and outbox table/index allocation. Database or container observation failures
+are retained as errors in the time series instead of terminating the workload
+or being recorded as zero.
+
 ## Destroy
 
 Download evidence before destruction. A populated results bucket is protected

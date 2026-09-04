@@ -314,6 +314,10 @@ it is not intended to run continuously.
   and bounded explicit GC-dump capture are implemented in the smoke path; the
   worker-scaling path now attaches and closes one counter collector per worker.
   Runtime summaries and guarded memory slopes are implemented. Continuous OS
-  sampling and the automated leak trigger remain open.
-- Slices 4 and 6-9: planned or partially scaffolded, not yet executable
+  sampling is connected at the experiment boundary; the automated leak trigger
+  remains open.
+- Slice 4: a ten-second JSONL series correlates host memory/load, PostgreSQL
+  container resources, database activity, outbox pressure, and storage. Grafana
+  dashboards and series summarization remain open.
+- Slices 6-9: planned or partially scaffolded, not yet executable
   evidence.

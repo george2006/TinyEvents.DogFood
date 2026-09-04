@@ -38,6 +38,8 @@ $runDirectory = Join-Path $ArtifactRoot $runId
 New-Item -ItemType Directory -Force -Path $runDirectory | Out-Null
 $statusPath = "/opt/tinyevents-lab/experiment-status.json"
 $startedAtUtc = [DateTimeOffset]::UtcNow
+$sampler = $null
+$samplerStopPath = Join-Path $runDirectory "stop-sampler"
 
 function Save-ExperimentStatus {
     param(
@@ -59,9 +61,48 @@ function Save-ExperimentStatus {
     } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $statusPath
 }
 
+function Stop-ExperimentSampler {
+    param(
+        [Diagnostics.Process]$Process,
+        [Threading.Tasks.Task[string]]$OutputTask,
+        [Threading.Tasks.Task[string]]$ErrorTask
+    )
+
+    New-Item -ItemType File -Force -Path $samplerStopPath | Out-Null
+    if (!$Process.WaitForExit(15000)) {
+        $Process.Kill()
+        $Process.WaitForExit()
+    }
+
+    $OutputTask.GetAwaiter().GetResult() |
+        Set-Content -LiteralPath (Join-Path $runDirectory "sampler.stdout.log")
+    $ErrorTask.GetAwaiter().GetResult() |
+        Set-Content -LiteralPath (Join-Path $runDirectory "sampler.stderr.log")
+    $Process.Dispose()
+}
+
 try {
     Save-ExperimentStatus "Running" "Preparing scenario."
     Copy-Item -LiteralPath $ScenarioPath -Destination (Join-Path $runDirectory "scenario.json")
+    $samplerScript = Join-Path $DogfoodRoot "cloud/aws/host/sample-experiment.sh"
+    & chmod +x $samplerScript
+    $samplerStart = [Diagnostics.ProcessStartInfo]::new()
+    $samplerStart.FileName = "/usr/bin/bash"
+    $samplerStart.UseShellExecute = $false
+    $samplerStart.CreateNoWindow = $true
+    $samplerStart.RedirectStandardOutput = $true
+    $samplerStart.RedirectStandardError = $true
+    $samplerStart.Arguments =
+        "`"$samplerScript`" " +
+        "`"$(Join-Path $runDirectory 'experiment-samples.jsonl')`" " +
+        "`"$samplerStopPath`" 10"
+    $sampler = [Diagnostics.Process]::new()
+    $sampler.StartInfo = $samplerStart
+    if (!$sampler.Start()) {
+        throw "Experiment resource sampler could not be started."
+    }
+    $samplerOutputTask = $sampler.StandardOutput.ReadToEndAsync()
+    $samplerErrorTask = $sampler.StandardError.ReadToEndAsync()
 
     switch ($scenario.runner) {
         "cloud-smoke" {
@@ -124,6 +165,9 @@ try {
         }
     }
 
+    Stop-ExperimentSampler $sampler $samplerOutputTask $samplerErrorTask
+    $sampler = $null
+
     $summaryScript = Join-Path `
         $DogfoodRoot `
         "cloud/aws/host/Summarize-RuntimeCounters.ps1"
@@ -151,8 +195,21 @@ try {
     }
 
     Save-ExperimentStatus "Succeeded" "Experiment and evidence upload completed." 0
+    Copy-Item -LiteralPath $statusPath -Destination (Join-Path $runDirectory "status.json") -Force
+    & aws s3 cp `
+        (Join-Path $runDirectory "status.json") `
+        "s3://$bucket/runs/$runId/status.json" `
+        --only-show-errors
+    if ($LASTEXITCODE -ne 0) {
+        throw "Final experiment status upload failed."
+    }
 }
 catch {
+    if ($null -ne $sampler) {
+        Stop-ExperimentSampler $sampler $samplerOutputTask $samplerErrorTask
+        $sampler = $null
+    }
+
     Save-ExperimentStatus "Failed" $_.Exception.Message 1
     Copy-Item -LiteralPath $statusPath -Destination (Join-Path $runDirectory "status.json") -Force
 
@@ -172,5 +229,9 @@ catch {
     throw
 }
 finally {
+    if ($null -ne $sampler) {
+        Stop-ExperimentSampler $sampler $samplerOutputTask $samplerErrorTask
+    }
+
     $lock.Dispose()
 }
