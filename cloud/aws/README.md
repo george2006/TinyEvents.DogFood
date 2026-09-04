@@ -67,6 +67,26 @@ starts PostgreSQL and the bounded monitoring stack, executes a 100-message smoke
 test, and uploads its evidence. Use `Get-LabStatus.ps1` until bootstrap reports
 `smoke-ready`.
 
+## Run an experiment
+
+Scenario documents live in `cloud/aws/scenarios/`. Start one asynchronously:
+
+```powershell
+.\cloud\aws\Start-Experiment.ps1 `
+    -AwsProfile <profile> `
+    -Scenario worker-scaling
+```
+
+Closing the local terminal or SSM command does not stop the experiment. Query
+its durable host-side status independently:
+
+```powershell
+.\cloud\aws\Get-ExperimentStatus.ps1 -AwsProfile <profile>
+```
+
+Only one experiment can hold the host lock. Complete and partial evidence is
+uploaded to `runs/<run-id>/` in the private results bucket.
+
 ## Destroy
 
 Download evidence before destruction. A populated results bucket is protected

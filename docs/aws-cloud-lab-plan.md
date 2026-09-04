@@ -169,7 +169,7 @@ Acceptance:
 
 ### Slice 5 - Declarative Scenario Runner
 
-Add versioned YAML scenario documents and a runner that performs reset,
+Add versioned declarative scenario documents and a runner that performs reset,
 warm-up, publication, worker orchestration, measurement, cooldown, durable
 reconciliation, and evidence upload.
 
@@ -307,4 +307,8 @@ it is not intended to run continuously.
 - Slice 2: host prerequisites and exact clean-commit source staging implemented;
   PostgreSQL, the first bounded monitoring stack, remote build, and smoke runner
   are implemented but still require their first AWS execution for acceptance.
-- Slices 3-9: planned, not yet executable evidence.
+- Slice 5: the first JSON scenario schema, asynchronous systemd/SSM control,
+  exclusive experiment lock, status reporting, and partial-evidence upload are
+  implemented but still require their first AWS execution for acceptance.
+- Slices 3-4 and 6-9: planned or partially scaffolded, not yet executable
+  evidence.
