@@ -1,0 +1,11 @@
+process_names:
+  - name: "tinyevents-worker-{{.PID}}"
+    cmdline:
+      - "TinyEvents.Dogfood.Operations.dll worker"
+  - name: "tinyevents-publisher-{{.PID}}"
+    cmdline:
+      - "TinyEvents.Dogfood.Operations.dll publish"
+  - name: "dotnet-other-{{.PID}}"
+    comm:
+      - dotnet
+

@@ -305,5 +305,6 @@ it is not intended to run continuously.
 - Slice 1: foundation scripts and Terraform implemented and locally validated;
   an AWS deployment is still required for acceptance.
 - Slice 2: host prerequisites and exact clean-commit source staging implemented;
-  database, monitoring stack, remote build, and smoke test remain open.
+  PostgreSQL, the first bounded monitoring stack, remote build, and smoke runner
+  are implemented but still require their first AWS execution for acceptance.
 - Slices 3-9: planned, not yet executable evidence.

@@ -56,6 +56,17 @@ The staging command refuses dirty repositories, uses `git archive`, records the
 commit and SHA-256 of each archive, and does not require the candidate commits
 to have been pushed to a public remote.
 
+Initialize the staged host asynchronously:
+
+```powershell
+.\cloud\aws\Initialize-LabHost.ps1 -AwsProfile <profile>
+```
+
+The SSM command verifies both archive hashes, builds the dogfood application,
+starts PostgreSQL and the bounded monitoring stack, executes a 100-message smoke
+test, and uploads its evidence. Use `Get-LabStatus.ps1` until bootstrap reports
+`smoke-ready`.
+
 ## Destroy
 
 Download evidence before destruction. A populated results bucket is protected
