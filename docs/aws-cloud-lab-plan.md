@@ -313,6 +313,7 @@ it is not intended to run continuously.
 - Slice 3: direct PID resource sampling, .NET `System.Runtime` counter capture,
   and bounded explicit GC-dump capture are implemented in the smoke path; the
   worker-scaling path now attaches and closes one counter collector per worker.
-  Continuous OS sampling, summaries, and the automated leak trigger remain open.
+  Runtime summaries and guarded memory slopes are implemented. Continuous OS
+  sampling and the automated leak trigger remain open.
 - Slices 4 and 6-9: planned or partially scaffolded, not yet executable
   evidence.

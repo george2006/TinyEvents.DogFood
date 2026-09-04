@@ -99,6 +99,13 @@ The existing worker-scaling runner enables this collection through
 CSV and collector log beside its normal stdout/stderr evidence. Local dogfood
 runs remain unchanged when the variable is absent.
 
+`Summarize-RuntimeCounters.ps1` converts all runtime CSV files below one run
+into `runtime-summary.json`. It reports per-worker min/max/mean/sum/last values,
+variant memory totals, instrumentation completeness, and linear slopes for the
+main memory gauges. A slope is deliberately unavailable when fewer than six
+samples or less than 30 minutes of evidence exists; short runs cannot be called
+memory-leak tests.
+
 ## Destroy
 
 Download evidence before destruction. A populated results bucket is protected

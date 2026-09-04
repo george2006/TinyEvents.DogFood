@@ -124,6 +124,13 @@ try {
         }
     }
 
+    $summaryScript = Join-Path `
+        $DogfoodRoot `
+        "cloud/aws/host/Summarize-RuntimeCounters.ps1"
+    & $summaryScript `
+        -EvidenceDirectory $runDirectory `
+        -OutputPath (Join-Path $runDirectory "runtime-summary.json") | Out-Null
+
     $environmentValues = @{}
     foreach ($line in Get-Content -LiteralPath "/etc/tinyevents-lab/environment") {
         if ($line -match "^([^=]+)=(.*)$") {
