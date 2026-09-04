@@ -87,6 +87,13 @@ its durable host-side status independently:
 Only one experiment can hold the host lock. Complete and partial evidence is
 uploaded to `runs/<run-id>/` in the private results bucket.
 
+Workers are sampled directly by PID. The diagnostic helper records cumulative
+CPU time, working set, private and virtual memory, threads, and handles, and
+attaches .NET 8 `System.Runtime` counters without modifying TinyEvents. GC dumps
+are explicit and refuse capture when less than 10 GiB remains; collecting one
+forces a full generation-2 GC and is therefore reserved for a suspected leak,
+not routine capacity measurement.
+
 ## Destroy
 
 Download evidence before destruction. A populated results bucket is protected

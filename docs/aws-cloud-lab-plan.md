@@ -310,5 +310,8 @@ it is not intended to run continuously.
 - Slice 5: the first JSON scenario schema, asynchronous systemd/SSM control,
   exclusive experiment lock, status reporting, and partial-evidence upload are
   implemented but still require their first AWS execution for acceptance.
-- Slices 3-4 and 6-9: planned or partially scaffolded, not yet executable
+- Slice 3: direct PID resource sampling, .NET `System.Runtime` counter capture,
+  and bounded explicit GC-dump capture are implemented in the smoke path; the
+  reusable multi-worker supervisor and automated leak trigger remain open.
+- Slices 4 and 6-9: planned or partially scaffolded, not yet executable
   evidence.

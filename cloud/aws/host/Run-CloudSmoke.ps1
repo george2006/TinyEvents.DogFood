@@ -2,11 +2,13 @@
 param(
     [string]$DogfoodRoot = "/opt/tinyevents-lab/sources/TinyEvents.Dogfood",
     [string]$ArtifactRoot = "/opt/tinyevents-lab/artifacts",
+    [string]$CounterToolPath = "/opt/dotnet-tools/dotnet-counters",
     [ValidateRange(1, 10000)][int]$MessageCount = 100
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot "ProcessDiagnostics.ps1")
 
 $env:TINYEVENTS_DOGFOOD_STORAGE = "postgresql"
 $env:TINYEVENTS_DOGFOOD_POSTGRESQL = "Host=localhost;Port=54323;Database=TinyEventsDogfoodOperations;Username=postgres;Password=postgres;Maximum Pool Size=16;Timeout=2;"
@@ -54,9 +56,16 @@ if (!$worker.Start()) {
 
 $outputTask = $worker.StandardOutput.ReadToEndAsync()
 $errorTask = $worker.StandardError.ReadToEndAsync()
+$resourceSamples = [Collections.Generic.List[object]]::new()
+$resourceSamples.Add((Get-DotNetProcessResourceSample $worker "TE-CLOUD-SMOKE-worker-1"))
+$counterHandle = Start-DotNetRuntimeCounters `
+    $worker `
+    (Join-Path $runDirectory "worker.runtime.csv") `
+    -ToolPath $CounterToolPath
 
 try {
     $deadline = [DateTimeOffset]::UtcNow.AddMinutes(3)
+    $nextResourceSample = [DateTimeOffset]::UtcNow.AddSeconds(2)
     do {
         if ($worker.HasExited) {
             throw "Smoke worker exited before the backlog drained."
@@ -65,6 +74,12 @@ try {
         $outstanding = Invoke-Dogfood @("has-outstanding-messages") | ConvertFrom-Json
         if (!$outstanding) {
             break
+        }
+
+        if ([DateTimeOffset]::UtcNow -ge $nextResourceSample) {
+            $resourceSamples.Add(
+                (Get-DotNetProcessResourceSample $worker "TE-CLOUD-SMOKE-worker-1"))
+            $nextResourceSample = [DateTimeOffset]::UtcNow.AddSeconds(2)
         }
 
         Start-Sleep -Milliseconds 250
@@ -96,6 +111,10 @@ finally {
     $worker.WaitForExit()
     $outputTask.GetAwaiter().GetResult() | Set-Content -LiteralPath $workerOutput
     $errorTask.GetAwaiter().GetResult() | Set-Content -LiteralPath $workerError
+    Stop-DotNetRuntimeCounters `
+        $counterHandle `
+        (Join-Path $runDirectory "dotnet-counters.stdout.log") `
+        (Join-Path $runDirectory "dotnet-counters.stderr.log")
     $worker.Dispose()
 }
 
@@ -117,6 +136,8 @@ $result = [ordered]@{
     CompletedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
     StorageProvider = "PostgreSql"
     MessageCount = $MessageCount
+    RuntimeCountersCollected = $null -ne $counterHandle
+    ResourceSamples = $resourceSamples
     Before = $before
     After = $after
     AcceptancePassed = $passed

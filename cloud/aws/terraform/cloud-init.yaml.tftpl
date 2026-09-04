@@ -63,7 +63,7 @@ runcmd:
   - [unzip, -q, /tmp/awscliv2.zip, -d, /tmp]
   - [/tmp/aws/install, --update]
   - [systemctl, enable, --now, docker]
-  - [bash, -lc, "install -d -o ubuntu -g ubuntu /opt/dotnet-tools && sudo -u ubuntu dotnet tool install dotnet-counters --tool-path /opt/dotnet-tools && sudo -u ubuntu dotnet tool install dotnet-dump --tool-path /opt/dotnet-tools && sudo -u ubuntu dotnet tool install dotnet-gcdump --tool-path /opt/dotnet-tools"]
+  - [bash, -lc, "install -d -o ubuntu -g ubuntu /opt/dotnet-tools && sudo -u ubuntu dotnet tool install dotnet-counters --tool-path /opt/dotnet-tools --version '8.*' && sudo -u ubuntu dotnet tool install dotnet-dump --tool-path /opt/dotnet-tools --version '8.*' && sudo -u ubuntu dotnet tool install dotnet-gcdump --tool-path /opt/dotnet-tools --version '8.*'"]
   - [systemctl, daemon-reload]
   - [systemctl, enable, --now, tinyevents-lab-expiry.timer]
   - [bash, -lc, "snap install amazon-ssm-agent --classic || true"]
