@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "name": "worker-scaling",
+  "description": "Locate the useful PostgreSQL worker-scaling range before batch-size exploration.",
+  "runner": "worker-scaling",
+  "storageProvider": "PostgreSql",
+  "backlog": 100000,
+  "workerCounts": [1, 2, 4, 8, 12, 16, 24],
+  "repetitions": 3,
+  "estimatedMaximumMinutes": 180
+}

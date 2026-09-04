@@ -1,3 +1,69 @@
+if ($null -eq (Get-Variable -Name WorkerDiagnosticHandles -Scope Script -ErrorAction SilentlyContinue)) {
+    $script:WorkerDiagnosticHandles = @{}
+}
+
+function Start-WorkerRuntimeDiagnostics {
+    param(
+        [System.Diagnostics.Process]$Worker,
+        [string]$EvidenceName,
+        [string]$ArtifactDirectory
+    )
+
+    $toolPath = [Environment]::GetEnvironmentVariable(
+        "TINYEVENTS_DOGFOOD_DOTNET_COUNTERS")
+    if ([string]::IsNullOrWhiteSpace($toolPath)) {
+        return
+    }
+
+    if (!(Test-Path -LiteralPath $toolPath)) {
+        throw "TINYEVENTS_DOGFOOD_DOTNET_COUNTERS points to missing tool '$toolPath'."
+    }
+
+    $refreshInterval = [Environment]::GetEnvironmentVariable(
+        "TINYEVENTS_DOGFOOD_COUNTER_INTERVAL_SECONDS")
+    $refreshIntervalSeconds = 10
+    if (![string]::IsNullOrWhiteSpace($refreshInterval) -and
+        (![int]::TryParse($refreshInterval, [ref]$refreshIntervalSeconds) -or
+            $refreshIntervalSeconds -lt 1 -or
+            $refreshIntervalSeconds -gt 60)) {
+        throw "TINYEVENTS_DOGFOOD_COUNTER_INTERVAL_SECONDS must be between 1 and 60."
+    }
+
+    $safeEvidenceName = $EvidenceName -replace "[^A-Za-z0-9_.-]", "_"
+    $counterOutput = Join-Path $ArtifactDirectory "$safeEvidenceName.runtime.csv"
+    $counterStandardOutput = Join-Path `
+        $ArtifactDirectory `
+        "$safeEvidenceName.dotnet-counters.stdout.log"
+    $counterStandardError = Join-Path `
+        $ArtifactDirectory `
+        "$safeEvidenceName.dotnet-counters.stderr.log"
+    $counterStartParameters = @{
+        FilePath = $toolPath
+        ArgumentList = @(
+            "collect",
+            "--process-id",
+            [string]$Worker.Id,
+            "--refresh-interval",
+            [string]$refreshIntervalSeconds,
+            "--format",
+            "csv",
+            "--output",
+            $counterOutput,
+            "--counters",
+            "System.Runtime")
+        RedirectStandardOutput = $counterStandardOutput
+        RedirectStandardError = $counterStandardError
+        PassThru = $true
+    }
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        $counterStartParameters.WindowStyle = "Hidden"
+    }
+
+    $counter = Start-Process @counterStartParameters
+
+    $script:WorkerDiagnosticHandles[[string]$Worker.Id] = $counter
+}
+
 function Start-Worker {
     param(
         [string]$Assembly,
@@ -11,18 +77,40 @@ function Start-Worker {
     $standardOutput = Join-Path $ArtifactDirectory "$EvidenceName.stdout.log"
     $standardError = Join-Path $ArtifactDirectory "$EvidenceName.stderr.log"
 
-    return Start-Process `
-        -FilePath "dotnet" `
-        -ArgumentList @(
+    $workerStartParameters = @{
+        FilePath = "dotnet"
+        ArgumentList = @(
             $Assembly,
             "worker",
             $WorkerId,
             [string]$BeforeEffectDelayMilliseconds,
-            [string]$AfterEffectDelayMilliseconds) `
-        -RedirectStandardOutput $standardOutput `
-        -RedirectStandardError $standardError `
-        -WindowStyle Hidden `
-        -PassThru
+            [string]$AfterEffectDelayMilliseconds)
+        RedirectStandardOutput = $standardOutput
+        RedirectStandardError = $standardError
+        PassThru = $true
+    }
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        $workerStartParameters.WindowStyle = "Hidden"
+    }
+
+    $worker = Start-Process @workerStartParameters
+
+    try {
+        Start-WorkerRuntimeDiagnostics `
+            $worker `
+            $EvidenceName `
+            $ArtifactDirectory
+    }
+    catch {
+        if (!$worker.HasExited) {
+            Stop-Process -Id $worker.Id
+            $worker.WaitForExit()
+        }
+
+        throw
+    }
+
+    return $worker
 }
 
 function Start-FailingWorker {
@@ -246,6 +334,20 @@ function Stop-Worker {
     if ($null -ne $Worker -and -not $Worker.HasExited) {
         Stop-Process -Id $Worker.Id
         $Worker.WaitForExit()
+    }
+
+    if ($null -ne $Worker) {
+        $diagnosticKey = [string]$Worker.Id
+        $counter = $script:WorkerDiagnosticHandles[$diagnosticKey]
+        if ($null -ne $counter) {
+            if (!$counter.WaitForExit(15000)) {
+                Stop-Process -Id $counter.Id
+                $counter.WaitForExit()
+            }
+
+            $counter.Dispose()
+            $script:WorkerDiagnosticHandles.Remove($diagnosticKey)
+        }
     }
 }
 

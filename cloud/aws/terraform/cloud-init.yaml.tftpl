@@ -1,0 +1,74 @@
+#cloud-config
+package_update: true
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - docker.io
+  - docker-compose-v2
+  - git
+  - jq
+  - unzip
+
+write_files:
+  - path: /etc/tinyevents-lab/environment
+    permissions: "0600"
+    owner: root:root
+    content: |
+      LAB_EXPIRES_AT=${expires_at}
+      LAB_RESULTS_BUCKET=${results_bucket}
+  - path: /usr/local/sbin/tinyevents-lab-expiry
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      source /etc/tinyevents-lab/environment
+      now_epoch="$(date -u +%s)"
+      expiry_epoch="$(date -u -d "$LAB_EXPIRES_AT" +%s)"
+      if [ "$now_epoch" -ge "$expiry_epoch" ]; then
+        logger -t tinyevents-lab "Laboratory expiry reached; shutting down."
+        /usr/sbin/shutdown -h now
+      fi
+  - path: /etc/systemd/system/tinyevents-lab-expiry.service
+    permissions: "0644"
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Enforce TinyEvents laboratory expiry
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/tinyevents-lab-expiry
+  - path: /etc/systemd/system/tinyevents-lab-expiry.timer
+    permissions: "0644"
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Check TinyEvents laboratory expiry every five minutes
+      [Timer]
+      OnBootSec=2min
+      OnUnitActiveSec=5min
+      Unit=tinyevents-lab-expiry.service
+      [Install]
+      WantedBy=timers.target
+
+runcmd:
+  - [mkdir, -p, /opt/tinyevents-lab/artifacts]
+  - [mkdir, -p, /opt/tinyevents-lab/sources]
+  - [bash, -lc, "curl -fsSL https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -o /tmp/packages-microsoft-prod.deb"]
+  - [dpkg, -i, /tmp/packages-microsoft-prod.deb]
+  - [apt-get, update]
+  - [apt-get, install, -y, dotnet-sdk-8.0, powershell]
+  - [bash, -lc, "curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip"]
+  - [unzip, -q, /tmp/awscliv2.zip, -d, /tmp]
+  - [/tmp/aws/install, --update]
+  - [systemctl, enable, --now, docker]
+  - [bash, -lc, "install -d -o ubuntu -g ubuntu /opt/dotnet-tools && sudo -u ubuntu dotnet tool install dotnet-counters --tool-path /opt/dotnet-tools --version '8.*' && sudo -u ubuntu dotnet tool install dotnet-dump --tool-path /opt/dotnet-tools --version '8.*' && sudo -u ubuntu dotnet tool install dotnet-gcdump --tool-path /opt/dotnet-tools --version '8.*'"]
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, --now, tinyevents-lab-expiry.timer]
+  - [bash, -lc, "snap install amazon-ssm-agent --classic || true"]
+  - [systemctl, enable, --now, snap.amazon-ssm-agent.amazon-ssm-agent.service]
+  - [bash, -lc, "dotnet --info > /opt/tinyevents-lab/dotnet-info.txt && docker version > /opt/tinyevents-lab/docker-version.txt && pwsh --version > /opt/tinyevents-lab/powershell-version.txt"]
+  - [bash, -lc, "echo host-prerequisites-ready > /opt/tinyevents-lab/bootstrap-status"]
+
+final_message: "TinyEvents AWS foundation bootstrap completed after $UPTIME seconds"
