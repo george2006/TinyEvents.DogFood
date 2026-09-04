@@ -3,3 +3,7 @@ obj/
 artifacts/
 .vs/
 TestResults/
+cloud/aws/terraform/.terraform/
+cloud/aws/terraform/*.tfstate
+cloud/aws/terraform/*.tfstate.*
+cloud/aws/terraform/*.tfplan
