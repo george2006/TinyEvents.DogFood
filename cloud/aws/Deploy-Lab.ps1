@@ -65,3 +65,4 @@ if (!$online) {
 }
 
 Write-Host "The instance is SSM-online. Run Get-LabStatus.ps1 to inspect bootstrap readiness."
+Write-Host "Stage exact clean source commits with Publish-LabSources.ps1 after bootstrap reports host-prerequisites-ready."

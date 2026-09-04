@@ -45,6 +45,17 @@ duration is selected. The security group has no ingress rules.
 
 The command reports EC2 state, SSM connectivity, expiry, and bootstrap status.
 
+When bootstrap reports `host-prerequisites-ready`, stage exact clean source
+commits in the private results bucket:
+
+```powershell
+.\cloud\aws\Publish-LabSources.ps1 -AwsProfile <profile>
+```
+
+The staging command refuses dirty repositories, uses `git archive`, records the
+commit and SHA-256 of each archive, and does not require the candidate commits
+to have been pushed to a public remote.
+
 ## Destroy
 
 Download evidence before destruction. A populated results bucket is protected
@@ -67,4 +78,3 @@ To deliberately allow Terraform to remove objects in the results bucket:
 The wrappers keep state in `cloud/aws/terraform/.terraform/` and
 `terraform.tfstate`, both ignored by Git. A remote state backend is outside the
 initial single-operator laboratory scope.
-

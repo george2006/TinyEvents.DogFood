@@ -302,6 +302,8 @@ it is not intended to run continuously.
 ## Current Implementation Status
 
 - Slice 0: documented.
-- Slice 1: foundation scripts and Terraform started.
-- Slices 2-9: planned, not yet executable evidence.
-
+- Slice 1: foundation scripts and Terraform implemented and locally validated;
+  an AWS deployment is still required for acceptance.
+- Slice 2: host prerequisites and exact clean-commit source staging implemented;
+  database, monitoring stack, remote build, and smoke test remain open.
+- Slices 3-9: planned, not yet executable evidence.
