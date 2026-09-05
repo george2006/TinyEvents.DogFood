@@ -176,6 +176,7 @@ From the repository root, with Docker available:
 
 ```powershell
 docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-AccountBootstrap.ps1
+docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-PartialDeploymentRecovery.ps1
 docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 bash /repo/cloud/aws/tests/Test-EvidenceLifecycle.sh
 docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-EvidenceLayout.ps1
 ```
@@ -201,6 +202,11 @@ guards, explicit plan/apply, quota-only staging, and teardown. It does not prove
 real IAM authorization, browser login/MFA compatibility, Windows ACL behavior,
 or quota approval. Those remain live validation items. Do not remove the MFA
 guard to work around a failed preflight.
+
+The recovery suite injects an apply failure before final outputs exist. It checks
+local context persistence, state-lineage/account/region matching, missing buckets,
+rejected bucket creation/replacement, and explicit evidence-deletion permission
+on each teardown attempt. These are command doubles, not live teardown evidence.
 
 The lifecycle test doubles AWS, systemd, logging, and shutdown commands. It checks
 success, failed/hung uploads, lock contention, unexpired/expired hosts, and local
@@ -307,14 +313,32 @@ To deliberately allow Terraform to remove objects in the results bucket:
     -DeleteResults
 ```
 
-Destruction requires confirmation and verifies credentials against the account
-stored in Terraform outputs. `-WhatIf` does not destroy anything. `-DeleteResults`
-first persists the bucket's `force_destroy` setting through a targeted Terraform
-apply, then destroys the lab. Without it, a non-empty bucket can leave a partial
-teardown; retain state and retry after handling the evidence. Expired labs remain
+Destruction requires confirmation and verifies credentials against the saved
+account and state. `-WhatIf` does not destroy anything. When necessary, a targeted
+plan changes an existing bucket's `force_destroy` setting before teardown. The
+script inspects that saved plan and rejects creation, replacement, deletion, or
+updates to other resources. A bucket not recorded in state is never created for
+cleanup. A retry without `-DeleteResults` resets an earlier true setting rather
+than silently reusing old deletion permission. If a bucket has disappeared
+externally and the adjustment plan would recreate it, recovery stops for state
+review instead of applying that plan.
+
+Without `-DeleteResults`, a non-empty bucket can leave a partial teardown;
+retain state and retry after handling the evidence. Expired labs remain
 eligible for teardown. The bootstrap operator is outside Terraform and survives;
 the lab budget and runtime IAM role/profile do not. Approved quota increases are
 not revoked by destruction.
+
+Before each authorized apply, `Deploy-Lab.ps1` atomically saves non-secret
+parameters in `cloud/aws/terraform/.lab-context.json` (ignored by Git). It binds
+the record to the local state lineage after a successful or failed apply when
+state is available. This permits teardown after quota-only or interrupted
+deployment even without final instance/bucket outputs. It stores configuration
+and the alert email, never passwords or AWS credentials. Preview does not write
+this record. Keep it together with `terraform.tfstate`; it cannot replace lost
+state. If the process is killed before binding a new lineage, the record still
+contains the original account/region and recovery also checks account-bearing
+managed-resource ARNs. It is a recovery aid, not a cryptographic ownership proof.
 
 If using state from an earlier revision without account/budget outputs, review
 and apply a migration plan with `Deploy-Lab.ps1` before using the new teardown
@@ -323,6 +347,7 @@ the account guard. Bootstrap passwords and keys are never Terraform inputs.
 
 ## Terraform directly
 
-The wrappers keep state in `cloud/aws/terraform/.terraform/` and
-`terraform.tfstate`, both ignored by Git. A remote state backend is outside the
-initial single-operator laboratory scope.
+The wrappers use the default workspace and local `terraform.tfstate`, with
+provider metadata in `cloud/aws/terraform/.terraform/`; all are ignored by Git.
+Recovery rejects non-default workspaces, custom local paths, and remote backends.
+A remote backend is outside the initial single-operator laboratory scope.

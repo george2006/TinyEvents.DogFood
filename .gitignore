@@ -10,6 +10,7 @@ cloud/aws/terraform/*.tfplan
 cloud/aws/terraform/*.tfvars
 cloud/aws/terraform/*.tfvars.json
 cloud/aws/terraform/crash*.log
+cloud/aws/terraform/.lab-context.*
 .env
 .env.*
 !.env.example

@@ -62,8 +62,21 @@ switch ("$service/$operation") {
         Write-Output 'Offline Terraform plan fixture'; exit 0
     }
     'terraform/apply' {
+        $workingDirectory = $commandArgs[0].Substring(7)
+        $testRoot = [IO.Path]::GetDirectoryName($env:BOOTSTRAP_TEST_STATE) + [IO.Path]::DirectorySeparatorChar
+        if (![IO.Path]::GetFullPath($workingDirectory).StartsWith($testRoot, [StringComparison]::Ordinal)) { Fail 'Fixture refused state outside its temporary workspace' }
+        $localState = if ($state.ContainsKey('TerraformState')) { $state.TerraformState } else {
+            @{ version = 4; lineage = 'fixture-lineage'; outputs = @{}; resources = @() }
+        }
+        $localState | ConvertTo-Json -Depth 30 | Set-Content (Join-Path $workingDirectory 'terraform.tfstate')
+        if ($state.ContainsKey('ApplyFailure') -and $state.ApplyFailure) { Fail 'fixture interrupted apply' }
         if ($state.QuotaOnlyPlan) { $state.QuotaRequested = $true } else { $state.InstanceCreated = $true }
         Save-State; exit 0
+    }
+    'terraform/show' {
+        Emit @{ format_version = '1.2'; resource_changes = @(@{
+            address = $state.BucketPlanAddress; change = @{ actions = $state.BucketPlanActions }
+        }) }
     }
     'terraform/destroy' { exit 0 }
     'terraform/output' {

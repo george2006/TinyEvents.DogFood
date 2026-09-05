@@ -18,6 +18,7 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "Common.ps1")
+. (Join-Path $PSScriptRoot 'DeploymentContext.ps1')
 if ($OperatorLogin) {
     if ($AwsProfile -ne 'tinyevents-lab') { throw '-OperatorLogin uses the tinyevents-lab profile.' }
     if ($WhatIfPreference) { Write-Host 'WhatIf: would open operator login and prepare a Terraform plan. No login or resources changed.'; return }
@@ -28,6 +29,7 @@ if ($OperatorLogin) {
 $identity = Assert-AwsIdentity $AwsProfile $Region
 if ($identity.Account -ne $ExpectedAccountId) { throw 'AWS account mismatch. No resources were changed.' }
 if ($identity.Arn -ne "arn:aws:iam::${ExpectedAccountId}:user/tinyevents-lab-operator") { throw 'Block 2 requires the tinyevents-lab-operator identity, not the bootstrap principal.' }
+Assert-LabStateContext -State (Get-LocalLabState) -Context (Get-LabDeploymentContext) -ExpectedAccountId $ExpectedAccountId -Region $Region
 $profileArguments = @(Get-AwsProfileArguments $AwsProfile)
 # This API also exercises the MFA deny before Terraform can change resources.
 $quotaJson = & aws service-quotas get-service-quota --service-code ec2 --quota-code L-1216C47A @profileArguments --region $Region --output json
@@ -76,7 +78,18 @@ if (!$PSCmdlet.ShouldProcess("AWS account $ExpectedAccountId in $Region", $actio
 if ([DateTimeOffset]::UtcNow -ge [DateTimeOffset]::Parse($expiresAt)) { throw 'Plan expiry has passed; create a fresh plan.' }
 $applyIdentity = Assert-AwsIdentity $AwsProfile $Region
 if ($applyIdentity.Account -ne $ExpectedAccountId -or $applyIdentity.Arn -ne $identity.Arn) { throw 'Identity changed since planning. Refusing to apply.' }
-Invoke-Terraform @('apply', '-input=false', $planPath)
+$recoveryParameters = [ordered]@{
+    expected_account_id = $ExpectedAccountId; aws_region = $Region; owner = $Owner
+    alert_email = $AlertEmail; monthly_budget_usd = $MonthlyBudgetUsd; standard_vcpu_quota = $desiredQuota
+    expires_at = $expiresAt; instance_type = $InstanceType; root_volume_size_gib = $VolumeSizeGiB; experiment_name = $ExperimentName
+}
+# Write only non-secret configuration, before an apply can create anything.
+Save-LabDeploymentContext -Parameters $recoveryParameters
+try { Invoke-Terraform @('apply', '-input=false', $planPath) }
+finally {
+    try { Save-LabDeploymentContext -Parameters $recoveryParameters }
+    catch { Write-Warning 'Could not bind recovery context to final state. Retain both files and inspect them before retrying.' }
+}
 if ($quotaOnly) {
     Write-Host 'Quota request submitted/tracked by Terraform, not necessarily approved. Rerun this script after AWS approval; no VM was requested.'
     return

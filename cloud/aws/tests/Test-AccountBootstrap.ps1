@@ -127,7 +127,7 @@ Write-Host 'PASS sensitive error redaction and timeout cleanup'
 # Disposable entry points/state, never the repository's Terraform state.
 $deployRoot = Join-Path $testDirectory 'deploy'
 New-Item -ItemType Directory -Path (Join-Path $deployRoot 'terraform') | Out-Null
-foreach ($file in @('Deploy-Lab.ps1', 'Destroy-Lab.ps1', 'Common.ps1')) { Copy-Item (Join-Path $awsRoot $file) $deployRoot }
+foreach ($file in @('Deploy-Lab.ps1', 'Destroy-Lab.ps1', 'Common.ps1', 'DeploymentContext.ps1')) { Copy-Item (Join-Path $awsRoot $file) $deployRoot }
 Copy-Item (Join-Path $awsRoot 'bootstrap') $deployRoot -Recurse
 $deploy = Join-Path $deployRoot 'Deploy-Lab.ps1'
 $deployOptions = @{ Owner = 'offline'; ExpectedAccountId = '123456789012'; AlertEmail = 'lab@example.invalid' }
@@ -192,6 +192,10 @@ $state = Read-State; $state.Arn = $state.LoginArn; $state.PlanFailure = $true; S
 Expect-Failure { & $deploy @deployOptions -Apply -Confirm:$false } 'Terraform failed'
 Assert-NoWrites
 $destroy = Join-Path $deployRoot 'Destroy-Lab.ps1'
+$contextPath = Join-Path $deployRoot 'terraform/.lab-context.json'
+$context = Get-Content $contextPath -Raw | ConvertFrom-Json -AsHashtable
+$context.Parameters.expires_at = '2020-01-01T00:00:00Z'
+$context | ConvertTo-Json -Depth 10 | Set-Content $contextPath
 & $destroy -ExpectedAccountId '123456789012' -DeleteResults -WhatIf
 Assert-NoWrites
 Expect-Failure { & $destroy -ExpectedAccountId '000000000000' -Confirm:$false } 'must match'

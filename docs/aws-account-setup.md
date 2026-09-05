@@ -108,5 +108,8 @@ because Terraform finished. Download results before destroying the lab:
 
 A non-empty bucket blocks deletion unless you explicitly choose `-DeleteResults`.
 Lab teardown removes its budget and runtime roles, but **not the operator** or
-an approved quota increase. Keep the ignored Terraform state until cleanup is
-complete. Removing operator access is a separate, deliberate account action.
+an approved quota increase. Keep the ignored Terraform state and `.lab-context.json`
+until cleanup is complete. The latter records non-secret deployment parameters
+before applying, so an interrupted deployment can be cleaned up without final
+VM outputs. It does not replace lost state. Removing operator access is a separate,
+deliberate account action.

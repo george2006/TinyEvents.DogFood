@@ -79,7 +79,7 @@ function Get-LabTerraformOutput {
     # PowerShell can parse JSON ISO timestamps into DateTime automatically.
     # Preserve RFC3339 when passing the expiry back to Terraform (including
     # teardown after expiry), rather than interpolating a culture-specific date.
-    if ($parsed.PSObject.Properties.Name -contains 'expires_at' -and $parsed.expires_at.value -is [DateTime]) {
+    if ($null -ne $parsed.PSObject.Properties['expires_at'] -and $parsed.expires_at.value -is [DateTime]) {
         $parsed.expires_at.value = $parsed.expires_at.value.ToUniversalTime().ToString('O')
     }
     return $parsed
