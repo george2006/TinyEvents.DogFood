@@ -25,9 +25,18 @@ function New-ExperimentEvidenceLayout {
     @'
 # Experiment evidence
 
-Start with [metadata/status.json](metadata/status.json). `Running`, `Uploading`,
-or `Failed` is not a completed successful experiment. Missing files/reports in
-a checkpoint are expected. A `Succeeded` experiment is not proof of no leak.
+Choose the entry point for this folder:
+
+- Scheduled experiment: `metadata/status.json`, then `reports/` and `workload/`.
+- Bench folder: `metadata/bench-status.json`, then `reports/bench-report.md`.
+- Smoke folder: `result.json`, with details in `workload/smoke/result.json`.
+
+These folder types do not all contain `metadata/status.json`. A scheduled bench
+is nested under `workload/bench/`; a scheduled smoke has its own folder below
+`workload/`. `Running`, `Uploading` or `Failed` is not a completed successful
+experiment. Missing files/reports in a checkpoint are expected. Check workload
+acceptance and the outer scheduled run's upload status separately. A `Succeeded`
+experiment is not proof of no leak.
 
 | Folder | Contents |
 | --- | --- |
@@ -38,9 +47,10 @@ a checkpoint are expected. A `Succeeded` experiment is not proof of no leak.
 | `logs/` | Publisher, worker, collector, and sampler diagnostics |
 | `reports/` | Derived runtime, infrastructure, and worker-scaling summaries |
 
-Legacy smoke/scaling runners may keep process logs/counters beside their workload
-result inside `workload/`. Summarizers search recursively; nothing is discarded.
-See `layout.json` for machine-readable entry points (layout version 2).
+Legacy scaling runners may keep process logs/counters beside their workload
+result inside `workload/`. Summarizers search recursively. `layout.json` records
+the generic scheduled-run layout (version 2); its status/scenario/sample paths
+need not exist in a standalone smoke or nested bench. Use the entry points above.
 
 Periodic uploads update this same run directory; they are partial, not snapshots.
 At bucket level, `host/expiry.json` records TTL shutdown, `checkpoints/latest.json`

@@ -117,4 +117,4 @@ if ($null -eq $login) {
 Write-Host "Operator ready: https://$ExpectedAccountId.signin.aws.amazon.com/console (user $operatorName)."
 Write-Host 'Change the initial password, enroll MFA with device name tinyevents-lab-operator, and sign in again with MFA.'
 Write-Host 'Clear the bootstrap environment credentials before Block 2. No operator access keys were created.'
-Write-Host 'Block 2: Deploy-Lab.ps1 -OperatorLogin prepares login and Terraform. See docs/aws-account-setup.md.'
+Write-Host 'Block 2: Deploy-Lab.ps1 -OperatorLogin prepares login and Terraform. See cloud/aws/README.md.'

@@ -58,9 +58,8 @@ The complete guarantees, non-guarantees, and operator responsibilities are in
 
 ## Active V1 Operational Evidence - AWS Laboratory
 
-The [AWS cloud laboratory plan](aws-cloud-lab-plan.md) tracks the delivery
-slices for a disposable, single-instance lab. The [operator guide](../cloud/aws/README.md)
-describes the implemented commands, evidence layout, and validation boundaries.
+The [AWS user guide](../cloud/aws/README.md) is the single entry point for setup,
+test execution, evidence retrieval and teardown of the disposable one-instance lab.
 This work extends the completed beta evidence; it does not reopen its behavioral
 contracts.
 
@@ -72,15 +71,15 @@ stability or a recommended worker limit. AWS end-to-end validation has not run.
 
 Setup preparation now has two entry points: environment credentials create
 only the operator; Terraform creates the laboratory and cost alerts. See the
-[two-block quickstart](aws-account-setup.md). Offline tests are preparation
+[AWS user guide](../cloud/aws/README.md). Offline tests are preparation
 evidence, not AWS acceptance.
 
 Remaining work and acceptance evidence:
 
 - [x] Prepare the two-block setup scripts and short guide with offline tests.
 - [x] Prepare the independent AWS expiry schedule, strict scenario/TTL admission,
-  runtime deadlines and [first-day gates](aws-first-test-day.md), with offline tests.
-- [x] Implement the [complete bench campaign](aws-bench-campaign.md): worker/batch
+  runtime deadlines and [live safety checks](../cloud/aws/README.md#safety-checks-before-unattended-tests), with offline tests.
+- [x] Implement the [bench campaign](../cloud/aws/README.md#available-tests): worker/batch
   variants, per-kind processing-latency proxies and coverage, persistent phased
   load/recovery, payload/cleanup comparisons, monitoring profiles, provisioned
   dashboard, bounded one-shot diagnostics and streaming post-warm-up summaries.
@@ -91,14 +90,15 @@ Remaining work and acceptance evidence:
 - [ ] Run the two-hour instrumentation check and 24-hour memory/mixed-load soaks;
   investigate retained growth after warm-up before drawing leak conclusions.
 - [ ] Execute repeated worker and batch scaling measurements, including database
-  pressure, and close the missing settlement-latency decision input.
+  pressure and per-kind processing-latency proxies with explicit coverage. These
+  timestamps are not exact commit-to-ACK latency.
 - [ ] Execute monitoring-overhead measurements and validate dashboard exporter
   coverage, diagnostics and the independent expiry safeguard on the AWS host.
 - [ ] Publish retained results and evidence-backed V1 starting defaults, with
   environment-specific limits and remaining uncertainty stated explicitly.
 
-The detailed plan owns slice scope; this checklist tracks outstanding acceptance
-work. Implemented scripts alone do not close a cloud-evidence item.
+This checklist tracks outstanding acceptance work, not another setup procedure.
+Implemented scripts alone do not close a cloud-evidence item.
 
 ## Beyond the Beta
 

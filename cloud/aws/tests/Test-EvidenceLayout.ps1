@@ -14,6 +14,14 @@ foreach ($name in @('metadata', 'workload', 'runtime', 'infrastructure', 'logs',
 $index = Get-Content (Join-Path $layout.Root 'layout.json') -Raw | ConvertFrom-Json
 if ($index.SchemaVersion -ne 2 -or $index.Status -ne 'metadata/status.json') { throw 'Invalid index' }
 if (!(Test-Path (Join-Path $layout.Root 'README.md'))) { throw 'Missing human-readable index' }
+$readme = Get-Content (Join-Path $layout.Root 'README.md') -Raw
+foreach ($entry in @('Scheduled experiment:', 'Bench folder:', 'Smoke folder:',
+    'metadata/bench-status.json', 'workload/smoke/result.json')) {
+    if (!$readme.Contains($entry)) { throw "Missing evidence reading guidance: $entry" }
+}
+if ($readme.Contains('[metadata/status.json](metadata/status.json)')) {
+    throw 'The generic README must not link every folder to a scheduled-only status file.'
+}
 $rejected = $false
 try { New-ExperimentEvidenceLayout $layout.Root | Out-Null }
 catch { $rejected = $_.Exception.Message -like 'Evidence directory already exists:*' }
