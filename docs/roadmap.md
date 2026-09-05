@@ -78,14 +78,16 @@ evidence, not AWS acceptance.
 Remaining work and acceptance evidence:
 
 - [x] Prepare the two-block setup scripts and short guide with offline tests.
+- [x] Prepare the independent AWS expiry schedule, strict scenario/TTL admission,
+  runtime deadlines and [first-day gates](aws-first-test-day.md), with offline tests.
 - [ ] Validate deployment, SSM access, experiment execution, evidence recovery,
   expiry, and teardown in an explicitly authorized AWS account.
 - [ ] Run the two-hour instrumentation check and 24-hour memory/mixed-load soaks;
   investigate retained growth after warm-up before drawing leak conclusions.
 - [ ] Execute repeated worker and batch scaling measurements, including database
   pressure, and close the missing settlement-latency decision input.
-- [ ] Complete monitoring-overhead measurements, Grafana dashboards, bounded
-  automatic leak diagnostics, and the independent account-side expiry safeguard.
+- [ ] Complete monitoring-overhead measurements, Grafana dashboards and bounded
+  automatic leak diagnostics; validate the independent expiry safeguard in AWS.
 - [ ] Publish retained results and evidence-backed V1 starting defaults, with
   environment-specific limits and remaining uncertainty stated explicitly.
 

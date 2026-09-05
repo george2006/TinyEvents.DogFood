@@ -313,12 +313,16 @@ it is not intended to run continuously.
   two-block account setup, preview/apply separation, and quota-only staging have
   offline command-double coverage. Browser login/MFA compatibility and an AWS
   deployment are still required for acceptance.
+  The independent Scheduler stop target is implemented with offline coverage;
+  real stop behavior and both expiry paths still require AWS acceptance.
 - Slice 2: host prerequisites and exact clean-commit source staging implemented;
   PostgreSQL, the first bounded monitoring stack, remote build, and smoke runner
   are implemented but still require their first AWS execution for acceptance.
 - Slice 5: the first JSON scenario schema, asynchronous systemd/SSM control,
   exclusive experiment lock, status reporting, and partial-evidence upload are
   implemented but still require their first AWS execution for acceptance.
+  Strict scenario validation, remaining-TTL admission, watchdog configuration
+  checks and per-scenario systemd runtime limits now have offline coverage.
 - Slice 3: direct PID resource sampling, .NET `System.Runtime` counter capture,
   and bounded explicit GC-dump capture are implemented in the smoke path; the
   worker-scaling path now attaches and closes one counter collector per worker.
@@ -333,4 +337,10 @@ it is not intended to run continuously.
   repeated throughput, runtime instrumentation, and windowed infrastructure
   pressure, applies the 15% useful-step rule, and distinguishes a measured knee
   from an unbounded largest tested value. The cloud matrix still needs execution.
-- Slices 7-9: planned or partially scaffolded, not yet executable evidence.
+- Slices 7-8: persistent mixed-workload soak execution is implemented and passed
+  short local PostgreSQL/collector checks with 2 and 8 workers. The 2h/24h AWS
+  evidence, overload/recovery phases and automatic leak diagnostics remain open.
+- Slice 9: evidence-backed defaults remain pending the full campaign.
+
+The [first AWS test day](aws-first-test-day.md) separates initial instrumentation
+readiness from the remaining preparation and acceptance work for the V1 campaign.

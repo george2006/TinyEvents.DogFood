@@ -1,5 +1,8 @@
 # Requires Terraform 1.7+ for provider mocks. No credentials or network required.
 mock_provider "aws" {
+  mock_resource "aws_iam_role" {
+    defaults = { arn = "arn:aws:iam::123456789012:role/offline-test" }
+  }
   mock_data "aws_availability_zones" {
     defaults = { names = ["eu-west-1a"] }
   }
@@ -48,6 +51,32 @@ run "foundation_plan" {
   assert {
     condition     = aws_instance.lab.iam_instance_profile == aws_iam_instance_profile.lab.name
     error_message = "Terraform must own the runtime profile used by EC2."
+  }
+  assert {
+    condition = (
+      aws_scheduler_schedule.expiry.state == "ENABLED" &&
+      aws_scheduler_schedule.expiry.schedule_expression == "rate(5 minutes)" &&
+      aws_scheduler_schedule.expiry.start_date == "2099-01-01T00:10:00Z" &&
+      aws_scheduler_schedule.expiry.flexible_time_window[0].mode == "OFF"
+    )
+    error_message = "Independent expiry must repeat after the host's ten-minute flush grace."
+  }
+  assert {
+    condition = (
+      aws_scheduler_schedule.expiry.target[0].arn == "arn:aws:scheduler:::aws-sdk:ec2:stopInstances" &&
+      jsondecode(aws_scheduler_schedule.expiry.target[0].input).InstanceIds == [aws_instance.lab.id] &&
+      jsondecode(aws_scheduler_schedule.expiry.target[0].input).Force == true &&
+      jsondecode(aws_iam_role_policy.expiry.policy).Statement[0].Resource == [aws_instance.lab.arn] &&
+      jsondecode(aws_iam_role_policy.expiry.policy).Statement[0].Action == ["ec2:StopInstances"]
+    )
+    error_message = "The watchdog must only be able to stop its own instance."
+  }
+  assert {
+    condition = (
+      jsondecode(aws_iam_role.expiry.assume_role_policy).Statement[0].Condition.StringEquals["aws:SourceAccount"] == var.expected_account_id &&
+      jsondecode(aws_iam_role.expiry.assume_role_policy).Statement[0].Condition.StringEquals["aws:SourceArn"] == aws_scheduler_schedule_group.expiry.arn
+    )
+    error_message = "Scheduler trust must be scoped to this account and this schedule group."
   }
 }
 

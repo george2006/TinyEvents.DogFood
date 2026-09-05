@@ -43,3 +43,13 @@ output "monthly_budget_usd" {
 output "standard_vcpu_quota" {
   value = var.standard_vcpu_quota
 }
+
+output "expiry_watchdog" {
+  description = "AWS-side stop schedule; configuration must be checked before starting an experiment."
+  value = {
+    name       = aws_scheduler_schedule.expiry.name
+    group_name = aws_scheduler_schedule_group.expiry.name
+    role_arn   = aws_iam_role.expiry.arn
+    start_date = aws_scheduler_schedule.expiry.start_date
+  }
+}

@@ -9,6 +9,10 @@ Both setup scripts preview by default and require `-Apply` plus confirmation
 before changing cloud resources. Cost estimates live in the
 [cost envelope](../../docs/aws-cloud-lab-costs.md).
 
+For the first real session, follow the [first AWS test day](../../docs/aws-first-test-day.md)
+gates: deploy/smoke, recover evidence, rehearse for two hours, then verify expiry
+and teardown. Full V1 campaign preparation is tracked separately in the roadmap.
+
 ## Current status
 
 The repository includes infrastructure, host observability, experiment execution,
@@ -67,7 +71,9 @@ duration is selected. The security group has no ingress rules.
 .\cloud\aws\Get-LabStatus.ps1 -AwsProfile <profile>
 ```
 
-The command reports EC2 state, SSM connectivity, expiry, and bootstrap status.
+The command reports EC2 state, SSM connectivity, expiry, bootstrap status, and
+whether the independent AWS stop schedule matches the deployed configuration.
+Configuration verification does not prove the stop API has executed successfully.
 
 When bootstrap reports `host-prerequisites-ready`, stage exact clean source
 commits in the private results bucket:
@@ -110,6 +116,12 @@ its durable host-side status independently:
 
 Only one experiment can hold the host lock. Complete and partial evidence is
 uploaded to `runs/<run-id>/` in the private results bucket.
+
+Before any upload or SSM scheduling, the start command checks the account,
+strict scenario contract, remaining TTL, and independent expiry configuration.
+The scenario's maximum runtime plus five minutes must fit before expiry. The
+host rechecks TTL and systemd enforces the scenario's declared maximum runtime.
+Neither step automatically extends the laboratory or changes its expiry.
 
 ### Evidence organization and recovery
 
@@ -160,6 +172,23 @@ minutes, and stopping/uploading can add several more minutes before shutdown.
 Forced stop can lose buffered diagnostics. This mechanism covers the configured
 TTL, not a sudden host failure or an arbitrary external EC2 stop/termination.
 
+Terraform also creates an independent EventBridge Scheduler stop target. Starting
+ten minutes after TTL, it calls `StopInstances` with `Force=true` every five
+minutes for this instance only, including after an accidental restart. Its role
+is restricted to that EC2 ARN and trusts only this account's dedicated schedule
+group. It does not need a healthy host, SSM, or successful cloud-init. The host
+upload/shutdown remains the primary path; forced stop can lose unsaved evidence.
+AWS scheduling/API delays remain possible, and stopping EC2 does not delete
+billable storage. This is a safeguard, not a hard spending cap.
+
+A partial Terraform apply can create EC2 before its stop schedule exists. Do not
+leave such a failed deployment unattended; stop or recover/destroy it. Admission
+refuses incomplete or modified watchdog configuration. The first live session
+must still validate IAM authorization and actual stopping behavior. Implementation
+follows AWS's [universal target contract](https://docs.aws.amazon.com/scheduler/latest/UserGuide/managing-targets-universal.html),
+[schedule-group trust guidance](https://docs.aws.amazon.com/scheduler/latest/UserGuide/cross-service-confused-deputy-prevention.html),
+and [EC2 stop semantics](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_StopInstances.html).
+
 Download the bucket while Terraform state still identifies it:
 
 ```powershell
@@ -179,6 +208,7 @@ docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/re
 docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-PartialDeploymentRecovery.ps1
 docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 bash /repo/cloud/aws/tests/Test-EvidenceLifecycle.sh
 docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-EvidenceLayout.ps1
+docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-ExperimentAdmission.ps1
 ```
 
 With provider plugins already installed by `terraform init`, Terraform 1.7+
@@ -193,7 +223,13 @@ The container needs Linux provider binaries in `.terraform/`; Windows-native
 provider installations are not interchangeable. The four tests use mock AWS and
 random providers, including a mock apply/teardown to resolve computed values;
 they do not create AWS resources. They cover the budget, runtime profile,
-evidence protection, quota precondition, account validation, and expired input.
+evidence protection, quota precondition, account validation, expired input, and
+the independent stop schedule's target, timing, permissions and trust scope.
+
+The admission suite validates every shipped scenario and rejects malformed
+parameters, unknown fields, invalid worker matrices, insufficient TTL, wrong
+accounts, and absent/modified stop schedules before any S3 or SSM writes. It
+uses command doubles; actual Scheduler execution remains a live acceptance item.
 
 The bootstrap suite doubles AWS and Terraform processes with fake credentials
 and disposable state. It checks IAM-only bootstrap, password redaction/private

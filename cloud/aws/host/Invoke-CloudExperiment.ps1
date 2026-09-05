@@ -9,6 +9,7 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'EvidenceLayout.ps1')
+. (Join-Path $PSScriptRoot '../ScenarioContract.ps1')
 
 if (!(Test-Path -LiteralPath $ScenarioPath)) {
     throw "Scenario '$ScenarioPath' was not found."
@@ -17,15 +18,11 @@ if (!(Test-Path -LiteralPath $ScenarioPath)) {
 $scenarioBytes = [IO.File]::ReadAllBytes($ScenarioPath)
 $scenarioHash = [Convert]::ToHexString(
     [Security.Cryptography.SHA256]::HashData($scenarioBytes))
-$scenario = Get-Content -LiteralPath $ScenarioPath -Raw | ConvertFrom-Json
-
-if ($scenario.schemaVersion -ne 1) {
-    throw "Unsupported scenario schema version '$($scenario.schemaVersion)'."
-}
-
-if ($scenario.name -notmatch "^[a-z0-9][a-z0-9-]{1,62}$") {
-    throw "Scenario name '$($scenario.name)' is invalid."
-}
+$scenario = Read-LabScenario $ScenarioPath
+$expiryLine = @(Get-Content -LiteralPath '/etc/tinyevents-lab/environment' |
+    Where-Object { $_ -match '^LAB_EXPIRES_AT=' })
+if ($expiryLine.Count -ne 1) { throw 'The laboratory expiry is missing or ambiguous.' }
+Assert-ScenarioFitsLab $scenario ([DateTimeOffset]($expiryLine[0] -replace '^LAB_EXPIRES_AT=', ''))
 
 $lockPath = "/opt/tinyevents-lab/experiment.lock"
 $lock = [IO.File]::Open(

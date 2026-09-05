@@ -6,12 +6,21 @@ param(
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "Common.ps1")
+. (Join-Path $PSScriptRoot 'ExpiryWatchdog.ps1')
 $profileArguments = @(Get-AwsProfileArguments $AwsProfile)
 
 $output = Get-LabTerraformOutput
 $instanceId = $output.instance_id.value
 $region = $output.aws_region.value
-Assert-AwsIdentity $AwsProfile $region | Out-Null
+$identity = Assert-AwsIdentity $AwsProfile $region
+if ($identity.Account -ne $output.account_id.value) { throw 'AWS identity does not match the deployed lab account.' }
+$watchdogStatus = try {
+    $watchdog = Get-VerifiedLabWatchdog $output $AwsProfile
+    [pscustomobject]@{ ConfigurationVerified = $true; StartDate = $watchdog.StartDate; Detail = 'Stop execution still requires live acceptance.' }
+}
+catch {
+    [pscustomobject]@{ ConfigurationVerified = $false; Detail = $_.Exception.Message }
+}
 
 $instance = & aws ec2 describe-instances `
     @profileArguments `
@@ -71,6 +80,7 @@ if ($null -ne $ssmValue -and $ssmValue.PingStatus -eq "Online") {
     InstanceId = $instanceId
     Region = $region
     ExpiresAt = $output.expires_at.value
+    ExpiryWatchdog = $watchdogStatus
     Instance = $instance | ConvertFrom-Json
     Ssm = $ssmValue
     BootstrapStatus = $bootstrapStatus
