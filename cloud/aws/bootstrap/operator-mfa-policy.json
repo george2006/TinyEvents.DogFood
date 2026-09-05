@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "RequireMFAExceptEnrollmentAndLogin",
+      "Effect": "Deny",
+      "NotAction": [
+        "iam:GetUser", "iam:ChangePassword", "iam:GetAccountPasswordPolicy",
+        "iam:ListMFADevices", "iam:ListVirtualMFADevices", "iam:CreateVirtualMFADevice",
+        "iam:EnableMFADevice", "iam:ResyncMFADevice", "sts:GetCallerIdentity",
+        "signin:AuthorizeOAuth2Access", "signin:CreateOAuth2Token"
+      ],
+      "Resource": "*",
+      "Condition": { "BoolIfExists": { "aws:MultiFactorAuthPresent": "false" } }
+    },
+    {
+      "Sid": "EnrollmentOnlyForOwnIdentity",
+      "Effect": "Deny",
+      "Action": ["iam:GetUser", "iam:ChangePassword", "iam:ListMFADevices", "iam:CreateVirtualMFADevice", "iam:EnableMFADevice", "iam:ResyncMFADevice"],
+      "NotResource": ["arn:aws:iam::ACCOUNT_ID:user/tinyevents-lab-operator", "arn:aws:iam::ACCOUNT_ID:mfa/tinyevents-lab-operator"],
+      "Condition": { "BoolIfExists": { "aws:MultiFactorAuthPresent": "false" } }
+    }
+  ]
+}

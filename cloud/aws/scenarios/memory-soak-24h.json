@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "memory-soak-24h",
+  "description": "Twenty-four hours of mixed work with the same worker and publisher PIDs.",
+  "runner": "memory-soak",
+  "storageProvider": "PostgreSql",
+  "durationSeconds": 86400,
+  "rate": 20,
+  "workerCount": 4,
+  "windowSeconds": 10,
+  "settlementSeconds": 300,
+  "estimatedMaximumMinutes": 1460
+}

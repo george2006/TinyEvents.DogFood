@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "name": "memory-soak-2h",
+  "description": "Two-hour mixed-work instrumentation rehearsal; no automatic leak verdict.",
+  "runner": "memory-soak",
+  "storageProvider": "PostgreSql",
+  "durationSeconds": 7200,
+  "rate": 20,
+  "workerCount": 4,
+  "windowSeconds": 10,
+  "settlementSeconds": 300,
+  "estimatedMaximumMinutes": 140
+}

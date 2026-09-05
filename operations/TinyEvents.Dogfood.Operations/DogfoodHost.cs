@@ -51,7 +51,8 @@ internal static class DogfoodHost
         ConsumerExecutionTiming consumerTiming,
         ConsumerFailureRules failureRules,
         int batchSize = 50,
-        DogfoodCleanupProcessSettings? cleanupSettings = null)
+        DogfoodCleanupProcessSettings? cleanupSettings = null,
+        TimeSpan? claimTimeout = null)
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.AddFilter(
@@ -86,7 +87,7 @@ internal static class DogfoodHost
         {
             options.WorkerId = workerId;
             options.BatchSize = batchSize;
-            options.ClaimTimeout = TimeSpan.FromSeconds(5);
+            options.ClaimTimeout = claimTimeout ?? TimeSpan.FromSeconds(5);
             options.PollingInterval = TimeSpan.FromMilliseconds(50);
             options.CleanupEnabled = cleanupSettings is not null;
 

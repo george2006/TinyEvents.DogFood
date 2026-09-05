@@ -1,12 +1,13 @@
 [CmdletBinding()]
 param(
-    [string]$AwsProfile = "default",
+    [AllowEmptyString()][string]$AwsProfile = "tinyevents-lab",
     [string]$OutputDirectory = (Join-Path $PSScriptRoot "..\..\artifacts\cloud")
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "Common.ps1")
+$profileArguments = @(Get-AwsProfileArguments $AwsProfile)
 
 $output = Get-LabTerraformOutput
 $region = $output.aws_region.value
@@ -17,7 +18,7 @@ $resolvedOutput = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $resolvedOutput | Out-Null
 
 & aws s3 sync "s3://$bucket/" $resolvedOutput `
-    --profile $AwsProfile `
+    @profileArguments `
     --region $region `
     --only-show-errors
 

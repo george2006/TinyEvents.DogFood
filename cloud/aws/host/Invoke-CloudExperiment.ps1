@@ -8,6 +8,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'EvidenceLayout.ps1')
+. (Join-Path $PSScriptRoot '../ScenarioContract.ps1')
 
 if (!(Test-Path -LiteralPath $ScenarioPath)) {
     throw "Scenario '$ScenarioPath' was not found."
@@ -16,15 +18,11 @@ if (!(Test-Path -LiteralPath $ScenarioPath)) {
 $scenarioBytes = [IO.File]::ReadAllBytes($ScenarioPath)
 $scenarioHash = [Convert]::ToHexString(
     [Security.Cryptography.SHA256]::HashData($scenarioBytes))
-$scenario = Get-Content -LiteralPath $ScenarioPath -Raw | ConvertFrom-Json
-
-if ($scenario.schemaVersion -ne 1) {
-    throw "Unsupported scenario schema version '$($scenario.schemaVersion)'."
-}
-
-if ($scenario.name -notmatch "^[a-z0-9][a-z0-9-]{1,62}$") {
-    throw "Scenario name '$($scenario.name)' is invalid."
-}
+$scenario = Read-LabScenario $ScenarioPath
+$expiryLine = @(Get-Content -LiteralPath '/etc/tinyevents-lab/environment' |
+    Where-Object { $_ -match '^LAB_EXPIRES_AT=' })
+if ($expiryLine.Count -ne 1) { throw 'The laboratory expiry is missing or ambiguous.' }
+Assert-ScenarioFitsLab $scenario ([DateTimeOffset]($expiryLine[0] -replace '^LAB_EXPIRES_AT=', ''))
 
 $lockPath = "/opt/tinyevents-lab/experiment.lock"
 $lock = [IO.File]::Open(
@@ -33,13 +31,14 @@ $lock = [IO.File]::Open(
     [IO.FileAccess]::ReadWrite,
     [IO.FileShare]::None)
 
-$runId = "{0}-{1}" -f $scenario.name, (Get-Date -Format "yyyyMMdd-HHmmss")
+$runId = "{0}-{1}-{2}" -f $scenario.name, ([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')), ([Guid]::NewGuid().ToString('N').Substring(0, 8))
 $runDirectory = Join-Path $ArtifactRoot $runId
-New-Item -ItemType Directory -Force -Path $runDirectory | Out-Null
+$layout = New-ExperimentEvidenceLayout $runDirectory
 $statusPath = "/opt/tinyevents-lab/experiment-status.json"
 $startedAtUtc = [DateTimeOffset]::UtcNow
 $sampler = $null
-$samplerStopPath = Join-Path $runDirectory "stop-sampler"
+$samplerStopPath = Join-Path $layout.logs "stop-sampler"
+$evidenceUploader = '/usr/local/sbin/tinyevents-lab-sync-evidence'
 
 function Save-ExperimentStatus {
     param(
@@ -58,7 +57,25 @@ function Save-ExperimentStatus {
         ExitCode = $ExitCode
         ScenarioSha256 = $scenarioHash
         ArtifactDirectory = $runDirectory
-    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $statusPath
+    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath "$statusPath.tmp"
+    Move-Item -LiteralPath "$statusPath.tmp" -Destination $statusPath -Force
+    $runStatusPath = Join-Path $layout.metadata 'status.json'
+    Copy-Item -LiteralPath $statusPath -Destination "$runStatusPath.tmp" -Force
+    Move-Item -LiteralPath "$runStatusPath.tmp" -Destination $runStatusPath -Force
+}
+
+function Sync-ExperimentEvidence {
+    $previousArtifactRoot = $env:LAB_ARTIFACT_ROOT
+    try {
+        $env:LAB_ARTIFACT_ROOT = $ArtifactRoot
+        & bash $evidenceUploader run $runId
+        if ($LASTEXITCODE -ne 0) {
+            throw "Experiment evidence upload failed (exit $LASTEXITCODE)."
+        }
+    }
+    finally {
+        $env:LAB_ARTIFACT_ROOT = $previousArtifactRoot
+    }
 }
 
 function Stop-ExperimentSampler {
@@ -75,15 +92,25 @@ function Stop-ExperimentSampler {
     }
 
     $OutputTask.GetAwaiter().GetResult() |
-        Set-Content -LiteralPath (Join-Path $runDirectory "sampler.stdout.log")
+        Set-Content -LiteralPath (Join-Path $layout.logs "sampler.stdout.log")
     $ErrorTask.GetAwaiter().GetResult() |
-        Set-Content -LiteralPath (Join-Path $runDirectory "sampler.stderr.log")
+        Set-Content -LiteralPath (Join-Path $layout.logs "sampler.stderr.log")
     $Process.Dispose()
 }
 
 try {
+    if (Test-Path -LiteralPath '/opt/tinyevents-lab/expiry-started') {
+        throw 'The laboratory has expired; no new experiment may start.'
+    }
+    if (!(Test-Path -LiteralPath $evidenceUploader)) {
+        throw 'The evidence uploader is missing; bootstrap the current laboratory configuration first.'
+    }
     Save-ExperimentStatus "Running" "Preparing scenario."
-    Copy-Item -LiteralPath $ScenarioPath -Destination (Join-Path $runDirectory "scenario.json")
+    Copy-Item -LiteralPath $ScenarioPath -Destination (Join-Path $layout.metadata "scenario.json")
+    if (Test-Path -LiteralPath '/opt/tinyevents-lab/source-manifest.json') {
+        Copy-Item -LiteralPath '/opt/tinyevents-lab/source-manifest.json' `
+            -Destination (Join-Path $layout.metadata 'source-manifest.json')
+    }
     $samplerScript = Join-Path $DogfoodRoot "cloud/aws/host/sample-experiment.sh"
     & chmod +x $samplerScript
     $samplerStart = [Diagnostics.ProcessStartInfo]::new()
@@ -94,7 +121,7 @@ try {
     $samplerStart.RedirectStandardError = $true
     $samplerStart.Arguments =
         "`"$samplerScript`" " +
-        "`"$(Join-Path $runDirectory 'experiment-samples.jsonl')`" " +
+        "`"$(Join-Path $layout.infrastructure 'experiment-samples.jsonl')`" " +
         "`"$samplerStopPath`" 10"
     $sampler = [Diagnostics.Process]::new()
     $sampler.StartInfo = $samplerStart
@@ -105,12 +132,26 @@ try {
     $samplerErrorTask = $sampler.StandardError.ReadToEndAsync()
 
     switch ($scenario.runner) {
+        "memory-soak" {
+            Save-ExperimentStatus "Running" "Sustained mixed work with persistent worker and publisher processes."
+            $soakScript = Join-Path $DogfoodRoot "cloud/aws/host/Run-CloudSoak.ps1"
+            & $soakScript -DogfoodRoot $DogfoodRoot `
+                -ArtifactDirectory (Join-Path $layout.workload 'soak') `
+                -RuntimeDirectory (Join-Path $layout.runtime 'soak') `
+                -LogDirectory (Join-Path $layout.logs 'soak') `
+                -ConnectionString 'Host=localhost;Port=54323;Database=TinyEventsDogfoodOperations;Username=postgres;Password=postgres;Maximum Pool Size=16;Timeout=2;' `
+                -DurationSeconds $scenario.durationSeconds -Rate $scenario.rate `
+                -WorkerCount $scenario.workerCount -WindowSeconds $scenario.windowSeconds `
+                -SettlementSeconds $scenario.settlementSeconds `
+                -CounterToolPath '/opt/dotnet-tools/dotnet-counters' -ResetDatabase | Out-Null
+        }
+
         "cloud-smoke" {
             Save-ExperimentStatus "Running" "Executing cloud smoke."
             $smokeScript = Join-Path $DogfoodRoot "cloud/aws/host/Run-CloudSmoke.ps1"
             & $smokeScript `
                 -DogfoodRoot $DogfoodRoot `
-                -ArtifactRoot $runDirectory `
+                -ArtifactRoot $layout.workload `
                 -MessageCount $scenario.messageCount | Out-Null
         }
 
@@ -155,7 +196,7 @@ try {
 
                 Copy-Item `
                     -LiteralPath $afterDirectory.FullName `
-                    -Destination (Join-Path $runDirectory "repetition-$repetition") `
+                    -Destination (Join-Path $layout.workload "repetition-$repetition") `
                     -Recurse
             }
         }
@@ -172,15 +213,15 @@ try {
         $DogfoodRoot `
         "cloud/aws/host/Summarize-ExperimentSamples.ps1"
     & $infrastructureSummaryScript `
-        -InputPath (Join-Path $runDirectory "experiment-samples.jsonl") `
-        -OutputPath (Join-Path $runDirectory "infrastructure-summary.json") | Out-Null
+        -InputPath (Join-Path $layout.infrastructure "experiment-samples.jsonl") `
+        -OutputPath (Join-Path $layout.reports "infrastructure-summary.json") | Out-Null
 
     $summaryScript = Join-Path `
         $DogfoodRoot `
         "cloud/aws/host/Summarize-RuntimeCounters.ps1"
     & $summaryScript `
         -EvidenceDirectory $runDirectory `
-        -OutputPath (Join-Path $runDirectory "runtime-summary.json") | Out-Null
+        -OutputPath (Join-Path $layout.reports "runtime-summary.json") | Out-Null
 
     if ($scenario.runner -eq "worker-scaling") {
         $scalingReportScript = Join-Path `
@@ -188,37 +229,14 @@ try {
             "cloud/aws/host/Build-WorkerScalingReport.ps1"
         & $scalingReportScript `
             -EvidenceDirectory $runDirectory `
-            -OutputPath (Join-Path $runDirectory "worker-scaling-report.json") | Out-Null
-    }
-
-    $environmentValues = @{}
-    foreach ($line in Get-Content -LiteralPath "/etc/tinyevents-lab/environment") {
-        if ($line -match "^([^=]+)=(.*)$") {
-            $environmentValues[$Matches[1]] = $Matches[2]
-        }
-    }
-
-    $bucket = $environmentValues["LAB_RESULTS_BUCKET"]
-    if ([string]::IsNullOrWhiteSpace($bucket)) {
-        throw "LAB_RESULTS_BUCKET is unavailable."
+            -OutputPath (Join-Path $layout.reports "worker-scaling-report.json") | Out-Null
     }
 
     Save-ExperimentStatus "Uploading" "Uploading complete experiment evidence."
-    Copy-Item -LiteralPath $statusPath -Destination (Join-Path $runDirectory "status.json")
-    & aws s3 cp $runDirectory "s3://$bucket/runs/$runId/" --recursive --only-show-errors
-    if ($LASTEXITCODE -ne 0) {
-        throw "Experiment evidence upload failed."
-    }
+    Sync-ExperimentEvidence
 
     Save-ExperimentStatus "Succeeded" "Experiment and evidence upload completed." 0
-    Copy-Item -LiteralPath $statusPath -Destination (Join-Path $runDirectory "status.json") -Force
-    & aws s3 cp `
-        (Join-Path $runDirectory "status.json") `
-        "s3://$bucket/runs/$runId/status.json" `
-        --only-show-errors
-    if ($LASTEXITCODE -ne 0) {
-        throw "Final experiment status upload failed."
-    }
+    Sync-ExperimentEvidence
 }
 catch {
     if ($null -ne $sampler) {
@@ -227,16 +245,9 @@ catch {
     }
 
     Save-ExperimentStatus "Failed" $_.Exception.Message 1
-    Copy-Item -LiteralPath $statusPath -Destination (Join-Path $runDirectory "status.json") -Force
 
     try {
-        $environmentLine = Get-Content -LiteralPath "/etc/tinyevents-lab/environment" |
-            Where-Object { $_ -like "LAB_RESULTS_BUCKET=*" } |
-            Select-Object -First 1
-        if ($environmentLine) {
-            $failureBucket = $environmentLine.Substring("LAB_RESULTS_BUCKET=".Length)
-            & aws s3 cp $runDirectory "s3://$failureBucket/runs/$runId/" --recursive --only-show-errors
-        }
+        Sync-ExperimentEvidence
     }
     catch {
         Write-Warning "Partial failure evidence could not be uploaded: $($_.Exception.Message)"

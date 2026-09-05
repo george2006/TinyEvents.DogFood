@@ -93,6 +93,12 @@ Acceptance:
 
 ### Slice 1 - Disposable AWS Foundation
 
+Account setup has two blocks: `Bootstrap-Account.ps1` uses explicit environment
+credentials to create only the administrator operator and its login/MFA policy;
+`Deploy-Lab.ps1` uses that operator and Terraform for all lab infrastructure,
+the cost budget, and any prerequisite EC2 quota request. The first block does
+not use Terraform or CloudFormation. See the [two-block quickstart](aws-account-setup.md).
+
 Create Terraform for the VPC, subnet, routing, security group, IAM instance
 profile, EC2 instance, encrypted gp3 volume, S3 evidence bucket, and SSM access.
 Add PowerShell entry points for deployment, status, Grafana tunneling, result
@@ -280,11 +286,12 @@ values explicitly separate from guarantees. At minimum document:
 The intended operator flow is:
 
 ```powershell
-.\cloud\aws\Deploy-Lab.ps1 -Region eu-west-1
+.\cloud\aws\Deploy-Lab.ps1 -Region eu-west-1 -Owner <name> -ExpectedAccountId <account-id> -AlertEmail <email>
+# Review the plan, then rerun with -Apply and confirm before continuing.
 .\cloud\aws\Get-LabStatus.ps1
 .\cloud\aws\Start-Experiment.ps1 -Scenario worker-scaling
 .\cloud\aws\Get-Results.ps1 -OutputDirectory .\artifacts\cloud
-.\cloud\aws\Destroy-Lab.ps1
+.\cloud\aws\Destroy-Lab.ps1 -ExpectedAccountId <account-id>
 ```
 
 The AWS profile and candidate Git revisions are explicit inputs. Long-running
@@ -303,13 +310,19 @@ it is not intended to run continuously.
 
 - Slice 0: documented.
 - Slice 1: foundation scripts and Terraform implemented and locally validated;
-  an AWS deployment is still required for acceptance.
+  two-block account setup, preview/apply separation, and quota-only staging have
+  offline command-double coverage. Browser login/MFA compatibility and an AWS
+  deployment are still required for acceptance.
+  The independent Scheduler stop target is implemented with offline coverage;
+  real stop behavior and both expiry paths still require AWS acceptance.
 - Slice 2: host prerequisites and exact clean-commit source staging implemented;
   PostgreSQL, the first bounded monitoring stack, remote build, and smoke runner
   are implemented but still require their first AWS execution for acceptance.
 - Slice 5: the first JSON scenario schema, asynchronous systemd/SSM control,
   exclusive experiment lock, status reporting, and partial-evidence upload are
   implemented but still require their first AWS execution for acceptance.
+  Strict scenario validation, remaining-TTL admission, watchdog configuration
+  checks and per-scenario systemd runtime limits now have offline coverage.
 - Slice 3: direct PID resource sampling, .NET `System.Runtime` counter capture,
   and bounded explicit GC-dump capture are implemented in the smoke path; the
   worker-scaling path now attaches and closes one counter collector per worker.
@@ -324,4 +337,10 @@ it is not intended to run continuously.
   repeated throughput, runtime instrumentation, and windowed infrastructure
   pressure, applies the 15% useful-step rule, and distinguishes a measured knee
   from an unbounded largest tested value. The cloud matrix still needs execution.
-- Slices 7-9: planned or partially scaffolded, not yet executable evidence.
+- Slices 7-8: persistent mixed-workload soak execution is implemented and passed
+  short local PostgreSQL/collector checks with 2 and 8 workers. The 2h/24h AWS
+  evidence, overload/recovery phases and automatic leak diagnostics remain open.
+- Slice 9: evidence-backed defaults remain pending the full campaign.
+
+The [first AWS test day](aws-first-test-day.md) separates initial instrumentation
+readiness from the remaining preparation and acceptance work for the V1 campaign.

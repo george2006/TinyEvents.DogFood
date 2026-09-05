@@ -49,7 +49,10 @@ if (@($allVariants | Where-Object { $null -eq $_.StartedAtUtc }).Count -gt 0) {
         "Some TE-L02 evidence predates variant timestamps; infrastructure pressure cannot be assigned to those variants.")
 }
 
-$samplePath = Join-Path $EvidenceDirectory "experiment-samples.jsonl"
+$samplePath = Join-Path $EvidenceDirectory "infrastructure/experiment-samples.jsonl"
+if (!(Test-Path -LiteralPath $samplePath)) {
+    $samplePath = Join-Path $EvidenceDirectory "experiment-samples.jsonl"
+}
 $samples = @()
 if (Test-Path -LiteralPath $samplePath) {
     $samples = @(
@@ -67,7 +70,10 @@ else {
     $warnings.Add("No experiment-samples.jsonl was found; recommendations have no infrastructure-pressure veto.")
 }
 
-$runtimeSummaryPath = Join-Path $EvidenceDirectory "runtime-summary.json"
+$runtimeSummaryPath = Join-Path $EvidenceDirectory "reports/runtime-summary.json"
+if (!(Test-Path -LiteralPath $runtimeSummaryPath)) {
+    $runtimeSummaryPath = Join-Path $EvidenceDirectory "runtime-summary.json"
+}
 $runtimeSummary = if (Test-Path -LiteralPath $runtimeSummaryPath) {
     Get-Content -LiteralPath $runtimeSummaryPath -Raw | ConvertFrom-Json
 }
