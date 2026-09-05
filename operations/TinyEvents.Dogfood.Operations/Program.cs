@@ -85,6 +85,15 @@ switch (args[0].ToLowerInvariant())
     case "worker-soak":
         return await SoakCommands.WorkAsync(args, settings);
 
+    case "worker-bench":
+        return await BenchCommands.WorkerAsync(args, settings);
+
+    case "publish-phases":
+        return await BenchCommands.PublishAsync(args, settings);
+
+    case "inspect-latency":
+        return await BenchCommands.LatencyAsync(args, settings);
+
     case "publish-then-rollback":
         if (args.Length != 3 ||
             !int.TryParse(args[2], out var rollbackCount) ||

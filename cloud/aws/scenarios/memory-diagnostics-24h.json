@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "name": "memory-diagnostics-24h",
+  "description": "Persistent mixed soak with bounded one-shot suspected-growth diagnostics; any capture is not a leak verdict.",
+  "runner": "bench",
+  "storageProvider": "PostgreSql",
+  "estimatedMaximumMinutes": 1479,
+  "variants": [
+    {
+      "workerCount": 4,
+      "batchSize": 10,
+      "backlog": 0,
+      "phases": [
+        {
+          "name": "steady",
+          "durationSeconds": 86400,
+          "rate": 20,
+          "contentBytes": 0
+        }
+      ],
+      "cleanupEnabled": true,
+      "retentionSeconds": 3600,
+      "slowMilliseconds": 100,
+      "monitoring": "full",
+      "automaticDiagnostics": true,
+      "requireRateTarget": true,
+      "minimumBacklogGrowth": 0,
+      "name": "memory-24h"
+    }
+  ]
+}

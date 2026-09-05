@@ -36,13 +36,14 @@ if (!(Test-Path -LiteralPath $grafanaPasswordPath)) {
     [Security.Cryptography.RandomNumberGenerator]::Fill($passwordBytes)
     [Convert]::ToBase64String($passwordBytes) |
         Set-Content -NoNewline -LiteralPath $grafanaPasswordPath
-    & chmod 600 $grafanaPasswordPath
 }
+& chmod 700 $secretDirectory
+& chown 'root:472' $grafanaPasswordPath
+& chmod 640 $grafanaPasswordPath
 
-$tinyEventsCompose = Join-Path $TinyEventsRoot "docker-compose.yml"
 $cloudCompose = Join-Path $DogfoodRoot "cloud/aws/host/docker-compose.cloud.yml"
 
-& docker compose -f $tinyEventsCompose up -d postgresql
+& docker compose -f $cloudCompose up -d postgresql
 if ($LASTEXITCODE -ne 0) {
     throw "PostgreSQL container could not be started."
 }
@@ -80,7 +81,7 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($resultPath)) {
 
 $runDirectory = Split-Path $resultPath -Parent
 $runName = Split-Path $runDirectory -Leaf
-& aws s3 cp $runDirectory "s3://$resultsBucket/runs/$runName/" --recursive --only-show-errors
+& bash /usr/local/sbin/tinyevents-lab-sync-evidence run $runName
 if ($LASTEXITCODE -ne 0) {
     throw "Smoke evidence could not be uploaded to '$resultsBucket'."
 }

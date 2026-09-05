@@ -198,7 +198,10 @@ Acceptance:
 
 Start with a 100,000-message backlog, `BatchSize = 50`, worker counts
 `1, 2, 4, 8, 12, 16, 24`, and three repetitions. Use the first pass to identify
-the useful range, then measure batch sizes `10, 25, 50, 100` only in that range.
+the useful range, then measure batch sizes `1, 10, 25, 50, 100` in that range.
+The prepared campaign includes a four-worker control sweep with a fixed 20,000
+backlog so batch 1 fits the bounded drain. Rerun its configurable variants near
+the observed worker knee; do not compare different backlogs as identical trials.
 
 Report:
 
@@ -327,19 +330,26 @@ it is not intended to run continuously.
   and bounded explicit GC-dump capture are implemented in the smoke path; the
   worker-scaling path now attaches and closes one counter collector per worker.
   Runtime summaries and guarded memory slopes are implemented. Continuous OS
-  sampling is connected at the experiment boundary; the automated leak trigger
-  remains open.
+  sampling is connected at the experiment boundary. The diagnostic campaign adds
+  a one-shot, sustained-growth trigger with capture time/size/free-space guards.
+  CSV summaries now stream data and exclude a 15-minute warm-up from slopes.
 - Slice 4: a ten-second JSONL series correlates host memory/load, PostgreSQL
   container resources, database activity, outbox pressure, and storage. Its
   summary reports ranges, deltas, cache-hit ratio, coverage, guarded host-memory
-  slope, and pressure signals. Grafana dashboards remain open.
+  slope, and pressure signals. The dashboard is provisioned and tested locally;
+  actual exporter coverage still needs host acceptance. Monitoring profiles have
+  explicit full/minimal comparisons and exclude PostgreSQL from profile control.
 - Slice 6: TE-L02 now records exact variant windows. A provisional report joins
   repeated throughput, runtime instrumentation, and windowed infrastructure
   pressure, applies the 15% useful-step rule, and distinguishes a measured knee
-  from an unbounded largest tested value. The cloud matrix still needs execution.
+  from an unbounded largest tested value. The complete bench now adds worker/batch
+  variants and per-kind processing-latency distributions with cleanup coverage.
+  The legacy report stays throughput-only; the new report retains decision inputs
+  without inventing product defaults. The cloud matrix still needs execution.
 - Slices 7-8: persistent mixed-workload soak execution is implemented and passed
   short local PostgreSQL/collector checks with 2 and 8 workers. The 2h/24h AWS
-  evidence, overload/recovery phases and automatic leak diagnostics remain open.
+  evidence remains open. Persistent overload/recovery phases, payload/cleanup
+  variants and bounded diagnostics are implemented with short local checks.
 - Slice 9: evidence-backed defaults remain pending the full campaign.
 
 The [first AWS test day](aws-first-test-day.md) separates initial instrumentation

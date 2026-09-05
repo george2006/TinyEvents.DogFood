@@ -100,7 +100,7 @@ internal static class SoakCommands
         return 0;
     }
 
-    private static void WriteReadiness(string? path, string role)
+    internal static void WriteReadiness(string? path, string role)
     {
         if (path is null) return;
 

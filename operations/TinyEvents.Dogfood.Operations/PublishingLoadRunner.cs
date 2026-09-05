@@ -9,7 +9,8 @@ internal sealed class PublishingLoadRunner(
     public async Task<IReadOnlyList<ScenarioPublishingLoadResult>> ExecuteMixedAsync(
         IReadOnlyList<PublishingLoadDefinition> definitions,
         int durationSeconds,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int contentCharacterCount = 0)
     {
         var scenarioTasks = definitions
             .Select(async definition => new ScenarioPublishingLoadResult(
@@ -18,7 +19,7 @@ internal sealed class PublishingLoadRunner(
                     definition.ScenarioId,
                     definition.RequestsPerSecond,
                     durationSeconds,
-                    cancellationToken)))
+                    cancellationToken, contentCharacterCount)))
             .ToArray();
         return await Task.WhenAll(scenarioTasks);
     }
@@ -27,7 +28,8 @@ internal sealed class PublishingLoadRunner(
         string scenarioId,
         int targetRequestsPerSecond,
         int durationSeconds,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        int contentCharacterCount = 0)
     {
         var requestCount = checked(targetRequestsPerSecond * durationSeconds);
         var requestTasks = new List<Task<PublishingRequestResult>>(requestCount);
@@ -45,7 +47,7 @@ internal sealed class PublishingLoadRunner(
                 await Task.Delay(scheduleDelay, cancellationToken);
             }
 
-            requestTasks.Add(PublishOneAsync(scenarioId, cancellationToken));
+            requestTasks.Add(PublishOneAsync(scenarioId, cancellationToken, contentCharacterCount));
         }
 
         var requestResults = await Task.WhenAll(requestTasks);
@@ -59,7 +61,8 @@ internal sealed class PublishingLoadRunner(
 
     private async Task<PublishingRequestResult> PublishOneAsync(
         string scenarioId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int contentCharacterCount)
     {
         var request = Stopwatch.StartNew();
 
@@ -67,7 +70,10 @@ internal sealed class PublishingLoadRunner(
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var publisher = scope.ServiceProvider.GetRequiredService<DogfoodPublisher>();
-            await publisher.PublishAsync(scenarioId, count: 1, cancellationToken);
+            if (contentCharacterCount == 0)
+                await publisher.PublishAsync(scenarioId, count: 1, cancellationToken);
+            else
+                await publisher.PublishWithContentAsync(scenarioId, 1, contentCharacterCount, cancellationToken);
             return PublishingRequestResult.Committed(request.Elapsed);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

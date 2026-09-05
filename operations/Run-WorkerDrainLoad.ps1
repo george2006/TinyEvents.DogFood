@@ -6,7 +6,9 @@ param(
     [int]$Backlog = 10000,
 
     [ValidateNotNullOrEmpty()]
-    [int[]]$WorkerCounts = @(1, 2, 4, 8)
+    [int[]]$WorkerCounts = @(1, 2, 4, 8),
+
+    [string]$DatabaseComposeFile
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,6 +45,7 @@ if ($normalizedWorkerCounts -notcontains 1) {
 $dogfoodRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $tinyEventsRoot = Resolve-Path (Join-Path $dogfoodRoot "..\TinyEvents")
 $composeFile = Join-Path $tinyEventsRoot "docker-compose.yml"
+if ($DatabaseComposeFile) { $composeFile = (Resolve-Path -LiteralPath $DatabaseComposeFile).Path }
 $project = Join-Path `
     $PSScriptRoot `
     "TinyEvents.Dogfood.Operations\TinyEvents.Dogfood.Operations.csproj"

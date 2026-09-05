@@ -111,6 +111,7 @@ try {
         Copy-Item -LiteralPath '/opt/tinyevents-lab/source-manifest.json' `
             -Destination (Join-Path $layout.metadata 'source-manifest.json')
     }
+    if ($scenario.runner -ne 'bench') {
     $samplerScript = Join-Path $DogfoodRoot "cloud/aws/host/sample-experiment.sh"
     & chmod +x $samplerScript
     $samplerStart = [Diagnostics.ProcessStartInfo]::new()
@@ -130,8 +131,16 @@ try {
     }
     $samplerOutputTask = $sampler.StandardOutput.ReadToEndAsync()
     $samplerErrorTask = $sampler.StandardError.ReadToEndAsync()
+    }
 
     switch ($scenario.runner) {
+        'bench' {
+            Save-ExperimentStatus 'Running' 'Executing the validated bench variants sequentially.'
+            & (Join-Path $PSScriptRoot 'Run-CloudBench.ps1') -ScenarioPath $ScenarioPath `
+                -DogfoodRoot $DogfoodRoot -EvidenceDirectory (Join-Path $layout.workload 'bench') `
+                -ConnectionString 'Host=localhost;Port=54323;Database=TinyEventsDogfoodOperations;Username=postgres;Password=postgres;Maximum Pool Size=16;Timeout=2;' `
+                -CounterToolPath '/opt/dotnet-tools/dotnet-counters' -ManageMonitoringStack | Out-Null
+        }
         "memory-soak" {
             Save-ExperimentStatus "Running" "Sustained mixed work with persistent worker and publisher processes."
             $soakScript = Join-Path $DogfoodRoot "cloud/aws/host/Run-CloudSoak.ps1"
@@ -143,6 +152,7 @@ try {
                 -DurationSeconds $scenario.durationSeconds -Rate $scenario.rate `
                 -WorkerCount $scenario.workerCount -WindowSeconds $scenario.windowSeconds `
                 -SettlementSeconds $scenario.settlementSeconds `
+                -CounterIntervalSeconds 10 `
                 -CounterToolPath '/opt/dotnet-tools/dotnet-counters' -ResetDatabase | Out-Null
         }
 
@@ -178,7 +188,8 @@ try {
                 & $runner `
                     -StorageProvider $scenario.storageProvider `
                     -Backlog $scenario.backlog `
-                    -WorkerCounts $scenario.workerCounts
+                    -WorkerCounts $scenario.workerCounts `
+                    -DatabaseComposeFile (Join-Path $PSScriptRoot 'docker-compose.cloud.yml')
 
                 if ($LASTEXITCODE -ne 0) {
                     throw "Worker scaling repetition $repetition failed."
@@ -206,6 +217,7 @@ try {
         }
     }
 
+    if ($null -ne $sampler) {
     Stop-ExperimentSampler $sampler $samplerOutputTask $samplerErrorTask
     $sampler = $null
 
@@ -215,6 +227,7 @@ try {
     & $infrastructureSummaryScript `
         -InputPath (Join-Path $layout.infrastructure "experiment-samples.jsonl") `
         -OutputPath (Join-Path $layout.reports "infrastructure-summary.json") | Out-Null
+    }
 
     $summaryScript = Join-Path `
         $DogfoodRoot `

@@ -1,3 +1,4 @@
 # Files executed or consumed on the Linux cloud host must retain LF on Windows.
 *.sh text eol=lf
 *.tftpl text eol=lf
+cloud/aws/tests/fixtures/*.ps1 text eol=lf

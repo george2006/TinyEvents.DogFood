@@ -13,6 +13,10 @@ For the first real session, follow the [first AWS test day](../../docs/aws-first
 gates: deploy/smoke, recover evidence, rehearse for two hours, then verify expiry
 and teardown. Full V1 campaign preparation is tracked separately in the roadmap.
 
+The [complete bench campaign](../../docs/aws-bench-campaign.md) covers the
+worker/batch matrix, phased load, payload/cleanup comparisons, monitoring overhead,
+processing-latency coverage, bounded diagnostics and provisioned dashboard.
+
 ## Current status
 
 The repository includes infrastructure, host observability, experiment execution,
@@ -292,9 +296,9 @@ does not assert database health or imply that eight workers are optimal.
 Workers are sampled directly by PID. The diagnostic helper records cumulative
 CPU time, working set, private and virtual memory, threads, and handles, and
 attaches .NET 8 `System.Runtime` counters without modifying TinyEvents. GC dumps
-are explicit and refuse capture when less than 10 GiB remains; collecting one
-forces a full generation-2 GC and is therefore reserved for a suspected leak,
-not routine capacity measurement.
+are explicit or enabled only by the diagnostic scenario. Capture has time/size
+guards and requires 10 GiB free plus its output budget. It forces GC and can
+distort performance; see the campaign guide for trigger limits and interpretation.
 
 The existing worker-scaling runner enables this collection through
 `TINYEVENTS_DOGFOOD_DOTNET_COUNTERS`. Every worker writes an independent runtime
@@ -304,12 +308,12 @@ runs remain unchanged when the variable is absent.
 `Summarize-RuntimeCounters.ps1` converts all runtime CSV files below one run
 into `runtime-summary.json`. It reports per-worker min/max/mean/sum/last values,
 variant memory totals, instrumentation completeness, and linear slopes for the
-main memory gauges. A slope is deliberately unavailable when fewer than six
-samples or less than 30 minutes of evidence exists; short runs cannot be called
+main memory gauges. Slopes require six samples spanning 30 minutes after a
+15-minute warm-up. CSV aggregation is streaming; short runs cannot be called
 memory-leak tests.
 
-Every cloud experiment also writes `experiment-samples.jsonl` at a ten-second
-interval. Each line correlates host load and memory, PostgreSQL container CPU
+Full-monitoring experiments also write infrastructure JSONL at a ten-second
+interval (separate files per bench variant). Each line correlates host load and memory, PostgreSQL container CPU
 and memory, outbox counts and oldest-pending age, database connections and
 waiters, commits/rollbacks, cache/physical reads, temporary bytes, deadlocks,
 and outbox table/index allocation. Database or container observation failures
