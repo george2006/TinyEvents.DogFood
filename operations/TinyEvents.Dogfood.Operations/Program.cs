@@ -79,6 +79,12 @@ switch (args[0].ToLowerInvariant())
     case "publish-mixed-load":
         return await RunMixedPublishingLoadAsync(args, settings);
 
+    case "publish-soak":
+        return await SoakCommands.PublishAsync(args, settings);
+
+    case "worker-soak":
+        return await SoakCommands.WorkAsync(args, settings);
+
     case "publish-then-rollback":
         if (args.Length != 3 ||
             !int.TryParse(args[2], out var rollbackCount) ||

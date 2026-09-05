@@ -5,10 +5,12 @@ This directory contains the disposable one-instance AWS laboratory described in
 
 ## Current status
 
-The Terraform foundation and local lifecycle wrappers are the first delivery
-slice. Host observability and experiment execution are intentionally added in
-later slices. Do not interpret a successful infrastructure deployment as a
-completed load or memory test.
+The repository includes infrastructure, host observability, experiment execution,
+and bounded evidence uploads. Local offline tests cover the evidence lifecycle
+and folder layout; AWS end-to-end validation has not been performed. The new
+long-running soak runner is still under local validation (its initial Linux
+smoke timed out during process startup). Do not deploy a 2h/24h soak or interpret
+the presence of its scenario file as a validated memory test.
 
 ## Local prerequisites
 
@@ -86,6 +88,79 @@ its durable host-side status independently:
 
 Only one experiment can hold the host lock. Complete and partial evidence is
 uploaded to `runs/<run-id>/` in the private results bucket.
+
+### Evidence organization and recovery
+
+Run IDs include the scenario, UTC timestamp, and a random suffix. Each run is
+created once, and subsequent checkpoints update that same run, not a new folder
+for every upload. Layout version 2 is:
+
+```text
+runs/memory-soak-2h-20260905-080000-a1b2c3d4/
+  README.md                    # where to start and how to interpret partial data
+  layout.json                  # machine-readable paths / layout version
+  metadata/                    # scenario.json, status.json, source-manifest.json
+  workload/soak/               # publisher-windows.jsonl, result.json
+  runtime/soak/                # one CSV per PID role, process-samples.jsonl
+  infrastructure/              # experiment-samples.jsonl (host + PostgreSQL)
+  logs/                        # sampler, publisher, workers, counter collectors
+  reports/                     # derived summaries and scaling recommendation
+```
+
+Start at `README.md`, then `metadata/status.json`, then `reports/`. For failures,
+inspect `logs/` and the durable workload result. Empty folders do not appear in
+S3 until files are written. Legacy smoke/scaling runners keep some process
+diagnostics beside their workload results; scaling repetitions are grouped under
+`workload/repetition-N/`. Report readers still accept historical flat run folders.
+
+The independent systemd checkpoint timer attempts an upload every five minutes.
+It copies files already written to disk, including an active soak's runtime and
+publisher journals. The legacy scaling runner's not-yet-staged evidence is saved
+separately under `live/worker-scaling/` for recovery. Host status and source
+provenance are under `host/`; `checkpoints/latest.json` is uploaded **last**, only
+after all checkpoint transfers succeed. It is a partial-copy receipt, not a
+consistent snapshot or a successful experiment verdict. Files still buffered in
+a process and raw PostgreSQL/Prometheus volumes are not included.
+
+All experiment and checkpoint uploads share a lock and have a 180-second total
+budget (plus up to five seconds to force termination). AWS retries and connection
+timeouts are also bounded. Sync never deletes remote evidence and does not follow
+symlinks. Growing files may be retransferred, so upload CPU/network/disk overhead
+is part of the same-host experiment; large logs can exhaust the upload budget.
+Five minutes is the attempt interval, **not a guaranteed maximum data-loss window**.
+
+At TTL expiry, new experiments are rejected, the checkpoint timer is stopped,
+the workload is stopped with a bounded grace period, and one final checkpoint is
+attempted. `host/expiry.json` identifies an expired laboratory; a remaining
+`Running` status is not success. Shutdown proceeds even if S3 hangs, uploads
+fail, or local evidence cannot be written. The expiry check runs every five
+minutes, and stopping/uploading can add several more minutes before shutdown.
+Forced stop can lose buffered diagnostics. This mechanism covers the configured
+TTL, not a sudden host failure or an arbitrary external EC2 stop/termination.
+
+Download the bucket while Terraform state still identifies it:
+
+```powershell
+.\cloud\aws\Get-Results.ps1 -AwsProfile <profile>
+```
+
+The same hierarchy is preserved under `artifacts/cloud/`. S3 objects expire after
+30 days, independently of VM shutdown. Archive the release evidence locally
+before then; a non-empty bucket's delete protection does not disable retention.
+
+### Offline validation (no AWS resources)
+
+From the repository root, with Docker available:
+
+```powershell
+docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 bash /repo/cloud/aws/tests/Test-EvidenceLifecycle.sh
+docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-EvidenceLayout.ps1
+```
+
+The lifecycle test doubles AWS, systemd, logging, and shutdown commands. It checks
+success, failed/hung uploads, lock contention, unexpired/expired hosts, and local
+write failures. These are not AWS IAM, S3, cloud-init, or real-systemd integration
+tests.
 
 Workers are sampled directly by PID. The diagnostic helper records cumulative
 CPU time, working set, private and virtual memory, threads, and handles, and

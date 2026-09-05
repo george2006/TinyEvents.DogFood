@@ -32,9 +32,10 @@ if ($LASTEXITCODE -ne 0) {
 $command = @"
 set -euo pipefail
 test "`$(cat /opt/tinyevents-lab/bootstrap-status)" = "smoke-ready"
+test ! -e /opt/tinyevents-lab/expiry-started
 test ! -e /run/systemd/transient/tinyevents-experiment.service
 aws s3 cp "s3://$bucket/scenarios/$Scenario.json" "/opt/tinyevents-lab/$Scenario.json" --only-show-errors
-systemd-run --unit=tinyevents-experiment --collect --property=Type=exec /usr/bin/pwsh -NoLogo -NoProfile -File /opt/tinyevents-lab/sources/TinyEvents.Dogfood/cloud/aws/host/Invoke-CloudExperiment.ps1 -ScenarioPath "/opt/tinyevents-lab/$Scenario.json"
+systemd-run --unit=tinyevents-experiment --collect --property=Type=exec --property=TimeoutStopSec=45 /usr/bin/pwsh -NoLogo -NoProfile -File /opt/tinyevents-lab/sources/TinyEvents.Dogfood/cloud/aws/host/Invoke-CloudExperiment.ps1 -ScenarioPath "/opt/tinyevents-lab/$Scenario.json"
 "@
 $parametersPath = Join-Path ([IO.Path]::GetTempPath()) "tinyevents-start-$([Guid]::NewGuid().ToString('N')).json"
 

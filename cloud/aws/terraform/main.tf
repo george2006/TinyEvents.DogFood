@@ -187,8 +187,10 @@ resource "aws_instance" "lab" {
   }
 
   user_data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-    expires_at     = var.expires_at
-    results_bucket = aws_s3_bucket.results.id
+    expires_at      = var.expires_at
+    results_bucket  = aws_s3_bucket.results.id
+    evidence_script = file("${path.module}/../host/sync-lab-evidence.sh")
+    expiry_script   = file("${path.module}/../host/expire-lab.sh")
   })
 
   user_data_replace_on_change = true

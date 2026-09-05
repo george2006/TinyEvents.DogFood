@@ -20,16 +20,37 @@ write_files:
   - path: /usr/local/sbin/tinyevents-lab-expiry
     permissions: "0755"
     owner: root:root
+    encoding: b64
+    content: ${base64encode(expiry_script)}
+  - path: /usr/local/sbin/tinyevents-lab-sync-evidence
+    permissions: "0755"
+    owner: root:root
+    encoding: b64
+    content: ${base64encode(evidence_script)}
+  - path: /etc/systemd/system/tinyevents-lab-checkpoint.service
+    permissions: "0644"
+    owner: root:root
     content: |
-      #!/usr/bin/env bash
-      set -euo pipefail
-      source /etc/tinyevents-lab/environment
-      now_epoch="$(date -u +%s)"
-      expiry_epoch="$(date -u -d "$LAB_EXPIRES_AT" +%s)"
-      if [ "$now_epoch" -ge "$expiry_epoch" ]; then
-        logger -t tinyevents-lab "Laboratory expiry reached; shutting down."
-        /usr/sbin/shutdown -h now
-      fi
+      [Unit]
+      Description=Checkpoint TinyEvents laboratory evidence to S3
+      After=network-online.target
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/sbin/tinyevents-lab-sync-evidence checkpoint
+      TimeoutStartSec=200
+      TimeoutStopSec=10
+  - path: /etc/systemd/system/tinyevents-lab-checkpoint.timer
+    permissions: "0644"
+    owner: root:root
+    content: |
+      [Unit]
+      Description=Save partial TinyEvents evidence every five minutes
+      [Timer]
+      OnBootSec=5min
+      OnUnitActiveSec=5min
+      Unit=tinyevents-lab-checkpoint.service
+      [Install]
+      WantedBy=timers.target
   - path: /etc/systemd/system/tinyevents-lab-expiry.service
     permissions: "0644"
     owner: root:root
@@ -39,6 +60,7 @@ write_files:
       [Service]
       Type=oneshot
       ExecStart=/usr/local/sbin/tinyevents-lab-expiry
+      TimeoutStartSec=330
   - path: /etc/systemd/system/tinyevents-lab-expiry.timer
     permissions: "0644"
     owner: root:root
@@ -66,6 +88,7 @@ runcmd:
   - [bash, -lc, "install -d -o ubuntu -g ubuntu /opt/dotnet-tools && sudo -u ubuntu dotnet tool install dotnet-counters --tool-path /opt/dotnet-tools --version '8.*' && sudo -u ubuntu dotnet tool install dotnet-dump --tool-path /opt/dotnet-tools --version '8.*' && sudo -u ubuntu dotnet tool install dotnet-gcdump --tool-path /opt/dotnet-tools --version '8.*'"]
   - [systemctl, daemon-reload]
   - [systemctl, enable, --now, tinyevents-lab-expiry.timer]
+  - [systemctl, enable, --now, tinyevents-lab-checkpoint.timer]
   - [bash, -lc, "snap install amazon-ssm-agent --classic || true"]
   - [systemctl, enable, --now, snap.amazon-ssm-agent.amazon-ssm-agent.service]
   - [bash, -lc, "dotnet --info > /opt/tinyevents-lab/dotnet-info.txt && docker version > /opt/tinyevents-lab/docker-version.txt && pwsh --version > /opt/tinyevents-lab/powershell-version.txt"]
