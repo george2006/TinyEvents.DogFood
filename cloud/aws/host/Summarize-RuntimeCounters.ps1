@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)][string]$EvidenceDirectory,
     [string]$OutputPath = (Join-Path $EvidenceDirectory "runtime-summary.json"),
-    [ValidateRange(1, 1440)][int]$MinimumSlopeDurationMinutes = 30
+    [ValidateRange(1, 1440)][int]$MinimumSlopeDurationMinutes = 30,
+    [ValidateRange(0, 120)][int]$WarmupMinutes = 15
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,38 +52,6 @@ function ConvertTo-CounterTimestamp {
     throw "Counter timestamp '$Value' is invalid."
 }
 
-function Get-LinearSlopePerHour {
-    param([object[]]$Samples)
-
-    if ($Samples.Count -lt 2) {
-        return $null
-    }
-
-    $origin = $Samples[0].Timestamp
-    $points = @(
-        $Samples | ForEach-Object {
-            [pscustomobject]@{
-                X = ($_.Timestamp - $origin).TotalHours
-                Y = $_.Value
-            }
-        })
-    $xMean = ($points | Measure-Object X -Average).Average
-    $yMean = ($points | Measure-Object Y -Average).Average
-    $numerator = 0.0
-    $denominator = 0.0
-
-    foreach ($point in $points) {
-        $xDelta = $point.X - $xMean
-        $numerator += $xDelta * ($point.Y - $yMean)
-        $denominator += $xDelta * $xDelta
-    }
-
-    if ($denominator -eq 0) {
-        return $null
-    }
-
-    return $numerator / $denominator
-}
 
 function Get-NormalizedCounterName {
     param([string]$Name)
@@ -95,62 +64,63 @@ $workerSummaries = @()
 $warnings = [Collections.Generic.List[string]]::new()
 
 foreach ($counterFile in $counterFiles) {
-    $rows = @(Import-Csv -LiteralPath $counterFile.FullName)
-    if ($rows.Count -eq 0) {
+    $aggregates = @{}
+    $rowCount = 0L
+    $firstTimestamp = $null
+    $lastTimestamp = $null
+    # Streaming aggregates: memory is O(counter names), not O(hours * samples).
+    Import-Csv -LiteralPath $counterFile.FullName | ForEach-Object {
+        $timestamp = ConvertTo-CounterTimestamp $_.Timestamp
+        $name = Get-NormalizedCounterName $_.'Counter Name'
+        $value = ConvertTo-CounterDouble $_.'Mean/Increment'
+        $rowCount++
+        if ($null -eq $firstTimestamp -or $timestamp -lt $firstTimestamp) { $firstTimestamp = $timestamp }
+        if ($null -eq $lastTimestamp -or $timestamp -gt $lastTimestamp) { $lastTimestamp = $timestamp }
+        if (!$aggregates.ContainsKey($name)) {
+            $aggregates[$name] = @{ Count = 0L; Min = $value; Max = $value; Sum = 0.0; Last = $value
+                FirstTime = $timestamp; LastTime = $timestamp; Type = $_.'Counter Type'
+                SlopeCount = 0L; SlopeFirst = $null; SlopeLast = $null; MeanX = 0.0; MeanY = 0.0; Sxx = 0.0; Sxy = 0.0 }
+        }
+        $a = $aggregates[$name]
+        $a.Count++
+        $a.Min = [Math]::Min($a.Min, $value)
+        $a.Max = [Math]::Max($a.Max, $value)
+        $a.Sum += $value
+        if ($timestamp -ge $a.LastTime) { $a.LastTime = $timestamp; $a.Last = $value }
+        $x = ($timestamp - $a.FirstTime).TotalHours
+        if ($x -ge ($WarmupMinutes / 60.0)) {
+            if ($null -eq $a.SlopeFirst) { $a.SlopeFirst = $timestamp }
+            $a.SlopeLast = $timestamp
+            $a.SlopeCount++
+            $dx = $x - $a.MeanX
+            $dy = $value - $a.MeanY
+            $a.MeanX += $dx / $a.SlopeCount
+            $a.MeanY += $dy / $a.SlopeCount
+            $a.Sxx += $dx * ($x - $a.MeanX)
+            $a.Sxy += $dx * ($value - $a.MeanY)
+        }
+    }
+    if ($rowCount -eq 0) {
         $warnings.Add("Counter file '$($counterFile.FullName)' is empty.")
         continue
     }
-
-    $samples = @(
-        foreach ($row in $rows) {
-            [pscustomobject]@{
-                Timestamp = ConvertTo-CounterTimestamp $row.Timestamp
-                CounterName = Get-NormalizedCounterName $row.'Counter Name'
-                CounterType = $row.'Counter Type'
-                Value = ConvertTo-CounterDouble $row.'Mean/Increment'
-            }
-        })
-    $firstTimestamp = ($samples | Measure-Object Timestamp -Minimum).Minimum
-    $lastTimestamp = ($samples | Measure-Object Timestamp -Maximum).Maximum
     $duration = $lastTimestamp - $firstTimestamp
     $metricSummaries = [ordered]@{}
-
-    foreach ($group in ($samples | Group-Object CounterName)) {
-        $orderedSamples = @($group.Group | Sort-Object Timestamp)
-        $values = @($orderedSamples | Select-Object -ExpandProperty Value)
-        $measurement = $values | Measure-Object -Minimum -Maximum -Average -Sum
-        $slopeEligible =
-            $group.Name -in @(
-                "Working Set (MB)",
-                "GC Heap Size (MB)",
-                "GC Committed Bytes (MB)",
-                "Gen 2 Size (B)",
-                "LOH Size (B)",
-                "POH (Pinned Object Heap) Size (B)",
-                "ThreadPool Thread Count") -and
-            $orderedSamples.Count -ge 6 -and
-            $duration.TotalMinutes -ge $MinimumSlopeDurationMinutes
-        $metricSummaries[$group.Name] = [ordered]@{
-            CounterType = $orderedSamples[0].CounterType
-            SampleCount = $orderedSamples.Count
-            Minimum = $measurement.Minimum
-            Maximum = $measurement.Maximum
-            Mean = $measurement.Average
-            Sum = $measurement.Sum
-            Last = $orderedSamples[-1].Value
-            SlopePerHour = if ($slopeEligible) {
-                Get-LinearSlopePerHour $orderedSamples
-            }
-            else {
-                $null
-            }
-            SlopeEligible = $slopeEligible
+    foreach ($name in ($aggregates.Keys | Sort-Object)) {
+        $a = $aggregates[$name]
+        $slopeEligible = $name -in @('Working Set (MB)','GC Heap Size (MB)','GC Committed Bytes (MB)',
+            'Gen 2 Size (B)','LOH Size (B)','POH (Pinned Object Heap) Size (B)','ThreadPool Thread Count') -and
+            $a.SlopeCount -ge 6 -and $a.Sxx -gt 0 -and
+            ($a.SlopeLast - $a.SlopeFirst).TotalMinutes -ge $MinimumSlopeDurationMinutes
+        $metricSummaries[$name] = [ordered]@{
+            CounterType = $a.Type; SampleCount = $a.Count; Minimum = $a.Min; Maximum = $a.Max
+            Mean = $a.Sum / $a.Count; Sum = $a.Sum; Last = $a.Last
+            SlopePerHour = if ($slopeEligible) { $a.Sxy / $a.Sxx } else { $null }
+            SlopeEligible = $slopeEligible; PostWarmupSampleCount = $a.SlopeCount
         }
     }
-
-    if ($duration.TotalMinutes -lt $MinimumSlopeDurationMinutes) {
-        $warnings.Add(
-            "'$($counterFile.Name)' spans $([Math]::Round($duration.TotalMinutes, 2)) minutes; memory slope requires at least $MinimumSlopeDurationMinutes minutes.")
+    if ($duration.TotalMinutes -lt ($MinimumSlopeDurationMinutes + $WarmupMinutes)) {
+        $warnings.Add("'$($counterFile.Name)' is too short for a post-warm-up memory slope.")
     }
 
     $variantMatch = [regex]::Match(
@@ -168,7 +138,7 @@ foreach ($counterFile in $counterFiles) {
         FirstTimestamp = $firstTimestamp.ToString("O")
         LastTimestamp = $lastTimestamp.ToString("O")
         DurationSeconds = $duration.TotalSeconds
-        RowCount = $rows.Count
+        RowCount = $rowCount
         Metrics = $metricSummaries
     }
 }
@@ -231,6 +201,7 @@ $summary = [ordered]@{
     GeneratedAtUtc = [DateTimeOffset]::UtcNow.ToString("O")
     EvidenceDirectory = $resolvedEvidenceDirectory
     MinimumSlopeDurationMinutes = $MinimumSlopeDurationMinutes
+    WarmupMinutes = $WarmupMinutes
     CounterFileCount = $counterFiles.Count
     ParsedWorkerCount = $workerSummaries.Count
     Warnings = $warnings

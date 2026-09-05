@@ -95,33 +95,55 @@ function Invoke-BoundedGcDump {
     param(
         [Parameter(Mandatory)][Diagnostics.Process]$TargetProcess,
         [Parameter(Mandatory)][string]$OutputPath,
-        [int]$MinimumFreeGiB = 10,
-        [string]$ToolPath = "/opt/dotnet-tools/dotnet-gcdump"
+        [ValidateRange(1, 1024)][int]$MinimumFreeGiB = 10,
+        [string]$ToolPath = "/opt/dotnet-tools/dotnet-gcdump",
+        [ValidateRange(1, 120)][int]$TimeoutSeconds = 65,
+        [ValidateRange(1048576, 2147483648)][long]$MaximumBytes = 1073741824
     )
-
-    if ($TargetProcess.HasExited) {
-        throw "Cannot capture a GC dump from exited PID $($TargetProcess.Id)."
+    if ($TargetProcess.HasExited) { throw 'Cannot capture from an exited process.' }
+    if (!(Test-Path -LiteralPath $ToolPath -PathType Leaf)) { throw 'GC dump tool is missing.' }
+    if (Test-Path -LiteralPath $OutputPath) { throw 'GC dump evidence already exists.' }
+    $outputDirectory = [IO.Path]::GetFullPath((Split-Path $OutputPath -Parent))
+    New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
+    if ($IsLinux) {
+        $disk = @(& df -Pk -- $outputDirectory)
+        if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the evidence filesystem.' }
+        $availableBytes = [long](($disk[-1] -split '\s+')[3]) * 1024
+    } else {
+        $availableBytes = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($outputDirectory)).AvailableFreeSpace
     }
-
-    if (!(Test-Path -LiteralPath $ToolPath)) {
-        throw "dotnet-gcdump was not found at '$ToolPath'."
+    if ($availableBytes -lt ($MinimumFreeGiB * 1GB + $MaximumBytes)) { throw 'Insufficient free space for bounded diagnostics.' }
+    $start = [Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = $ToolPath
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true
+    $start.RedirectStandardError = $true
+    foreach ($argument in @('collect','--process-id',[string]$TargetProcess.Id,'--output',$OutputPath,'--timeout','60')) {
+        $start.ArgumentList.Add($argument)
     }
-
-    $outputDirectory = Split-Path $OutputPath -Parent
-    New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
-    $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($outputDirectory))
-    $minimumFreeBytes = $MinimumFreeGiB * 1GB
-    if ($drive.AvailableFreeSpace -lt $minimumFreeBytes) {
-        throw "GC dump refused: less than $MinimumFreeGiB GiB remains on the evidence volume."
+    $collector = [Diagnostics.Process]::new()
+    $collector.StartInfo = $start
+    if (!$collector.Start()) { throw 'GC dump process could not start.' }
+    $stdout = $collector.StandardOutput.ReadToEndAsync()
+    $stderr = $collector.StandardError.ReadToEndAsync()
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
+    try {
+        while (!$collector.WaitForExit(250)) {
+            if ([DateTimeOffset]::UtcNow -ge $deadline) { throw 'GC dump exceeded its wall-clock budget.' }
+            if ((Test-Path -LiteralPath $OutputPath) -and (Get-Item -LiteralPath $OutputPath).Length -gt $MaximumBytes) {
+                throw 'GC dump exceeded its monitored file-size budget.'
+            }
+        }
+        if ($collector.ExitCode -ne 0) { throw "GC dump exited with code $($collector.ExitCode)." }
+        if (!(Test-Path -LiteralPath $OutputPath) -or (Get-Item -LiteralPath $OutputPath).Length -eq 0) { throw 'GC dump produced no evidence.' }
+        if ((Get-Item -LiteralPath $OutputPath).Length -gt $MaximumBytes) { throw 'GC dump exceeded its monitored file-size budget.' }
+        return Get-Item -LiteralPath $OutputPath
+    } finally {
+        if (!$collector.HasExited) { $collector.Kill($true) }
+        $collector.WaitForExit(5000) | Out-Null
+        $stdout.GetAwaiter().GetResult() | Set-Content -LiteralPath "$OutputPath.stdout.log"
+        $stderr.GetAwaiter().GetResult() | Set-Content -LiteralPath "$OutputPath.stderr.log"
+        $collector.Dispose()
     }
-
-    & $ToolPath collect `
-        --process-id $TargetProcess.Id `
-        --output $OutputPath `
-        --timeout 60
-    if ($LASTEXITCODE -ne 0) {
-        throw "GC dump collection failed for PID $($TargetProcess.Id)."
-    }
-
-    return Get-Item -LiteralPath $OutputPath
 }

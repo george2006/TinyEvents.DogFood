@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "name": "mixed-pressure",
+  "description": "Persistent processes across baseline, overload, recovery and steady phases, followed by payload/cleanup comparisons.",
+  "runner": "bench",
+  "storageProvider": "PostgreSql",
+  "estimatedMaximumMinutes": 239,
+  "variants": [
+    {
+      "workerCount": 2,
+      "batchSize": 50,
+      "backlog": 0,
+      "phases": [
+        {
+          "name": "baseline",
+          "durationSeconds": 120,
+          "rate": 20,
+          "contentBytes": 0
+        },
+        {
+          "name": "overload",
+          "durationSeconds": 30,
+          "rate": 1000,
+          "contentBytes": 0
+        },
+        {
+          "name": "recovery",
+          "durationSeconds": 300,
+          "rate": 0,
+          "contentBytes": 0
+        },
+        {
+          "name": "steady-again",
+          "durationSeconds": 120,
+          "rate": 20,
+          "contentBytes": 0
+        }
+      ],
+      "cleanupEnabled": false,
+      "retentionSeconds": 3600,
+      "slowMilliseconds": 100,
+      "monitoring": "full",
+      "automaticDiagnostics": false,
+      "requireRateTarget": false,
+      "minimumBacklogGrowth": 500,
+      "name": "mixed-overload-recovery"
+    },
+    {
+      "workerCount": 4,
+      "batchSize": 50,
+      "backlog": 0,
+      "phases": [
+        {
+          "name": "steady",
+          "durationSeconds": 180,
+          "rate": 20,
+          "contentBytes": 0
+        }
+      ],
+      "cleanupEnabled": false,
+      "retentionSeconds": 30,
+      "slowMilliseconds": 100,
+      "monitoring": "full",
+      "automaticDiagnostics": false,
+      "requireRateTarget": true,
+      "minimumBacklogGrowth": 0,
+      "name": "payload-0-cleanup-off"
+    },
+    {
+      "workerCount": 4,
+      "batchSize": 50,
+      "backlog": 0,
+      "phases": [
+        {
+          "name": "steady",
+          "durationSeconds": 180,
+          "rate": 20,
+          "contentBytes": 0
+        }
+      ],
+      "cleanupEnabled": true,
+      "retentionSeconds": 30,
+      "slowMilliseconds": 100,
+      "monitoring": "full",
+      "automaticDiagnostics": false,
+      "requireRateTarget": true,
+      "minimumBacklogGrowth": 0,
+      "name": "payload-0-cleanup-on"
+    },
+    {
+      "workerCount": 4,
+      "batchSize": 50,
+      "backlog": 0,
+      "phases": [
+        {
+          "name": "steady",
+          "durationSeconds": 180,
+          "rate": 20,
+          "contentBytes": 1024
+        }
+      ],
+      "cleanupEnabled": false,
+      "retentionSeconds": 30,
+      "slowMilliseconds": 100,
+      "monitoring": "full",
+      "automaticDiagnostics": false,
+      "requireRateTarget": true,
+      "minimumBacklogGrowth": 0,
+      "name": "payload-1024-cleanup-off"
+    },
+    {
+      "workerCount": 4,
+      "batchSize": 50,
+      "backlog": 0,
+      "phases": [
+        {
+          "name": "steady",
+          "durationSeconds": 180,
+          "rate": 20,
+          "contentBytes": 1024
+        }
+      ],
+      "cleanupEnabled": true,
+      "retentionSeconds": 30,
+      "slowMilliseconds": 100,
+      "monitoring": "full",
+      "automaticDiagnostics": false,
+      "requireRateTarget": true,
+      "minimumBacklogGrowth": 0,
+      "name": "payload-1024-cleanup-on"
+    },
+    {
+      "workerCount": 4,
+      "batchSize": 50,
+      "backlog": 0,
+      "phases": [
+        {
+          "name": "steady",
+          "durationSeconds": 180,
+          "rate": 20,
+          "contentBytes": 16384
+        }
+      ],
+      "cleanupEnabled": false,
+      "retentionSeconds": 30,
+      "slowMilliseconds": 100,
+      "monitoring": "full",
+      "automaticDiagnostics": false,
+      "requireRateTarget": true,
+      "minimumBacklogGrowth": 0,
+      "name": "payload-16384-cleanup-off"
+    },
+    {
+      "workerCount": 4,
+      "batchSize": 50,
+      "backlog": 0,
+      "phases": [
+        {
+          "name": "steady",
+          "durationSeconds": 180,
+          "rate": 20,
+          "contentBytes": 16384
+        }
+      ],
+      "cleanupEnabled": true,
+      "retentionSeconds": 30,
+      "slowMilliseconds": 100,
+      "monitoring": "full",
+      "automaticDiagnostics": false,
+      "requireRateTarget": true,
+      "minimumBacklogGrowth": 0,
+      "name": "payload-16384-cleanup-on"
+    }
+  ]
+}

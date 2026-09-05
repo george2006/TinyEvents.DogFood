@@ -1,4 +1,5 @@
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'BenchContract.ps1')
 
 function Assert-ScenarioInteger {
     param($Document, [string]$Name, [long]$Minimum, [long]$Maximum)
@@ -25,6 +26,11 @@ function Read-LabScenario {
     Assert-ScenarioInteger $document 'estimatedMaximumMinutes' 1 1740
     $allowed = @('schemaVersion', 'name', 'description', 'runner', 'storageProvider', 'estimatedMaximumMinutes')
     switch -CaseSensitive ($document.runner) {
+        'bench' {
+            $allowed += 'variants'
+            Assert-BenchVariants $document
+            $minimumMinutes = 1
+        }
         'cloud-smoke' {
             $allowed += @('messageCount', 'repetitions')
             Assert-ScenarioInteger $document 'messageCount' 1 10000

@@ -80,14 +80,20 @@ Remaining work and acceptance evidence:
 - [x] Prepare the two-block setup scripts and short guide with offline tests.
 - [x] Prepare the independent AWS expiry schedule, strict scenario/TTL admission,
   runtime deadlines and [first-day gates](aws-first-test-day.md), with offline tests.
+- [x] Implement the [complete bench campaign](aws-bench-campaign.md): worker/batch
+  variants, per-kind processing-latency proxies and coverage, persistent phased
+  load/recovery, payload/cleanup comparisons, monitoring profiles, provisioned
+  dashboard, bounded one-shot diagnostics and streaming post-warm-up summaries.
+  Short real PostgreSQL/counter integration and offline guard tests pass; Grafana
+  provisioning is tested locally. This does not close full-duration AWS acceptance.
 - [ ] Validate deployment, SSM access, experiment execution, evidence recovery,
   expiry, and teardown in an explicitly authorized AWS account.
 - [ ] Run the two-hour instrumentation check and 24-hour memory/mixed-load soaks;
   investigate retained growth after warm-up before drawing leak conclusions.
 - [ ] Execute repeated worker and batch scaling measurements, including database
   pressure, and close the missing settlement-latency decision input.
-- [ ] Complete monitoring-overhead measurements, Grafana dashboards and bounded
-  automatic leak diagnostics; validate the independent expiry safeguard in AWS.
+- [ ] Execute monitoring-overhead measurements and validate dashboard exporter
+  coverage, diagnostics and the independent expiry safeguard on the AWS host.
 - [ ] Publish retained results and evidence-backed V1 starting defaults, with
   environment-specific limits and remaining uncertainty stated explicitly.
 

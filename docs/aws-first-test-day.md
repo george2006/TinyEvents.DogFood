@@ -137,9 +137,9 @@ Do not start experiments or leave it unattended.
   deployment: changing user data can replace the instance.
 - Repeated `worker-scaling` measurements, with database pressure and runtime
   evidence. Eight workers is a hypothesis, not a measured limit.
-- Batch scaling, settlement p95/p99, overload/recovery phases, monitoring-overhead
-  comparisons, Grafana dashboards and automatic bounded leak diagnostics remain
-  preparation work for the full V1 campaign. Existing JSONL/CSV evidence supports
-  the first instrumentation tests without these features.
+- The [complete bench campaign](aws-bench-campaign.md) now prepares batch scaling,
+  per-kind processing-latency proxies, overload/recovery, monitoring comparisons,
+  the dashboard and bounded automatic diagnostics. Its short local tests are
+  preparation evidence; full-duration cloud execution is still outstanding.
 - Analyze retained evidence and publish recommended defaults only after those
   decision inputs exist. See the [roadmap](roadmap.md#active-v1-operational-evidence---aws-laboratory).

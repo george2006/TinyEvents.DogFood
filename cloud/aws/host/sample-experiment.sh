@@ -31,7 +31,7 @@ while [ ! -e "$stop_file" ]; do
 
   container_json="null"
   container_error="null"
-  container_raw="$(docker stats --no-stream --format '{{json .}}' tinyevents-postgresql 2>&1)"
+  container_raw="$(timeout --kill-after=2s 8s docker stats --no-stream --format '{{json .}}' tinyevents-postgresql 2>&1)"
   container_exit=$?
   if [ "$container_exit" -eq 0 ] && [ -n "$container_raw" ]; then
     container_json="$(printf '%s' "$container_raw" | jq -c '.')"
@@ -41,7 +41,7 @@ while [ ! -e "$stop_file" ]; do
 
   database_json="null"
   database_error="null"
-  database_raw="$(docker exec tinyevents-postgresql psql \
+  database_raw="$(timeout --kill-after=2s 8s docker exec -e PGOPTIONS='-c statement_timeout=5000' tinyevents-postgresql psql \
     -U postgres \
     -d TinyEventsDogfoodOperations \
     -tAc '
@@ -60,7 +60,7 @@ while [ ! -e "$stop_file" ]; do
         SELECT
           COUNT(*) FILTER (WHERE datname = current_database())::bigint AS connections,
           COUNT(*) FILTER (WHERE datname = current_database() AND state = '\''active'\'')::bigint AS active_connections,
-          COUNT(*) FILTER (WHERE datname = current_database() AND wait_event IS NOT NULL)::bigint AS waiting_connections
+          COUNT(*) FILTER (WHERE datname = current_database() AND state = '\''active'\'' AND wait_event_type = '\''Lock'\'')::bigint AS waiting_connections
         FROM pg_stat_activity
       ), database_stats AS (
         SELECT
