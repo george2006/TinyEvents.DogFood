@@ -11,6 +11,7 @@ param(
     [ValidateRange(1, 24)][int]$WorkerCount = 4,
     [ValidateRange(1, 10)][int]$WindowSeconds = 10,
     [ValidateRange(15, 600)][int]$SettlementSeconds = 300,
+    [ValidateRange(1, 120)][int]$StartupSeconds = 30,
     [Parameter(Mandatory)][string]$CounterToolPath,
     [switch]$ResetDatabase
 )
@@ -44,6 +45,7 @@ $result = [ordered]@{
     Rate = $Rate
     WorkerCount = $WorkerCount
     WindowSeconds = $WindowSeconds
+    StartupSeconds = $StartupSeconds
     BatchSize = 10
     ClaimTimeoutSeconds = 300
     PollingIntervalMilliseconds = 50
@@ -53,12 +55,14 @@ $result = [ordered]@{
     CleanupIntervalSeconds = 1
     AcceptancePassed = $false
     MemoryVerdict = 'Inconclusive'
+    Processes = @()
 }
 
 function Start-SoakProcess([string]$Name, [string[]]$CommandArguments) {
+    $readyPath = Join-Path $RuntimeDirectory "$Name.ready.json"
     $parameters = @{
         FilePath = 'dotnet'
-        ArgumentList = ((@($assembly) + $CommandArguments) | ForEach-Object { '"' + $_ + '"' })
+        ArgumentList = ((@($assembly) + $CommandArguments + @($readyPath)) | ForEach-Object { '"' + $_ + '"' })
         RedirectStandardOutput = Join-Path $LogDirectory "$Name.stdout.log"
         RedirectStandardError = Join-Path $LogDirectory "$Name.stderr.log"
         PassThru = $true
@@ -68,9 +72,23 @@ function Start-SoakProcess([string]$Name, [string[]]$CommandArguments) {
     $handle = [pscustomobject]@{ Name = $Name; Process = $process; Counters = $null }
     # Own the process before attempting attachment, including attachment failures.
     $handles.Add($handle)
+    $processEvidence = [ordered]@{ Name = $Name; ProcessId = $process.Id; CounterProcessId = $null }
+    $result.Processes += $processEvidence
+    $startupDeadline = [DateTimeOffset]::UtcNow.AddSeconds($StartupSeconds)
+    while (!(Test-Path -LiteralPath $readyPath)) {
+        if ($process.HasExited) { throw "$Name exited before readiness; see its stderr log." }
+        if ([DateTimeOffset]::UtcNow -ge $startupDeadline) { throw "$Name did not become ready within $StartupSeconds seconds." }
+        Start-Sleep -Milliseconds 100
+    }
+    $ready = Get-Content -LiteralPath $readyPath -Raw | ConvertFrom-Json
+    if ($ready.ProcessId -ne $process.Id) { throw "$Name readiness PID does not match its process." }
+    # Attaching during native runtime initialization can stall .NET 8 startup.
+    # An explicit managed readiness signal avoids an arbitrary fixed sleep.
     $handle.Counters = Start-DotNetRuntimeCounters $process `
         (Join-Path $RuntimeDirectory "$Name.runtime.csv") `
         -RefreshIntervalSeconds 1 -ToolPath $CounterToolPath
+    if ($null -eq $handle.Counters) { throw "Runtime collector for $Name could not be started." }
+    $processEvidence.CounterProcessId = $handle.Counters.Process.Id
     return $handle
 }
 
@@ -105,9 +123,6 @@ try {
         'publish-soak', [string]$DurationSeconds, [string]$Rate, [string]$WindowSeconds, $publisherPath)
     $publicationStarted = [DateTimeOffset]::UtcNow
     $deadline = $publicationStarted.AddSeconds($DurationSeconds + $SettlementSeconds)
-    $result.Processes = @($handles | ForEach-Object {
-        [ordered]@{ Name = $_.Name; ProcessId = $_.Process.Id }
-    })
 
     while (!$publisher.Process.HasExited) {
         Assert-WorkersAlive
@@ -175,22 +190,29 @@ catch {
     throw
 }
 finally {
+    $cleanupErrors = [Collections.Generic.List[string]]::new()
     foreach ($handle in $handles) {
         try {
             if (!$handle.Process.HasExited) { $handle.Process.Kill($true) }
-            $handle.Process.WaitForExit()
+            if (!$handle.Process.WaitForExit(10000)) { throw 'Process did not exit after termination.' }
+        }
+        catch { $cleanupErrors.Add("$($handle.Name): $($_.Exception.Message)") }
+        try {
             Stop-DotNetRuntimeCounters $handle.Counters `
                 (Join-Path $LogDirectory "$($handle.Name).counters.stdout.log") `
                 (Join-Path $LogDirectory "$($handle.Name).counters.stderr.log")
         }
+        catch { $cleanupErrors.Add("$($handle.Name) counters: $($_.Exception.Message)") }
         finally { $handle.Process.Dispose() }
     }
     $env:TINYEVENTS_DOGFOOD_STORAGE = $previousStorage
     $env:TINYEVENTS_DOGFOOD_POSTGRESQL = $previousConnection
     $result.CompletedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
+    $result.CleanupErrors = @($cleanupErrors)
     $result | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $ArtifactDirectory 'result.json')
 }
 
+if ($result.CleanupErrors.Count -gt 0) { throw 'Soak cleanup failed; see result.json.' }
 $missingCounters = @($handles | Where-Object {
     $path = Join-Path $RuntimeDirectory "$($_.Name).runtime.csv"
     !(Test-Path $path) -or !(Select-String -LiteralPath $path -SimpleMatch 'System.Runtime' -Quiet)

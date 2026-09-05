@@ -7,10 +7,10 @@ This directory contains the disposable one-instance AWS laboratory described in
 
 The repository includes infrastructure, host observability, experiment execution,
 and bounded evidence uploads. Local offline tests cover the evidence lifecycle
-and folder layout; AWS end-to-end validation has not been performed. The new
-long-running soak runner is still under local validation (its initial Linux
-smoke timed out during process startup). Do not deploy a 2h/24h soak or interpret
-the presence of its scenario file as a validated memory test.
+and folder layout. The sustained-work runner also passes a short Linux/PostgreSQL
+integration test with 2 and 8 workers and real runtime collectors. AWS end-to-end
+validation and the 2h/24h soaks have not been performed. A short passing run is not
+a validated memory test or a worker-capacity recommendation.
 
 ## Local prerequisites
 
@@ -161,6 +161,46 @@ The lifecycle test doubles AWS, systemd, logging, and shutdown commands. It chec
 success, failed/hung uploads, lock contention, unexpired/expired hosts, and local
 write failures. These are not AWS IAM, S3, cloud-init, or real-systemd integration
 tests.
+
+### Short soak integration validation (local PostgreSQL, no AWS)
+
+`tests/Test-CloudSoak.ps1` exercises the real publisher, worker processes, database,
+and `dotnet-counters`. It requires a built Release application, PowerShell 7,
+.NET 8, the counter tool, and a **disposable** PostgreSQL database whose name
+starts with `TinyEventsDogfood`. The script resets that database, including a
+second reset for the injected collector-failure case; never use production data.
+
+For example, inside a local Linux SDK container with the repository mounted at
+`/repo`, a writable evidence mount at `/out`, and a dedicated PostgreSQL container
+reachable through `SOAK_TEST_CONNECTION`:
+
+```powershell
+dotnet tool install dotnet-counters --version 8.0.547301 --tool-path /tools
+& /repo/cloud/aws/tests/Test-CloudSoak.ps1 `
+    -DogfoodRoot /repo `
+    -ArtifactDirectory /out/soak-validation-unique-run `
+    -ConnectionString $env:SOAK_TEST_CONNECTION `
+    -CounterToolPath /tools/dotnet-counters `
+    -WorkerCount 8
+```
+
+Use a new artifact directory each time. The short test uses 21 seconds at 20
+events/second: 420 committed business operations, 399 effects, 21 intentional
+permanent failures, and three publication windows (10 + 10 + 1 seconds). It
+checks persistent publisher identity, bounded windows, per-process counter CSVs,
+categorized evidence, and cleanup of workers, publisher, and collectors. Negative
+cases cover evidence reuse, publishing to a missing database, and an immediately
+exiting collector. Expected failure logs remain under `logs/`; they are not lost
+or dumped into the operator terminal. `MemoryVerdict` remains `Inconclusive`.
+
+Local validation used SDK 8.0.424, PowerShell 7.4.18, PostgreSQL 16, and
+dotnet-counters 8.0.547301. In that environment, attaching counters immediately
+after creating a process could stall startup. Soak commands now emit an atomic
+`*.ready.json` from managed code before the supervisor attaches collectors.
+Readiness has a 30-second default deadline **per process** (`-StartupSeconds`),
+and process ownership is recorded before waiting, so failed startup is cleaned up.
+This readiness handshake is lab code; the TinyEvents library is unchanged. It
+does not assert database health or imply that eight workers are optimal.
 
 Workers are sampled directly by PID. The diagnostic helper records cumulative
 CPU time, working set, private and virtual memory, threads, and handles, and
