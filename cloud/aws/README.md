@@ -1,393 +1,273 @@
-# TinyEvents AWS Cloud Laboratory
+# Run TinyEvents Tests on AWS
 
-This directory contains the disposable one-instance AWS laboratory described in
-[`docs/aws-cloud-lab-plan.md`](../../docs/aws-cloud-lab-plan.md).
+This is the only AWS user guide. Follow it in order; no separate architecture,
+setup or first-day documents are required. Local preparation has passed, but
+**the first real AWS deployment and full-duration campaign are still unvalidated**.
 
-New to AWS? Start with [AWS setup: two blocks](../../docs/aws-account-setup.md):
-environment credentials create the operator; Terraform creates the laboratory.
-Both setup scripts preview by default and require `-Apply` plus confirmation
-before changing cloud resources. Cost estimates live in the
-[cost envelope](../../docs/aws-cloud-lab-costs.md).
+Two scripts prepare the infrastructure: `Bootstrap-Account.ps1` creates the
+operator; `Deploy-Lab.ps1` lets Terraform create the lab. The later commands run
+tests, collect results and remove the lab. Deployment alone does not run tests.
 
-For the first real session, follow the [first AWS test day](../../docs/aws-first-test-day.md)
-gates: deploy/smoke, recover evidence, rehearse for two hours, then verify expiry
-and teardown. Full V1 campaign preparation is tracked separately in the roadmap.
+## Before you start
 
-The [complete bench campaign](../../docs/aws-bench-campaign.md) covers the
-worker/batch matrix, phased load, payload/cleanup comparisons, monitoring overhead,
-processing-latency coverage, bounded diagnostics and provisioned dashboard.
+Use a dedicated AWS account with payment details and root MFA. The operator will
+have account-wide administrator permissions, not sandbox permissions. Install
+PowerShell 7.4+, AWS CLI 2.32+, Terraform 1.6+ and Git. Keep TinyEvents and
+TinyEvents.Dogfood as sibling repositories with clean, committed source. Run the
+commands below from the TinyEvents.Dogfood repository root in PowerShell 7.
 
-## Current status
+The default VM is one Linux `m7i.2xlarge` (8 vCPU, 32 GiB), with a 150-GiB gp3
+disk and a private S3 results bucket. Check current
+[EC2](https://aws.amazon.com/ec2/pricing/on-demand/),
+[EBS](https://aws.amazon.com/ebs/pricing/),
+[IPv4](https://aws.amazon.com/vpc/pricing/) and
+[S3](https://aws.amazon.com/s3/pricing/) prices before applying.
+Terraform shows resources, not their price. Budget alerts default to 50 USD/month
+at 50/80/100%; **alerts and expiry are not a spending cap**. Stopped disks and
+retained results remain billable.
 
-The repository includes infrastructure, host observability, experiment execution,
-and bounded evidence uploads. Local offline tests cover the evidence lifecycle
-and folder layout. The sustained-work runner also passes a short Linux/PostgreSQL
-integration test with 2 and 8 workers and real runtime collectors. AWS end-to-end
-validation and the 2h/24h soaks have not been performed. A short passing run is not
-a validated memory test or a worker-capacity recommendation.
+## 1. Create the operator once
 
-## Local prerequisites
-
-- Terraform 1.6 or later;
-- AWS CLI 2.32 or later;
-- PowerShell 7.4 or later for the two setup entry points;
-- the bootstrap-created administrator operator in a dedicated lab account.
-
-Verify credentials before deploying:
-
-```powershell
-aws sts get-caller-identity --profile <profile>
-```
-
-## Deploy
+Inject temporary privileged credentials into `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY` and `AWS_SESSION_TOKEN` in your local process.
+Never put credentials in chat, files, Terraform variables or command arguments.
+Do not create permanent root access keys. If needed, use the optional browser
+helper at the end of this page before this step.
 
 ```powershell
-.\cloud\aws\Deploy-Lab.ps1 `
-    -AwsProfile <profile> `
-    -Region eu-west-1 `
-    -Owner <name> `
-    -ExpectedAccountId <12-digit-account-id> `
-    -AlertEmail <email>
+$accountId = '123456789012' # Replace with your dedicated account ID.
+.\cloud\aws\Bootstrap-Account.ps1 -ExpectedAccountId $accountId -AllowRootBootstrap
+# Review the preview, then explicitly create the operator:
+.\cloud\aws\Bootstrap-Account.ps1 -ExpectedAccountId $accountId -AllowRootBootstrap -Apply
 ```
 
-This only plans. Add `-Apply` after reviewing the plan and cost to create a fresh
-plan and confirm deployment. `-OperatorLogin` prepares the refreshable operator
-profile automatically; it refuses conflicting local profile configuration.
-The default profile is `tinyevents-lab`. All cloud wrappers also accept
-`-AwsProfile ''` for temporary environment credentials. Clear bootstrap
-credentials before switching to a named profile; the scripts reject mixed modes.
+Omit `-AllowRootBootstrap` for a non-root administrator. Store the securely
+prompted operator password in your password manager. Open the console URL printed
+by the script, sign in as `tinyevents-lab-operator`, change its password, and
+enroll MFA with device name `tinyevents-lab-operator`. Sign out and back in with MFA.
+These personal authentication steps remain manual.
 
-Only the expected `tinyevents-lab-operator` identity may deploy. Terraform also
-guards the account ID. If the regional Standard On-Demand quota is below 8 vCPU,
-the script targets only the quota resource as an explicit prerequisite stage;
-it does not plan or apply a VM until a later run observes AWS approval. A larger
-existing quota is preserved. Terraform owns the VM role/profile and an
-account-wide monthly budget with 50/80/100% alerts, defaulting to 50 USD. Budget
-alerts are not a cap; the operator remains an account-wide administrator.
-
-The default instance is `m7i.2xlarge` with an encrypted 150 GB gp3 root volume.
-The instance receives an expiry 30 hours after deployment unless a shorter
-duration is selected. The security group has no ingress rules.
-
-## Inspect
+Clear privileged bootstrap credentials, including after a failure:
 
 ```powershell
-.\cloud\aws\Get-LabStatus.ps1 -AwsProfile <profile>
+$env:AWS_ACCESS_KEY_ID = $null
+$env:AWS_SECRET_ACCESS_KEY = $null
+$env:AWS_SESSION_TOKEN = $null
+# Only if you used the optional browser helper:
+aws logout --profile tinyevents-bootstrap
 ```
 
-The command reports EC2 state, SSM connectivity, expiry, bootstrap status, and
-whether the independent AWS stop schedule matches the deployed configuration.
-Configuration verification does not prove the stop API has executed successfully.
-
-When bootstrap reports `host-prerequisites-ready`, stage exact clean source
-commits in the private results bucket:
+## 2. Create one lab with Terraform
 
 ```powershell
-.\cloud\aws\Publish-LabSources.ps1 -AwsProfile <profile>
+$lab = @{
+    ExpectedAccountId = $accountId
+    Owner = 'your-name'
+    AlertEmail = 'you@example.com'
+    Region = 'eu-west-1'
+    LifetimeHours = 6
+}
+.\cloud\aws\Deploy-Lab.ps1 @lab -OperatorLogin
+# Review the plan and costs. The following command creates resources after confirmation:
+.\cloud\aws\Deploy-Lab.ps1 @lab -Apply
+.\cloud\aws\Get-LabStatus.ps1
 ```
 
-The staging command refuses dirty repositories, uses `git archive`, records the
-commit and SHA-256 of each archive, and does not require the candidate commits
-to have been pushed to a public remote.
+Choose the operator, not root, in the login browser. If the regional quota is
+below eight vCPUs, the script submits only a quota request: wait for AWS approval,
+then rerun this step. Do not bypass MFA or identity checks.
 
-Initialize the staged host asynchronously:
+Continue only after full deployment succeeds, SSM is `Online`,
+`ExpiryWatchdog.ConfigurationVerified` is true, and bootstrap says
+`host-prerequisites-ready`. A failed partial deployment may have a VM without
+its stop schedule: stop/recover/destroy it promptly, never leave it unattended.
+
+The first session is supervised and limited to six hours from planning time.
+For a later 24-hour soak, create a fresh lab with `LifetimeHours = 30`.
+Never redeploy to extend an active experiment: changed user data can replace
+its VM. Keep private `terraform.tfstate` and `.lab-context.json` until cleanup ends.
+
+## 3. Load the application and wait for smoke
 
 ```powershell
-.\cloud\aws\Initialize-LabHost.ps1 -AwsProfile <profile>
+.\cloud\aws\Publish-LabSources.ps1
+.\cloud\aws\Initialize-LabHost.ps1
+.\cloud\aws\Get-LabStatus.ps1
 ```
 
-The SSM command verifies both archive hashes, builds the dogfood application,
-starts PostgreSQL and the bounded monitoring stack, executes a 100-message smoke
-test, and uploads its evidence. Use `Get-LabStatus.ps1` until bootstrap reports
-`smoke-ready`.
+Source staging uses exact clean commits. Initialization builds the application,
+starts PostgreSQL and monitoring, resets the disposable database, runs a
+100-message smoke test and uploads evidence. Repeat only the status command until
+`smoke-ready`. Do not repeat initialization during an experiment or while another
+initialization is running. A submitted SSM command is not a passed test.
 
-## Run an experiment
+## 4. Run a test and retrieve results
 
-Scenario documents live in `cloud/aws/scenarios/`. Start one asynchronously:
+First validate scheduled execution and evidence recovery:
 
 ```powershell
-.\cloud\aws\Start-Experiment.ps1 `
-    -AwsProfile <profile> `
-    -Scenario worker-scaling
+.\cloud\aws\Start-Experiment.ps1 -Scenario cloud-smoke
+.\cloud\aws\Get-ExperimentStatus.ps1
 ```
 
-Closing the local terminal or SSM command does not stop the experiment. Query
-its durable host-side status independently:
+Repeat the status command until this run is terminal. Require `Succeeded`, then:
 
 ```powershell
-.\cloud\aws\Get-ExperimentStatus.ps1 -AwsProfile <profile>
+.\cloud\aws\Get-Results.ps1 -OutputDirectory .\artifacts\cloud\first-session
 ```
 
-Only one experiment can hold the host lock. Complete and partial evidence is
-uploaded to `runs/<run-id>/` in the private results bucket.
+Open the downloaded run under `runs/<run-id>/`: its `README.md`,
+`metadata/status.json`, source manifest and workload result. Check the intended
+source commits and successful workload/upload before continuing.
 
-Before any upload or SSM scheduling, the start command checks the account,
-strict scenario contract, remaining TTL, and independent expiry configuration.
-The scenario's maximum runtime plus five minutes must fit before expiry. The
-host rechecks TTL and systemd enforces the scenario's declared maximum runtime.
-Neither step automatically extends the laboratory or changes its expiry.
+Use the same start/status/download sequence with `memory-soak-2h`. Close and
+reopen your local terminal to verify the workload continues independently.
+After a checkpoint attempt, download again: the same run folder should contain
+growing evidence. Only one experiment can run at a time. Each variant resets
+the disposable database; never target production data.
 
-### Evidence organization and recovery
+### Available tests
 
-Run IDs include the scenario, UTC timestamp, and a random suffix. Each run is
-created once, and subsequent checkpoints update that same run, not a new folder
-for every upload. Layout version 2 is:
+| Scenario | What it measures |
+| --- | --- |
+| `cloud-smoke` | 100 successful events and evidence collection |
+| `memory-soak-2h` | Two-hour mixed-workload instrumentation rehearsal |
+| `worker-batch-matrix` | Three repetitions of workers 1/2/4/8/12/16/24 at batch 50, backlog 100,000; batches 1/10/25/50/100 at four workers, backlog 20,000 |
+| `monitoring-overhead` | Three alternating full/minimal monitoring pairs |
+| `mixed-pressure` | Overload/recovery, then payload and cleanup comparisons |
+| `memory-diagnostics-24h` | Steady mixed load for 24 hours with bounded automatic GC-dump diagnostics |
 
-```text
-runs/memory-soak-2h-20260905-080000-a1b2c3d4/
-  README.md                    # where to start and how to interpret partial data
-  layout.json                  # machine-readable paths / layout version
-  metadata/                    # scenario.json, status.json, source-manifest.json
-  workload/soak/               # publisher-windows.jsonl, result.json
-  runtime/soak/                # one CSV per PID role, process-samples.jsonl
-  infrastructure/              # experiment-samples.jsonl (host + PostgreSQL)
-  logs/                        # sampler, publisher, workers, counter collectors
-  reports/                     # derived summaries and scaling recommendation
-```
+Run the full campaign only after the rehearsal and live safety checks below.
+Use sequential labs as needed, not parallel VMs. The complete campaign does not
+fit a single 30-hour lease. Admission requires each scenario's conservative
+maximum duration plus five minutes to fit the remaining TTL; that budget is not
+a predicted runtime. Use a fresh lease for the 24-hour soak. The older
+`worker-scaling` and `memory-soak-24h` are compatibility scenarios, not extra
+mandatory stages.
 
-Start at `README.md`, then `metadata/status.json`, then `reports/`. For failures,
-inspect `logs/` and the durable workload result. Empty folders do not appear in
-S3 until files are written. Legacy smoke/scaling runners keep some process
-diagnostics beside their workload results; scaling repetitions are grouped under
-`workload/repetition-N/`. Report readers still accept historical flat run folders.
+## 5. Download, verify and destroy
 
-The independent systemd checkpoint timer attempts an upload every five minutes.
-It copies files already written to disk, including an active soak's runtime and
-publisher journals. The legacy scaling runner's not-yet-staged evidence is saved
-separately under `live/worker-scaling/` for recovery. Host status and source
-provenance are under `host/`; `checkpoints/latest.json` is uploaded **last**, only
-after all checkpoint transfers succeed. It is a partial-copy receipt, not a
-consistent snapshot or a successful experiment verdict. Files still buffered in
-a process and raw PostgreSQL/Prometheus volumes are not included.
-
-All experiment and checkpoint uploads share a lock and have a 180-second total
-budget (plus up to five seconds to force termination). AWS retries and connection
-timeouts are also bounded. Sync never deletes remote evidence and does not follow
-symlinks. Growing files may be retransferred, so upload CPU/network/disk overhead
-is part of the same-host experiment; large logs can exhaust the upload budget.
-Five minutes is the attempt interval, **not a guaranteed maximum data-loss window**.
-
-At TTL expiry, new experiments are rejected, the checkpoint timer is stopped,
-the workload is stopped with a bounded grace period, and one final checkpoint is
-attempted. `host/expiry.json` identifies an expired laboratory; a remaining
-`Running` status is not success. Shutdown proceeds even if S3 hangs, uploads
-fail, or local evidence cannot be written. The expiry check runs every five
-minutes, and stopping/uploading can add several more minutes before shutdown.
-Forced stop can lose buffered diagnostics. This mechanism covers the configured
-TTL, not a sudden host failure or an arbitrary external EC2 stop/termination.
-
-Terraform also creates an independent EventBridge Scheduler stop target. Starting
-ten minutes after TTL, it calls `StopInstances` with `Force=true` every five
-minutes for this instance only, including after an accidental restart. Its role
-is restricted to that EC2 ARN and trusts only this account's dedicated schedule
-group. It does not need a healthy host, SSM, or successful cloud-init. The host
-upload/shutdown remains the primary path; forced stop can lose unsaved evidence.
-AWS scheduling/API delays remain possible, and stopping EC2 does not delete
-billable storage. This is a safeguard, not a hard spending cap.
-
-A partial Terraform apply can create EC2 before its stop schedule exists. Do not
-leave such a failed deployment unattended; stop or recover/destroy it. Admission
-refuses incomplete or modified watchdog configuration. The first live session
-must still validate IAM authorization and actual stopping behavior. Implementation
-follows AWS's [universal target contract](https://docs.aws.amazon.com/scheduler/latest/UserGuide/managing-targets-universal.html),
-[schedule-group trust guidance](https://docs.aws.amazon.com/scheduler/latest/UserGuide/cross-service-confused-deputy-prevention.html),
-and [EC2 stop semantics](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_StopInstances.html).
-
-Download the bucket while Terraform state still identifies it:
+Do not wait for shutdown to save results. Checkpoints attempt uploads every five
+minutes, but are partial copies, not guaranteed snapshots or a maximum data-loss
+window. Final upload is also bounded; failure does not prevent expiry shutdown.
+Raw database/Prometheus volumes are not exported. S3 objects expire after 30 days.
 
 ```powershell
-.\cloud\aws\Get-Results.ps1 -AwsProfile <profile>
+.\cloud\aws\Get-Results.ps1 -OutputDirectory .\artifacts\cloud\first-session
+.\cloud\aws\Destroy-Lab.ps1 -ExpectedAccountId $accountId -WhatIf
 ```
 
-The same hierarchy is preserved under `artifacts/cloud/`. S3 objects expire after
-30 days, independently of VM shutdown. Archive the release evidence locally
-before then; a non-empty bucket's delete protection does not disable retention.
-
-### Offline validation (no AWS resources)
-
-From the repository root, with Docker available:
+Verify the downloaded evidence and preview. Only then explicitly authorize deletion:
 
 ```powershell
-docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-AccountBootstrap.ps1
-docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-PartialDeploymentRecovery.ps1
-docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 bash /repo/cloud/aws/tests/Test-EvidenceLifecycle.sh
-docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-EvidenceLayout.ps1
-docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-ExperimentAdmission.ps1
+.\cloud\aws\Destroy-Lab.ps1 -ExpectedAccountId $accountId -DeleteResults
 ```
 
-With provider plugins already installed by `terraform init`, Terraform 1.7+
-also supports the provider-mocked foundation tests (validated with 1.9.8):
+This permanently deletes cloud evidence and the lab after confirmation; the
+downloaded copy remains. Without `-DeleteResults`, a populated bucket can leave
+partial teardown. Check the result and AWS console for leftovers, not just a
+stopped VM. Keep state/context through recovery, including after interrupted
+deployment. They cannot be replaced by deleting state and starting over.
+The operator and approved quota increase survive lab teardown.
+
+## Safety checks before unattended tests
+
+Stop and investigate process/collector death, missing metrics, failing uploads
+or a nearly full disk. Ordinary test failure does not immediately stop the VM.
+`Running`, `Uploading`, `Failed`, missing status or forced termination is not
+successful acceptance. Short runs and `MemoryVerdict: Inconclusive` do not prove
+memory stability or V1 release readiness.
+
+Validate both expiry paths before unattended runs: the host timer stops work,
+attempts upload and shuts down; the independent AWS Scheduler starts ten minutes
+after TTL and repeats every five minutes. Timing/API delays are possible.
+An enabled schedule proves configuration, not a successful stop.
+
+To test the independent path, use a separate explicitly authorized short-lived
+lab with no workload, after downloading its evidence. Disable only that lab's
+host expiry timer and verify AWS stops it after TTL plus the grace period.
+Never disable expiry on an active soak lab. If it remains running, manually stop
+the exact lab instance and resolve Scheduler/IAM before leaving tests unattended.
+
+## Optional details
+
+<details>
+<summary>Get temporary bootstrap credentials through browser login</summary>
+
+Use this before step 1 only if credentials are not already injected:
 
 ```powershell
-docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" hashicorp/terraform:1.9.8 -chdir=/repo/cloud/aws/terraform validate
-docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" hashicorp/terraform:1.9.8 -chdir=/repo/cloud/aws/terraform test
+aws login --profile tinyevents-bootstrap --region eu-west-1
+if ($LASTEXITCODE -ne 0) { throw 'Bootstrap login failed' }
+$sessionJson = aws configure export-credentials --profile tinyevents-bootstrap --format process
+if ($LASTEXITCODE -ne 0) { throw 'Credential export failed' }
+$session = $sessionJson | ConvertFrom-Json
+$env:AWS_ACCESS_KEY_ID = $session.AccessKeyId
+$env:AWS_SECRET_ACCESS_KEY = $session.SecretAccessKey
+$env:AWS_SESSION_TOKEN = $session.SessionToken
+$session = $null
+$sessionJson = $null
 ```
 
-The container needs Linux provider binaries in `.terraform/`; Windows-native
-provider installations are not interchangeable. The four tests use mock AWS and
-random providers, including a mock apply/teardown to resolve computed values;
-they do not create AWS resources. They cover the budget, runtime profile,
-evidence protection, quota precondition, account validation, expired input, and
-the independent stop schedule's target, timing, permissions and trust scope.
+The export is captured, not printed. Do not run it standalone or share environment
+dumps. See [AWS console credentials](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sign-in.html).
 
-The admission suite validates every shipped scenario and rejects malformed
-parameters, unknown fields, invalid worker matrices, insufficient TTL, wrong
-accounts, and absent/modified stop schedules before any S3 or SSM writes. It
-uses command doubles; actual Scheduler execution remains a live acceptance item.
+</details>
 
-The bootstrap suite doubles AWS and Terraform processes with fake credentials
-and disposable state. It checks IAM-only bootstrap, password redaction/private
-temporary input cleanup, safe retry after partial failure, identity/profile
-guards, explicit plan/apply, quota-only staging, and teardown. It does not prove
-real IAM authorization, browser login/MFA compatibility, Windows ACL behavior,
-or quota approval. Those remain live validation items. Do not remove the MFA
-guard to work around a failed preflight.
+<details>
+<summary>Operator session expired, environment-only login, or bootstrap retry</summary>
 
-The recovery suite injects an apply failure before final outputs exist. It checks
-local context persistence, state-lineage/account/region matching, missing buckets,
-rejected bucket creation/replacement, and explicit evidence-deletion permission
-on each teardown attempt. These are command doubles, not live teardown evidence.
+Refresh login without deploying again:
+`aws login --profile tinyevents-operator-login --region eu-west-1`.
 
-The lifecycle test doubles AWS, systemd, logging, and shutdown commands. It checks
-success, failed/hung uploads, lock contention, unexpired/expired hosts, and local
-write failures. These are not AWS IAM, S3, cloud-init, or real-systemd integration
-tests.
+If operator temporary credentials are already injected, replace `-OperatorLogin`
+with `-AwsProfile ''` in step 2 and pass `-AwsProfile ''` to subsequent wrappers.
+Do not mix named profiles with credential environment variables. Conflicting
+local profiles are rejected, not overwritten.
 
-### Short soak integration validation (local PostgreSQL, no AWS)
+Bootstrap retries resume owned users without rotating passwords; foreign users
+or changed policies are rejected. It creates no operator access keys. The initial
+password briefly occupies a private temporary request file; a crash can leave it
+behind. Do not use transcripts/debug dumps. Expiring a session does not revoke
+the operator's administrator access.
 
-`tests/Test-CloudSoak.ps1` exercises the real publisher, worker processes, database,
-and `dotnet-counters`. It requires a built Release application, PowerShell 7,
-.NET 8, the counter tool, and a **disposable** PostgreSQL database whose name
-starts with `TinyEventsDogfood`. The script resets that database, including a
-second reset for the injected collector-failure case; never use production data.
+</details>
 
-For example, inside a local Linux SDK container with the repository mounted at
-`/repo`, a writable evidence mount at `/out`, and a dedicated PostgreSQL container
-reachable through `SOAK_TEST_CONNECTION`:
+<details>
+<summary>Read metrics and open the dashboard</summary>
 
-```powershell
-dotnet tool install dotnet-counters --version 8.0.547301 --tool-path /tools
-& /repo/cloud/aws/tests/Test-CloudSoak.ps1 `
-    -DogfoodRoot /repo `
-    -ArtifactDirectory /out/soak-validation-unique-run `
-    -ConnectionString $env:SOAK_TEST_CONNECTION `
-    -CounterToolPath /tools/dotnet-counters `
-    -WorkerCount 8
-```
+Scheduled bench details live in `workload/bench/`: open
+`metadata/bench-status.json` and `reports/bench-report.md` there. JSON retains
+per-kind latency, coverage and comparison caveats. Nested smoke has `result.json`
+and `workload/smoke/result.json`, not its own scheduled-run status.
+Keep logs and diagnostics private.
 
-Use a new artifact directory each time. The short test uses 21 seconds at 20
-events/second: 420 committed business operations, 399 effects, 21 intentional
-permanent failures, and three publication windows (10 + 10 + 1 seconds). It
-checks persistent publisher identity, bounded windows, per-process counter CSVs,
-categorized evidence, and cleanup of workers, publisher, and collectors. Negative
-cases cover evidence reuse, publishing to a missing database, and an immediately
-exiting collector. Expected failure logs remain under `logs/`; they are not lost
-or dumped into the operator terminal. `MemoryVerdict` remains `Inconclusive`.
+Processing timestamps are proxies, not exact commit-to-ACK timings. Cleanup
+censors processed-row latency; permanent failures are not zero-latency successes.
+Do not pool percentiles by averaging them or compare different backlogs as
+identical trials. No worker/batch defaults are inferred automatically.
 
-Local validation used SDK 8.0.424, PowerShell 7.4.18, PostgreSQL 16, and
-dotnet-counters 8.0.547301. In that environment, attaching counters immediately
-after creating a process could stall startup. Soak commands now emit an atomic
-`*.ready.json` from managed code before the supervisor attaches collectors.
-Readiness has a 30-second default deadline **per process** (`-StartupSeconds`),
-and process ownership is recorded before waiting, so failed startup is cleaned up.
-This readiness handshake is lab code; the TinyEvents library is unchanged. It
-does not assert database health or imply that eight workers are optimal.
+Runtime slopes exclude 15 minutes of warm-up and require six later samples over
+30 minutes. Diagnostic capture requires sustained resident growth (256 MiB and
+50%, five samples at least a minute apart after warm-up). At most one GC-dump
+attempt occurs across PIDs, with a 65-second deadline, monitored 1-GiB output
+threshold and 10 GiB free plus the output budget. Size checks can overshoot; they
+are not a filesystem quota. Capture forces GC, consumes memory and contaminates
+performance comparisons. Neither a trigger nor a slope is a leak verdict.
 
-Workers are sampled directly by PID. The diagnostic helper records cumulative
-CPU time, working set, private and virtual memory, threads, and handles, and
-attaches .NET 8 `System.Runtime` counters without modifying TinyEvents. GC dumps
-are explicit or enabled only by the diagnostic scenario. Capture has time/size
-guards and requires 10 GiB free plus its output budget. It forces GC and can
-distort performance; see the campaign guide for trigger limits and interpretation.
+Full monitoring includes six services, runtime collectors and infrastructure
+samples; minimal mode retains lightweight process samples, journals and TTL/S3
+safeguards. Missing scrapes are not zero. PostgreSQL is a real server in a
+four-CPU/8-GiB container on the same eight-vCPU host, not a managed database.
 
-The existing worker-scaling runner enables this collection through
-`TINYEVENTS_DOGFOOD_DOTNET_COUNTERS`. Every worker writes an independent runtime
-CSV and collector log beside its normal stdout/stderr evidence. Local dogfood
-runs remain unchanged when the variable is absent.
+Run `.\cloud\aws\Open-LabDashboard.ps1` with the Session Manager plugin installed.
+It forwards localhost:3000 over SSM without public ingress. Sign in as `admin`
+with the host-local secret at `/etc/tinyevents-lab/secrets/grafana-admin-password`,
+read through your private host session, never chat. Grafana shows infrastructure;
+runtime GC and latency remain in CSV/JSON reports.
 
-`Summarize-RuntimeCounters.ps1` converts all runtime CSV files below one run
-into `runtime-summary.json`. It reports per-worker min/max/mean/sum/last values,
-variant memory totals, instrumentation completeness, and linear slopes for the
-main memory gauges. Slopes require six samples spanning 30 minutes after a
-15-minute warm-up. CSV aggregation is streaming; short runs cannot be called
-memory-leak tests.
+</details>
 
-Full-monitoring experiments also write infrastructure JSONL at a ten-second
-interval (separate files per bench variant). Each line correlates host load and memory, PostgreSQL container CPU
-and memory, outbox counts and oldest-pending age, database connections and
-waiters, commits/rollbacks, cache/physical reads, temporary bytes, deadlocks,
-and outbox table/index allocation. Database or container observation failures
-are retained as errors in the time series instead of terminating the workload
-or being recorded as zero.
-
-`Summarize-ExperimentSamples.ps1` produces `infrastructure-summary.json` with
-host/container ranges, database counter deltas, cache-hit ratio, backlog and
-oldest-message ranges, storage growth, observation coverage, and guarded memory
-slope. It highlights pressure signals such as increasing backlog, waiting
-connections, deadlocks, temporary-byte growth, or swap use. A signal identifies
-correlation to investigate; it does not assign the cause to TinyEvents.
-
-Worker-scaling runs also produce `worker-scaling-report.json`. The provisional
-rule keeps the last accepted step that adds at least 15% throughput, has complete
-runtime instrumentation when available, and shows neither PostgreSQL waiters
-nor host swap in its timestamped window. If the largest tested count still
-passes, the report says the upper boundary was not found instead of pretending
-that count is optimal. TE-L02 has no end-to-end p95/p99 latency, so the report
-records latency as a missing decision input rather than inventing it.
-
-## Destroy
-
-Download evidence before destruction. A populated results bucket is protected
-by default:
-
-```powershell
-.\cloud\aws\Destroy-Lab.ps1 -AwsProfile <profile> -ExpectedAccountId <12-digit-account-id>
-```
-
-To deliberately allow Terraform to remove objects in the results bucket:
-
-```powershell
-.\cloud\aws\Destroy-Lab.ps1 `
-    -AwsProfile <profile> `
-    -ExpectedAccountId <12-digit-account-id> `
-    -DeleteResults
-```
-
-Destruction requires confirmation and verifies credentials against the saved
-account and state. `-WhatIf` does not destroy anything. When necessary, a targeted
-plan changes an existing bucket's `force_destroy` setting before teardown. The
-script inspects that saved plan and rejects creation, replacement, deletion, or
-updates to other resources. A bucket not recorded in state is never created for
-cleanup. A retry without `-DeleteResults` resets an earlier true setting rather
-than silently reusing old deletion permission. If a bucket has disappeared
-externally and the adjustment plan would recreate it, recovery stops for state
-review instead of applying that plan.
-
-Without `-DeleteResults`, a non-empty bucket can leave a partial teardown;
-retain state and retry after handling the evidence. Expired labs remain
-eligible for teardown. The bootstrap operator is outside Terraform and survives;
-the lab budget and runtime IAM role/profile do not. Approved quota increases are
-not revoked by destruction.
-
-Before each authorized apply, `Deploy-Lab.ps1` atomically saves non-secret
-parameters in `cloud/aws/terraform/.lab-context.json` (ignored by Git). It binds
-the record to the local state lineage after a successful or failed apply when
-state is available. This permits teardown after quota-only or interrupted
-deployment even without final instance/bucket outputs. It stores configuration
-and the alert email, never passwords or AWS credentials. Preview does not write
-this record. Keep it together with `terraform.tfstate`; it cannot replace lost
-state. If the process is killed before binding a new lineage, the record still
-contains the original account/region and recovery also checks account-bearing
-managed-resource ARNs. It is a recovery aid, not a cryptographic ownership proof.
-
-If using state from an earlier revision without account/budget outputs, review
-and apply a migration plan with `Deploy-Lab.ps1` before using the new teardown
-wrapper, or use the original revision's teardown. Do not delete state to bypass
-the account guard. Bootstrap passwords and keys are never Terraform inputs.
-
-## Terraform directly
-
-The wrappers use the default workspace and local `terraform.tfstate`, with
-provider metadata in `cloud/aws/terraform/.terraform/`; all are ignored by Git.
-Recovery rejects non-default workspaces, custom local paths, and remote backends.
-A remote backend is outside the initial single-operator laboratory scope.
+Maintaining the scripts? [Contributor tests](tests/README.md) are separate from
+this user workflow. Outstanding acceptance is tracked in the
+[roadmap](../../docs/roadmap.md#active-v1-operational-evidence---aws-laboratory).

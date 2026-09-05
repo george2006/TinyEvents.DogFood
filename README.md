@@ -105,7 +105,7 @@ TE-T05               True
 - [Transactions, workers, and database recovery](operations/README.md)
 - [Schema and deployment](deployment/README.md)
 - [Hardening contract and engineering record](docs/beta-hardening-lab.md)
-- [AWS cloud capacity and memory laboratory plan](docs/aws-cloud-lab-plan.md)
+- [Run tests on AWS](cloud/aws/README.md)
 
 ## Repository Relationship
 
