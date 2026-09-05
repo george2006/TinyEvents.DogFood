@@ -3,6 +3,12 @@
 This directory contains the disposable one-instance AWS laboratory described in
 [`docs/aws-cloud-lab-plan.md`](../../docs/aws-cloud-lab-plan.md).
 
+New to AWS? Start with [AWS setup: two blocks](../../docs/aws-account-setup.md):
+environment credentials create the operator; Terraform creates the laboratory.
+Both setup scripts preview by default and require `-Apply` plus confirmation
+before changing cloud resources. Cost estimates live in the
+[cost envelope](../../docs/aws-cloud-lab-costs.md).
+
 ## Current status
 
 The repository includes infrastructure, host observability, experiment execution,
@@ -15,10 +21,9 @@ a validated memory test or a worker-capacity recommendation.
 ## Local prerequisites
 
 - Terraform 1.6 or later;
-- AWS CLI v2;
-- an AWS profile allowed to create EC2, IAM, S3, and SSM-related resources;
-- PowerShell 7 recommended (Windows PowerShell 5.1 is also supported by the
-  wrappers).
+- AWS CLI 2.32 or later;
+- PowerShell 7.4 or later for the two setup entry points;
+- the bootstrap-created administrator operator in a dedicated lab account.
 
 Verify credentials before deploying:
 
@@ -32,8 +37,25 @@ aws sts get-caller-identity --profile <profile>
 .\cloud\aws\Deploy-Lab.ps1 `
     -AwsProfile <profile> `
     -Region eu-west-1 `
-    -Owner <name>
+    -Owner <name> `
+    -ExpectedAccountId <12-digit-account-id> `
+    -AlertEmail <email>
 ```
+
+This only plans. Add `-Apply` after reviewing the plan and cost to create a fresh
+plan and confirm deployment. `-OperatorLogin` prepares the refreshable operator
+profile automatically; it refuses conflicting local profile configuration.
+The default profile is `tinyevents-lab`. All cloud wrappers also accept
+`-AwsProfile ''` for temporary environment credentials. Clear bootstrap
+credentials before switching to a named profile; the scripts reject mixed modes.
+
+Only the expected `tinyevents-lab-operator` identity may deploy. Terraform also
+guards the account ID. If the regional Standard On-Demand quota is below 8 vCPU,
+the script targets only the quota resource as an explicit prerequisite stage;
+it does not plan or apply a VM until a later run observes AWS approval. A larger
+existing quota is preserved. Terraform owns the VM role/profile and an
+account-wide monthly budget with 50/80/100% alerts, defaulting to 50 USD. Budget
+alerts are not a cap; the operator remains an account-wide administrator.
 
 The default instance is `m7i.2xlarge` with an encrypted 150 GB gp3 root volume.
 The instance receives an expiry 30 hours after deployment unless a shorter
@@ -153,9 +175,32 @@ before then; a non-empty bucket's delete protection does not disable retention.
 From the repository root, with Docker available:
 
 ```powershell
+docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-AccountBootstrap.ps1
 docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 bash /repo/cloud/aws/tests/Test-EvidenceLifecycle.sh
 docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" mcr.microsoft.com/dotnet/sdk:8.0 pwsh -NoProfile -File /repo/cloud/aws/tests/Test-EvidenceLayout.ps1
 ```
+
+With provider plugins already installed by `terraform init`, Terraform 1.7+
+also supports the provider-mocked foundation tests (validated with 1.9.8):
+
+```powershell
+docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" hashicorp/terraform:1.9.8 -chdir=/repo/cloud/aws/terraform validate
+docker run --rm --network none --mount "type=bind,source=$($PWD.Path),target=/repo,readonly" hashicorp/terraform:1.9.8 -chdir=/repo/cloud/aws/terraform test
+```
+
+The container needs Linux provider binaries in `.terraform/`; Windows-native
+provider installations are not interchangeable. The four tests use mock AWS and
+random providers, including a mock apply/teardown to resolve computed values;
+they do not create AWS resources. They cover the budget, runtime profile,
+evidence protection, quota precondition, account validation, and expired input.
+
+The bootstrap suite doubles AWS and Terraform processes with fake credentials
+and disposable state. It checks IAM-only bootstrap, password redaction/private
+temporary input cleanup, safe retry after partial failure, identity/profile
+guards, explicit plan/apply, quota-only staging, and teardown. It does not prove
+real IAM authorization, browser login/MFA compatibility, Windows ACL behavior,
+or quota approval. Those remain live validation items. Do not remove the MFA
+guard to work around a failed preflight.
 
 The lifecycle test doubles AWS, systemd, logging, and shutdown commands. It checks
 success, failed/hung uploads, lock contention, unexpired/expired hosts, and local
@@ -250,7 +295,7 @@ Download evidence before destruction. A populated results bucket is protected
 by default:
 
 ```powershell
-.\cloud\aws\Destroy-Lab.ps1 -AwsProfile <profile>
+.\cloud\aws\Destroy-Lab.ps1 -AwsProfile <profile> -ExpectedAccountId <12-digit-account-id>
 ```
 
 To deliberately allow Terraform to remove objects in the results bucket:
@@ -258,8 +303,23 @@ To deliberately allow Terraform to remove objects in the results bucket:
 ```powershell
 .\cloud\aws\Destroy-Lab.ps1 `
     -AwsProfile <profile> `
+    -ExpectedAccountId <12-digit-account-id> `
     -DeleteResults
 ```
+
+Destruction requires confirmation and verifies credentials against the account
+stored in Terraform outputs. `-WhatIf` does not destroy anything. `-DeleteResults`
+first persists the bucket's `force_destroy` setting through a targeted Terraform
+apply, then destroys the lab. Without it, a non-empty bucket can leave a partial
+teardown; retain state and retry after handling the evidence. Expired labs remain
+eligible for teardown. The bootstrap operator is outside Terraform and survives;
+the lab budget and runtime IAM role/profile do not. Approved quota increases are
+not revoked by destruction.
+
+If using state from an earlier revision without account/budget outputs, review
+and apply a migration plan with `Deploy-Lab.ps1` before using the new teardown
+wrapper, or use the original revision's teardown. Do not delete state to bypass
+the account guard. Bootstrap passwords and keys are never Terraform inputs.
 
 ## Terraform directly
 

@@ -20,9 +20,26 @@ output "expires_at" {
 
 output "ami_id" {
   description = "Resolved Ubuntu 24.04 AMI."
-  value       = data.aws_ssm_parameter.ubuntu_amd64.value
+  # This fixed Canonical public parameter contains an AMI ID, not a secret.
+  value = nonsensitive(data.aws_ssm_parameter.ubuntu_amd64.value)
 }
 
 output "aws_region" {
   value = var.aws_region
+}
+
+output "account_id" {
+  value = var.expected_account_id
+}
+
+output "alert_email" {
+  value = var.alert_email
+}
+
+output "monthly_budget_usd" {
+  value = var.monthly_budget_usd
+}
+
+output "standard_vcpu_quota" {
+  value = var.standard_vcpu_quota
 }

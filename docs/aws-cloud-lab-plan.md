@@ -93,6 +93,12 @@ Acceptance:
 
 ### Slice 1 - Disposable AWS Foundation
 
+Account setup has two blocks: `Bootstrap-Account.ps1` uses explicit environment
+credentials to create only the administrator operator and its login/MFA policy;
+`Deploy-Lab.ps1` uses that operator and Terraform for all lab infrastructure,
+the cost budget, and any prerequisite EC2 quota request. The first block does
+not use Terraform or CloudFormation. See the [two-block quickstart](aws-account-setup.md).
+
 Create Terraform for the VPC, subnet, routing, security group, IAM instance
 profile, EC2 instance, encrypted gp3 volume, S3 evidence bucket, and SSM access.
 Add PowerShell entry points for deployment, status, Grafana tunneling, result
@@ -280,11 +286,12 @@ values explicitly separate from guarantees. At minimum document:
 The intended operator flow is:
 
 ```powershell
-.\cloud\aws\Deploy-Lab.ps1 -Region eu-west-1
+.\cloud\aws\Deploy-Lab.ps1 -Region eu-west-1 -Owner <name> -ExpectedAccountId <account-id> -AlertEmail <email>
+# Review the plan, then rerun with -Apply and confirm before continuing.
 .\cloud\aws\Get-LabStatus.ps1
 .\cloud\aws\Start-Experiment.ps1 -Scenario worker-scaling
 .\cloud\aws\Get-Results.ps1 -OutputDirectory .\artifacts\cloud
-.\cloud\aws\Destroy-Lab.ps1
+.\cloud\aws\Destroy-Lab.ps1 -ExpectedAccountId <account-id>
 ```
 
 The AWS profile and candidate Git revisions are explicit inputs. Long-running
@@ -303,7 +310,9 @@ it is not intended to run continuously.
 
 - Slice 0: documented.
 - Slice 1: foundation scripts and Terraform implemented and locally validated;
-  an AWS deployment is still required for acceptance.
+  two-block account setup, preview/apply separation, and quota-only staging have
+  offline command-double coverage. Browser login/MFA compatibility and an AWS
+  deployment are still required for acceptance.
 - Slice 2: host prerequisites and exact clean-commit source staging implemented;
   PostgreSQL, the first bounded monitoring stack, remote build, and smoke runner
   are implemented but still require their first AWS execution for acceptance.

@@ -1,11 +1,12 @@
 [CmdletBinding()]
 param(
-    [string]$AwsProfile = "default"
+    [AllowEmptyString()][string]$AwsProfile = "tinyevents-lab"
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "Common.ps1")
+$profileArguments = @(Get-AwsProfileArguments $AwsProfile)
 
 $output = Get-LabTerraformOutput
 $region = $output.aws_region.value
@@ -21,7 +22,7 @@ try {
     } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $parametersPath
 
     $commandId = & aws ssm send-command `
-        --profile $AwsProfile `
+        @profileArguments `
         --region $region `
         --instance-ids $instanceId `
         --document-name "AWS-RunShellScript" `
@@ -33,7 +34,7 @@ try {
     }
 
     & aws ssm wait command-executed `
-        --profile $AwsProfile `
+        @profileArguments `
         --region $region `
         --command-id $commandId.Trim() `
         --instance-id $instanceId
@@ -42,7 +43,7 @@ try {
     }
 
     & aws ssm get-command-invocation `
-        --profile $AwsProfile `
+        @profileArguments `
         --region $region `
         --command-id $commandId.Trim() `
         --instance-id $instanceId `

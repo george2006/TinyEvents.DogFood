@@ -1,11 +1,12 @@
 [CmdletBinding()]
 param(
-    [string]$AwsProfile = "default"
+    [AllowEmptyString()][string]$AwsProfile = "tinyevents-lab"
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "Common.ps1")
+$profileArguments = @(Get-AwsProfileArguments $AwsProfile)
 
 Assert-CommandAvailable "git"
 $output = Get-LabTerraformOutput
@@ -58,7 +59,7 @@ try {
         $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash
         $key = "sources/$commit/$($repository.Name).zip"
         & aws s3 cp $archive "s3://$bucket/$key" `
-            --profile $AwsProfile `
+            @profileArguments `
             --region $region `
             --only-show-errors
 
@@ -82,7 +83,7 @@ try {
     $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestPath
 
     & aws s3 cp $manifestPath "s3://$bucket/sources/source-manifest.json" `
-        --profile $AwsProfile `
+        @profileArguments `
         --region $region `
         --only-show-errors
 

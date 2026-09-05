@@ -56,6 +56,42 @@ The beta deliberately retains these boundaries:
 The complete guarantees, non-guarantees, and operator responsibilities are in
 [V1 product findings](v1-product-findings.md).
 
+## Active V1 Operational Evidence - AWS Laboratory
+
+The [AWS cloud laboratory plan](aws-cloud-lab-plan.md) tracks the delivery
+slices for a disposable, single-instance lab. The [operator guide](../cloud/aws/README.md)
+describes the implemented commands, evidence layout, and validation boundaries.
+This work extends the completed beta evidence; it does not reopen its behavioral
+contracts.
+
+Infrastructure scripts, runtime and database sampling, organized evidence
+uploads, and a sustained mixed-workload runner are implemented. Short local
+Linux/PostgreSQL integration tests passed with 2 and 8 workers and real .NET
+runtime collectors. These runs validate the test machinery, not long-term memory
+stability or a recommended worker limit. AWS end-to-end validation has not run.
+
+Setup preparation now has two entry points: environment credentials create
+only the operator; Terraform creates the laboratory and cost alerts. See the
+[two-block quickstart](aws-account-setup.md). Offline tests are preparation
+evidence, not AWS acceptance.
+
+Remaining work and acceptance evidence:
+
+- [x] Prepare the two-block setup scripts and short guide with offline tests.
+- [ ] Validate deployment, SSM access, experiment execution, evidence recovery,
+  expiry, and teardown in an explicitly authorized AWS account.
+- [ ] Run the two-hour instrumentation check and 24-hour memory/mixed-load soaks;
+  investigate retained growth after warm-up before drawing leak conclusions.
+- [ ] Execute repeated worker and batch scaling measurements, including database
+  pressure, and close the missing settlement-latency decision input.
+- [ ] Complete monitoring-overhead measurements, Grafana dashboards, bounded
+  automatic leak diagnostics, and the independent account-side expiry safeguard.
+- [ ] Publish retained results and evidence-backed V1 starting defaults, with
+  environment-specific limits and remaining uncertainty stated explicitly.
+
+The detailed plan owns slice scope; this checklist tracks outstanding acceptance
+work. Implemented scripts alone do not close a cloud-evidence item.
+
 ## Beyond the Beta
 
 Future work must be justified by observable product evidence. Current areas to
@@ -65,8 +101,8 @@ investigate are:
   `ClaimTimeout` safely;
 - failed-message retention and operational recovery workflows;
 - automated release-gate execution with externally retained artifacts;
-- longer resource profiles for CPU, managed allocations, garbage collection,
-  working set, and connection-pool stability;
+- resource-profile extensions beyond the active AWS laboratory scope;
 - additional providers only when they can meet the same behavioral contract.
 
-These are not missing beta guarantees. They are candidates for later versions.
+These are not missing beta guarantees. They remain future candidates, separate
+from the active V1 operational-evidence work above.

@@ -1,11 +1,12 @@
 [CmdletBinding()]
 param(
-    [string]$AwsProfile = "default"
+    [AllowEmptyString()][string]$AwsProfile = "tinyevents-lab"
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "Common.ps1")
+$profileArguments = @(Get-AwsProfileArguments $AwsProfile)
 
 $output = Get-LabTerraformOutput
 $instanceId = $output.instance_id.value
@@ -13,7 +14,7 @@ $region = $output.aws_region.value
 Assert-AwsIdentity $AwsProfile $region | Out-Null
 
 $instance = & aws ec2 describe-instances `
-    --profile $AwsProfile `
+    @profileArguments `
     --region $region `
     --instance-ids $instanceId `
     --query "Reservations[0].Instances[0].{State:State.Name,Type:InstanceType,PrivateIp:PrivateIpAddress,PublicIp:PublicIpAddress,LaunchTime:LaunchTime}" `
@@ -24,7 +25,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $ssm = & aws ssm describe-instance-information `
-    --profile $AwsProfile `
+    @profileArguments `
     --region $region `
     --filters "Key=InstanceIds,Values=$instanceId" `
     --query "InstanceInformationList[0].{PingStatus:PingStatus,Platform:PlatformName,AgentVersion:AgentVersion}" `
@@ -39,7 +40,7 @@ $bootstrapStatus = $null
 
 if ($null -ne $ssmValue -and $ssmValue.PingStatus -eq "Online") {
     $commandId = & aws ssm send-command `
-        --profile $AwsProfile `
+        @profileArguments `
         --region $region `
         --instance-ids $instanceId `
         --document-name "AWS-RunShellScript" `
@@ -49,14 +50,14 @@ if ($null -ne $ssmValue -and $ssmValue.PingStatus -eq "Online") {
 
     if ($LASTEXITCODE -eq 0) {
         & aws ssm wait command-executed `
-            --profile $AwsProfile `
+            @profileArguments `
             --region $region `
             --command-id $commandId.Trim() `
             --instance-id $instanceId
 
         if ($LASTEXITCODE -eq 0) {
             $bootstrapStatus = (& aws ssm get-command-invocation `
-                --profile $AwsProfile `
+                @profileArguments `
                 --region $region `
                 --command-id $commandId.Trim() `
                 --instance-id $instanceId `

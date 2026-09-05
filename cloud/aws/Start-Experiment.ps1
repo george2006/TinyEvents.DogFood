@@ -1,12 +1,13 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidatePattern("^[a-z0-9][a-z0-9-]{1,62}$")][string]$Scenario,
-    [string]$AwsProfile = "default"
+    [AllowEmptyString()][string]$AwsProfile = "tinyevents-lab"
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot "Common.ps1")
+$profileArguments = @(Get-AwsProfileArguments $AwsProfile)
 
 $localScenario = Join-Path $PSScriptRoot "scenarios/$Scenario.json"
 if (!(Test-Path -LiteralPath $localScenario)) {
@@ -22,7 +23,7 @@ $instanceId = $output.instance_id.value
 Assert-AwsIdentity $AwsProfile $region | Out-Null
 
 & aws s3 cp $localScenario "s3://$bucket/scenarios/$Scenario.json" `
-    --profile $AwsProfile `
+    @profileArguments `
     --region $region `
     --only-show-errors
 if ($LASTEXITCODE -ne 0) {
@@ -42,7 +43,7 @@ $parametersPath = Join-Path ([IO.Path]::GetTempPath()) "tinyevents-start-$([Guid
 try {
     @{ commands = @($command) } | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath $parametersPath
     $commandId = & aws ssm send-command `
-        --profile $AwsProfile `
+        @profileArguments `
         --region $region `
         --instance-ids $instanceId `
         --document-name "AWS-RunShellScript" `

@@ -91,6 +91,17 @@ resource "aws_iam_role" "lab" {
   })
 }
 
+data "aws_servicequotas_service_quota" "standard_ec2" {
+  service_code = "ec2"
+  quota_code   = "L-1216C47A"
+}
+
+resource "aws_servicequotas_service_quota" "standard_ec2" {
+  service_code = "ec2"
+  quota_code   = "L-1216C47A"
+  value        = var.standard_vcpu_quota
+}
+
 resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.lab.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -149,19 +160,31 @@ resource "aws_iam_role_policy" "results" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect = "Allow"
-      Action = [
-        "s3:AbortMultipartUpload",
-        "s3:GetObject",
-        "s3:ListBucket",
-        "s3:PutObject"
-      ]
-      Resource = [
-        aws_s3_bucket.results.arn,
-        "${aws_s3_bucket.results.arn}/*"
-      ]
+      Effect   = "Allow"
+      Action   = ["s3:AbortMultipartUpload", "s3:GetObject", "s3:ListBucket", "s3:PutObject"]
+      Resource = [aws_s3_bucket.results.arn, "${aws_s3_bucket.results.arn}/*"]
     }]
   })
+}
+
+# One account-wide cost budget per lab state. It is an alert, not a hard cap.
+resource "aws_budgets_budget" "lab" {
+  name         = "${local.name}-monthly"
+  budget_type  = "COST"
+  time_unit    = "MONTHLY"
+  limit_amount = tostring(var.monthly_budget_usd)
+  limit_unit   = "USD"
+
+  dynamic "notification" {
+    for_each = [50, 80, 100]
+    content {
+      comparison_operator        = "GREATER_THAN"
+      threshold                  = notification.value
+      threshold_type             = "PERCENTAGE"
+      notification_type          = "ACTUAL"
+      subscriber_email_addresses = [var.alert_email]
+    }
+  }
 }
 
 resource "aws_instance" "lab" {
@@ -172,6 +195,13 @@ resource "aws_instance" "lab" {
   iam_instance_profile        = aws_iam_instance_profile.lab.name
   associate_public_ip_address = true
   monitoring                  = false
+
+  lifecycle {
+    precondition {
+      condition     = data.aws_servicequotas_service_quota.standard_ec2.value >= 8
+      error_message = "AWS must approve at least 8 Standard On-Demand vCPU before creating the lab."
+    }
+  }
 
   metadata_options {
     http_endpoint = "enabled"
@@ -195,10 +225,7 @@ resource "aws_instance" "lab" {
 
   user_data_replace_on_change = true
 
-  depends_on = [
-    aws_iam_role_policy_attachment.ssm,
-    aws_iam_role_policy.results
-  ]
+  depends_on = [aws_iam_role_policy_attachment.ssm, aws_iam_role_policy.results, aws_budgets_budget.lab]
 
   tags = { Name = local.name }
 }

@@ -7,3 +7,9 @@ cloud/aws/terraform/.terraform/
 cloud/aws/terraform/*.tfstate
 cloud/aws/terraform/*.tfstate.*
 cloud/aws/terraform/*.tfplan
+cloud/aws/terraform/*.tfvars
+cloud/aws/terraform/*.tfvars.json
+cloud/aws/terraform/crash*.log
+.env
+.env.*
+!.env.example
